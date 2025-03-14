@@ -8,3 +8,5 @@ spec:
   url: https://github.com/KuiprLab/app-hello-world.git
   ref:
     branch: main
+  secretRef:
+    name: git-auth
