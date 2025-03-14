@@ -20,7 +20,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./clusters/my-cluster
+  path: ./clusters/hl-sol-c1
   prune: true
   sourceRef:
     kind: GitRepository

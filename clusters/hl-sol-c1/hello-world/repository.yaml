@@ -4,7 +4,7 @@ metadata:
   name: hello-world
   namespace: flux-system
 spec:
-  interval: 1m
+  interval: 10m
   url: https://github.com/KuiprLab/app-hello-world.git
   ref:
     branch: main

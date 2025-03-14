@@ -1,0 +1,84 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:base",
+        ":disableRateLimiting",
+        ":dependencyDashboard",
+        ":semanticCommits",
+        ":enablePreCommit",
+        ":automergeDigest",
+        ":automergeBranch",
+        "docker:enableMajor",
+        "helpers:pinGitHubActionDigests"
+    ],
+    "platform": "github",
+    "onboarding": true,
+    "requireConfig": "optional",
+    "dependencyDashboardTitle": "Automated Dependency Updates",
+    "kubernetes": {
+        "fileMatch": [
+            "\\.yaml$",
+            "\\.yml$"
+        ]
+    },
+    "helm-values": {
+        "fileMatch": [
+            "clusters/.+/.*\\.yaml$"
+        ]
+    },
+    "flux": {
+        "fileMatch": [
+            "clusters/.+/.*\\.yaml$"
+        ]
+    },
+    "talos": {
+        "fileMatch": [
+            "talos/.+\\.yaml$"
+        ]
+    },
+    "regexManagers": [
+        {
+            "fileMatch": [
+                ".*\\.yaml$"
+            ],
+            "matchStrings": [
+                "chart: {\\s*name: (?<depName>.*?),\\s*version: (?<currentValue>.*?)\\s*}"
+            ],
+            "datasourceTemplate": "helm"
+        },
+        {
+            "fileMatch": [
+                ".*\\.yaml$"
+            ],
+            "matchStrings": [
+                "image: (?<depName>.*?):(?<currentValue>.*?)@(?<currentDigest>sha256:[a-f0-9]+)"
+            ],
+            "datasourceTemplate": "docker"
+        }
+    ],
+    "packageRules": [
+        {
+            "matchUpdateTypes": ["minor", "patch"],
+            "matchPackagePatterns": ["^ghcr.io/fluxcd/"],
+            "automerge": true
+        },
+        {
+            "matchPackagePatterns": ["^ghcr.io/talos"],
+            "groupName": "Talos dependencies"
+        },
+        {
+            "matchDatasources": ["helm"],
+            "matchPackageNames": ["longhorn"],
+            "schedule": ["every weekend"]
+        },
+        {
+            "matchDatasources": ["helm"],
+            "enabled": true
+        },
+        {
+            "matchUpdateTypes": ["major"],
+            "dependencyDashboardApproval": true
+        }
+    ],
+    "commitMessagePrefix": "chore(deps):"
+}
