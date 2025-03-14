@@ -6,3 +6,4 @@ metadata:
     name: longhorn-system
     app: longhorn
     kubernetes.io/managed-by: flux
+    pod-security.kubernetes.io/enforce: privileged
