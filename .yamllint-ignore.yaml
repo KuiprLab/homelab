@@ -1,0 +1,3 @@
+---
+ignore:
+  - "clusters/hl-sol-c1/flux-system/gotk-components.yaml"
