@@ -1,0 +1,23 @@
+---
+extends: default
+
+rules:
+  # 80 chars should be enough, but don't fail if a line is longer
+  line-length:
+    max: 120
+    level: warning
+
+  # accept both     key:
+  #                   - item
+  # and
+  #                 key:
+  #                 - item
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+  # don't require document start marker ---
+  document-start: disable
+
+  # don't warn if truthy values used are not quoted
+  truthy: disable
