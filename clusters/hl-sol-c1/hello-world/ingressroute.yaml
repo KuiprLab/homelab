@@ -8,7 +8,7 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`hello-world.example.com`)
+    - match: Host(`hello-world.k8s.kuipr.de`)
       kind: Rule
       services:
         - name: hello-world
