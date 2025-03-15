@@ -41,15 +41,17 @@ spec:
         expose: true
         protocol: TCP
     
-    # Enable middleware to handle domain redirects and common patterns
+    # Configure settings for Traefik
     additionalArguments:
+      - "--api.dashboard=true"
       - "--certificatesresolvers.letsencrypt.acme.email=your-email@example.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--providers.kubernetescrd.allowcrossnamespace=true"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # Comment out automatic redirection to allow HTTP access during initial setup
+      # - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      # - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       
     # Service configuration
     service:
