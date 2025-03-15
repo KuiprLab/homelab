@@ -12,3 +12,5 @@ spec:
     name: flux-system
   targetNamespace: metallb-system
   wait: true
+  dependsOn:
+    - name: flux-system
