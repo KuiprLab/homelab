@@ -1,2 +1,25 @@
 {
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "baseBranches": ["dev"],
+    "kubernetes": {
+        "fileMatch": [".*\\.yaml$"]
+    },
+    "flux": {
+        "fileMatch": [".*\\.yaml$"]
+    },
+    "helm-values": {
+        "fileMatch": [".*\\.yaml$"]
+    },
+    "helmv3": {
+        "fileMatch": [".*\\.yaml$"]
+    },
+    "regexManagers": [
+        {
+            "fileMatch": [".*\\.yaml$"],
+            "matchStrings": [
+                "repository: (?<depName>.*?)\n\\s+tag: (?<currentValue>.*?)\\s"
+            ],
+            "datasourceTemplate": "docker"
+        }
+    ]
 }
