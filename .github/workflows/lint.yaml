@@ -11,7 +11,7 @@ jobs:
     name: Flux Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install Flux CLI
         uses: fluxcd/flux2/action@main
@@ -34,7 +34,7 @@ jobs:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Set up Helm
         uses: azure/setup-helm@v3
@@ -54,7 +54,7 @@ jobs:
     name: Kubeval
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install kubeval
         run: |
