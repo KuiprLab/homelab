@@ -13,6 +13,9 @@ spec:
         kind: GitRepository
         name: hello-world
         namespace: flux-system
+      dependsOn:
+        - name: 1pass-operator
+          namespace: 1password
   values:
     replicaCount: 2
     service:
