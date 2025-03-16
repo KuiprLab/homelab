@@ -25,7 +25,7 @@ jobs:
         run: ./scripts/validate.sh
 
   diff:
-    runs-on: self-hosted-ubuntu-24.10
+    runs-on: self-hosted
     strategy:
       matrix:
         # environment: [dev, live]
@@ -107,7 +107,7 @@ jobs:
         run: echo "Clear for takeoff 🚀"
 
   deploy:
-    runs-on: self-hosted-ubuntu-24.10
+    runs-on: self-hosted
     needs:
       - takeoff-clearance
     if: ${{ github.event_name == 'push' }}
