@@ -1,0 +1,138 @@
+name: Test, Diff and Deploy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup yq
+        uses: fluxcd/pkg/actions/yq@main
+      - name: Setup kubeconform
+        uses: fluxcd/pkg/actions/kubeconform@main
+      - name: Setup kustomize
+        uses: fluxcd/pkg/actions/kustomize@main
+      - name: Validate manifests
+        run: ./scripts/validate.sh
+
+  diff:
+    runs-on: self-hosted-ubuntu-24.10
+    strategy:
+      matrix:
+        # environment: [dev, live]
+        environment: [dev]
+        include:
+          - environment: dev
+            kubeconfig: KUBE_CONFIG_DEV
+            path_suffix: dev
+          # - environment: live
+          #   kubeconfig: KUBE_CONFIG_LIVE
+          #   path_suffix: live
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets[matrix.kubeconfig] }}
+      - name: Run Flux Diffs for ${{ matrix.environment }}
+        run: |
+          echo "===== Diff for flux-system in clusters ====="
+          diff="$( unbuffer flux diff kustomization flux-system --path clusters --progress-bar=false)" || true
+          echo "$diff"
+
+          echo "===== Diff for infrastructure in ${{ matrix.environment }} ====="
+          diff="$( unbuffer flux diff kustomization infrastructure --path infra/${{ matrix.path_suffix }} --progress-bar=false)" || true
+          echo "$diff"
+
+          echo "===== Diff for deployments in ${{ matrix.environment }} ====="
+          diff="$( unbuffer flux diff kustomization deployments --path deploy/${{ matrix.path_suffix }} --progress-bar=false)" || true
+          echo "$diff"
+
+  setup-matrix:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Get branch name
+        id: branch
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix based on branch
+        id: set-matrix
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+
+          if [[ "$BRANCH" == "main" ]]; then
+            # On main branch, deploy to live
+            echo "matrix={\"environment\":[\"live\"],\"include\":[{\"environment\":\"live\",\"kubeconfig\":\"KUBE_CONFIG_LIVE\",\"path_suffix\":\"live\"}]}" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "dev" ]] || [[ "$BRANCH" == feature/* ]]; then
+            # On dev or feature branch, deploy to dev
+            echo "matrix={\"environment\":[\"dev\"],\"include\":[{\"environment\":\"dev\",\"kubeconfig\":\"KUBE_CONFIG_DEV\",\"path_suffix\":\"dev\"}]}" >> $GITHUB_OUTPUT
+          else
+            # On other branches, don't deploy anywhere (empty matrix)
+            echo "matrix={\"environment\":[],\"include\":[]}" >> $GITHUB_OUTPUT
+          fi
+
+  # This job checks if a deploy is needed and cancels any ongoing deploys
+  takeoff-clearance:
+    runs-on: ubuntu-latest
+    needs:
+      - setup-matrix
+      - validate
+      - diff
+    if: ${{ github.event_name == 'push' && fromJson(needs.setup-matrix.outputs.matrix).environment[0] }}
+    concurrency:
+      group: takeoff-clearance
+      cancel-in-progress: true
+    outputs:
+      matrix: ${{ needs.setup-matrix.outputs.matrix }}
+    steps:
+      - name: Clear for takeoff
+        run: echo "Clear for takeoff 🚀"
+
+  deploy:
+    runs-on: self-hosted-ubuntu-24.10
+    needs:
+      - takeoff-clearance
+    if: ${{ github.event_name == 'push' }}
+    strategy:
+      matrix: ${{fromJson(needs.takeoff-clearance.outputs.matrix)}}
+    concurrency:
+      group: takeoff-clearance
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets[matrix.kubeconfig] }}
+      - name: Run Flux Reconciliation for ${{ matrix.environment }}
+        run: |
+          echo "===== Reconciliation for flux-system in ${{ matrix.environment }} ====="
+          flux reconcile kustomization flux-system --with-source
+          echo "===== Reconciliation for infrastructure in ${{ matrix.environment }} ====="
+          flux reconcile kustomization infrastructure --with-source
+          echo "===== Reconciliation for deployments in ${{ matrix.environment }} ====="
+          flux reconcile kustomization deployments --with-source || true
