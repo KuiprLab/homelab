@@ -17,3 +17,6 @@ spec:
     replicaCount: 2
     service:
       type: ClusterIP
+  dependsOn:
+    - name: 1pass-operator
+      namespace: 1password
