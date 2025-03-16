@@ -4,3 +4,5 @@ resources:
 - gotk-components.yaml
 - gotk-sync.yaml
 - alerting
+- metallb.yaml
+- 1password.yaml
