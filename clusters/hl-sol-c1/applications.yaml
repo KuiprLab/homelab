@@ -9,6 +9,6 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./applications
+  path: ./clusters/hl-sol-c1/apps
   dependsOn:
     - name: secrets
