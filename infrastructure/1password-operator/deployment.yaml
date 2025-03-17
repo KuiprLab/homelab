@@ -25,14 +25,6 @@ spec:
   values:
     connect:
       credentialsName: 1pass-connect
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532 
-        runAsGroup: 65532
-        capabilities:
-         drop: ["ALL"]
-        seccompProfile:
-         type: "RuntimeDefault"
     operator:
       create: true
       pollingInterval: 300
