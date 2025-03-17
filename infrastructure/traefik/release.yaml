@@ -33,12 +33,14 @@ spec:
       web:
         port: 80
         exposedPort: 80
-        expose: true
+        # Change from boolean to object structure
+        expose: {}
         protocol: TCP
       websecure:
         port: 443
         exposedPort: 443
-        expose: true
+        # Change from boolean to object structure
+        expose: {}
         protocol: TCP
     
     # Configure settings for Traefik
