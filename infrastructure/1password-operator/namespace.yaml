@@ -5,3 +5,4 @@ metadata:
   labels:
     name: 1password
     kubernetes.io/managed-by: flux
+    pod-security.kubernetes.io/enforce: privileged
