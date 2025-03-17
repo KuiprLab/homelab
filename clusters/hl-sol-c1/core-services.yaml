@@ -1,14 +1,14 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: metallb
+  name: core-services
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./clusters/hl-sol-c1/infrastructure/metallb
   prune: true
   sourceRef:
     kind: GitRepository
     name: flux-system
-  targetNamespace: metallb-system
-  wait: true
+  path: ./core
+  dependsOn:
+    - name: flux-system
