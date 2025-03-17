@@ -1,0 +1,90 @@
+name: Validate and Protect Flux Resources
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  validate:
+    name: Validate Kubernetes Resources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+        
+      - name: Setup yq
+        uses: fluxcd/pkg/actions/yq@main
+        
+      - name: Setup kubeconform
+        uses: fluxcd/pkg/actions/kubeconform@main
+        
+      - name: Setup kustomize
+        uses: fluxcd/pkg/actions/kustomize@main
+      
+      - name: Download 1Password CRDs
+        run: |
+          # Create directory for 1Password CRDs
+          mkdir -p /tmp/1password-crd-schemas
+          
+          # Download 1Password CRDs
+          curl -sL https://raw.githubusercontent.com/1Password/onepassword-operator/main/config/crd/bases/onepassword.com_onepassworditem.yaml -o /tmp/1password-crd-schemas/onepassword_crd.yaml
+      
+      - name: Run validation script
+        run: |
+          chmod +x ./scripts/validate.sh
+          ./scripts/validate.sh
+      
+      - name: Validate dependencies
+        run: |
+          # Check that OnePasswordItem resources depend on 1Password CRDs
+          echo "Verifying dependencies..."
+          
+          # Find all OnePasswordItem resources
+          onepassword_items=$(find . -type f -name "*.yaml" -exec grep -l "kind: OnePasswordItem" {} \;)
+          
+          if [ -n "$onepassword_items" ]; then
+            echo "Found OnePasswordItem resources:"
+            echo "$onepassword_items"
+            
+            # Check if we have a proper dependency structure
+            for item in $onepassword_items; do
+              echo "Checking dependency for: $item"
+              
+              # Get the containing directory
+              item_dir=$(dirname "$item")
+              
+              # Check if it's in an apps directory
+              if [[ "$item_dir" == *"/apps/"* ]]; then
+                # Extract cluster name
+                cluster=$(echo "$item_dir" | sed -E 's|.*/clusters/([^/]+)/apps/.*|\1|')
+                
+                if [ -n "$cluster" ]; then
+                  echo "Resource belongs to cluster: $cluster"
+                  
+                  # Check if applications.yaml depends on secrets
+                  if [ -f "./clusters/$cluster/applications.yaml" ]; then
+                    if grep -q "dependsOn:" "./clusters/$cluster/applications.yaml" && grep -q "name: secrets" -A3 "./clusters/$cluster/applications.yaml"; then
+                      echo "✅ Dependency check passed: applications.yaml depends on secrets"
+                    else
+                      echo "❌ Dependency check failed: applications.yaml doesn't properly depend on secrets"
+                      echo "::error file=$item::OnePasswordItem resources must be deployed after 1Password operator by ensuring proper dependencies"
+                      exit 1
+                    fi
+                  else
+                    echo "❌ applications.yaml not found for cluster $cluster"
+                    echo "::error file=$item::Could not verify dependency chain for OnePasswordItem resource"
+                    exit 1
+                  fi
+                fi
+              fi
+            done
+          else
+            echo "No OnePasswordItem resources found, skipping dependency check."
+          fi
+          
+          echo "All validation checks passed!"
