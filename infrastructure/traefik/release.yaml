@@ -39,7 +39,7 @@ spec:
     # Configure settings for Traefik
     additionalArguments:
       - "--api.dashboard=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=your-email@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.email=daniel.imama02@example.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
@@ -82,7 +82,7 @@ spec:
     securityContext:
       capabilities:
         drop: [ALL]
-      readOnlyRootFilesystem: true
+      readOnlyRootFilesystem: false
       runAsGroup: 65532
       runAsNonRoot: true
       runAsUser: 65532
