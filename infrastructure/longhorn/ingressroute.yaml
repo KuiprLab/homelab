@@ -11,5 +11,5 @@ spec:
     - match: Host(`longhorn.k8s.kuipr.de`)
       kind: Rule
       services:
-        - name: longhorn
+        - name: longhorn-ui
           port: 80
