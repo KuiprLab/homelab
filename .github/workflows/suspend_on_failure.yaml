@@ -58,7 +58,19 @@ jobs:
             # Create PR notification using GitHub CLI
             gh pr create \
               --title "⚠️ Emergency suspension of Flux reconciliation" \
-              --body "## Validation Failure Detected\n\nThis PR was automatically created because the validation workflow failed on commit ${GITHUB_SHA}.\nTo prevent invalid resources from being applied to your cluster, Flux reconciliation markers have been added to suspend the affected kustomizations.\n\n## Next Steps\n1. Review the validation errors in the workflow logs\n2. Fix the issues in a separate PR\n3. Close this PR without merging when the fixes are deployed\n\n**Do not merge this PR unless you want to temporarily suspend all Flux reconciliation.**" \
+              --body "## Validation Failure Detected
+
+          This PR was automatically created because the validation workflow failed on commit ${GITHUB_SHA}.
+
+          To prevent invalid resources from being applied to your cluster, Flux reconciliation markers have been added to suspend the affected kustomizations.
+
+          ### Next Steps
+          
+          1. Review the validation errors in the workflow logs
+          2. Fix the issues in a separate PR
+          3. Close this PR without merging when the fixes are deployed
+
+          **Do not merge this PR unless you want to temporarily suspend all Flux reconciliation.**" \
               --base "${GITHUB_REF#refs/heads/}" \
               --head "$BRANCH_NAME"
           fi
