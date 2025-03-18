@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: robusta
-      version: "1.0.0"  # You may adjust this version as needed
+      version: "0.21.5"
       sourceRef:
         kind: HelmRepository
         name: robusta-helm-repo
