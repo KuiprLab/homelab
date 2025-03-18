@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: robusta-ui
+  namespace: robusta
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`robusta.k8s.kuipr.de`)
+      kind: Rule
+      services:
+        - name: robusta-ui
+          port: 8080
