@@ -4,3 +4,4 @@ resources:
 - ingressroute.yaml
 - robusta-helm.yaml
 - robusta-release.yaml
+- namespace.yaml
