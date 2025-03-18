@@ -25,7 +25,7 @@ spec:
     holmes:
       additionalEnvVars:
       - name: ROBUSTA_AI
-        value: "true"
+        value: "false"
     runner:
       sendAdditionalTelemetry: true
     sinksConfig:
