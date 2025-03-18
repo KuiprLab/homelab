@@ -1,8 +1,9 @@
+---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: robusta-helm-repo
-  namespace: flux-system
+  name: robusta
+  namespace: robusta
 spec:
-  interval: 1h
+  interval: 1m0s
   url: https://robusta-charts.storage.googleapis.com
