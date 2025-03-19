@@ -10,7 +10,7 @@ spec:
       chart: kubewall
       version: ">=0.0.10"
       sourceRef:
-        kind: OCIRepository
+        kind: HelmRepository
         name: kubewall
         namespace: kubewall-system
   install:
@@ -19,5 +19,3 @@ spec:
   upgrade:
     remediation:
       retries: 3
-  values:
-    # Your custom values for the Helm chart go here
