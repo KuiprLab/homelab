@@ -5,6 +5,14 @@ metadata:
   namespace: traefik
 spec:
   interval: 5m
+  timeout: 10m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+    timeout: 10m
   chart:
     spec:
       chart: traefik
