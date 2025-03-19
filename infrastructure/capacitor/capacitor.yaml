@@ -26,3 +26,8 @@ spec:
   sourceRef:
     kind: OCIRepository
     name: capacitor
+  postBuild:
+    substitute:
+      SERVICE_ANNOTATIONS: |
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+        traefik.ingress.kubernetes.io/router.rule: Host(`capacitor.k8s.kuipr.de`)

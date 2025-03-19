@@ -23,9 +23,8 @@ spec:
     remediation:
       retries: 3
   values:
-    # yaml-language-server: $schema=https://raw.githubusercontent.com/traefik/traefik-helm-chart/refs/heads/master/traefik/values.schema.json
     deployment:
-      replicas: 3
+      replicas: 1
       initContainers:
         - name: volume-permissions
           image: busybox:latest
@@ -43,31 +42,7 @@ spec:
           volumeMounts:
             - mountPath: /data
               name: traefik-data
-        - name: init-ca
-          image: ghcr.io/jhofer-cloud/jhc-ca:latest
-          command:
-            [
-              "/bin/sh",
-              "-c",
-              "cp /usr/local/share/ca-certificates/custom-ca.crt /etc/ssl/certs/custom-ca.crt && update-ca-certificates",
-            ]
-          # volumeMounts:
-          #   - name: ssl-certs
-          #     mountPath: /etc/ssl/certs
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            readOnlyRootFilesystem: false
-            runAsNonRoot: true
-            runAsUser: 65532
-      # additionalVolumes:
-      #   - name: ssl-certs
-      #     emptyDir: {}
-      # additionalVolumeMounts:
-      #   - name: ssl-certs
-      #     mountPath: /etc/ssl/certs
-      #     readOnly: false
+
     podSecurityContext:
       fsGroup: 65532
       fsGroupChangePolicy: "OnRootMismatch"
@@ -81,21 +56,6 @@ spec:
         drop: ["ALL"]
       readOnlyRootFilesystem: true
 
-    ingressRoute:
-      dashboard:
-        enabled: true
-        annotations: {}
-        labels: {}
-        entryPoints:
-          - websecure
-        middlewares:
-          - name: internal@file
-        tls:
-          certResolver: labca
-        services:
-          - name: api@internal
-            kind: TraefikService
-
     service:
       type: LoadBalancer
       spec:
@@ -104,55 +64,49 @@ spec:
     dashboard:
       enabled: true
 
-    experimental:
-      plugins: {}
-
     metrics:
-      addInternals: true
       prometheus:
-        buckets: 0.100000, 0.300000, 1.200000, 5.000000
-        addEntryPointsLabels: true
-        addServicesLabels: true
-        addRoutersLabels: true
         serviceMonitor:
           enabled: true
 
     ports:
       web:
         port: 80
-        expose:
-          default: true
+        expose: true
         exposedPort: 80
-        nodePort: 30546
         protocol: TCP
-      websecure:
-        port: 443
-        expose:
-          default: true
-        exposedPort: 443
-        nodePort: 32669
+      traefik:
+        port: 9000
+        expose: true
+        exposedPort: 9000
         protocol: TCP
-        tls:
-          enabled: true
 
     persistence:
       enabled: true
       name: traefik-data
-      accessMode: ReadWriteMany
+      accessMode: ReadWriteOnce
       size: 128Mi
       path: /data
       storageClass: longhorn
 
+    providers:
+      kubernetesCRD:
+        enabled: true
+        allowCrossNamespace: true
+      kubernetesIngress:
+        enabled: true
+        allowExternalNameServices: true
+        publishedService:
+          enabled: true
+
+    logs:
+      general:
+        level: INFO
+
     additionalArguments:
-      - --api=true
-      - --api.insecure=true
       - --api.dashboard=true
       - --providers.kubernetesIngress=true
       - --providers.kubernetesCRD=true
-      - --serverstransport.insecureskipverify=false
       - --log.level=INFO
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --serversTransport.rootCAs=/etc/ssl/certs/ca-certificates.crt
-      # - --entrypoints.web.forwardedHeaders.trustedIPs=10.2.1.16
-      # - --entrypoints.websecure.proxyProtocol.trustedIPs=10.2.1.16
+      - --entrypoints.web.address=:80
+      - --entrypoints.traefik.address=:9000

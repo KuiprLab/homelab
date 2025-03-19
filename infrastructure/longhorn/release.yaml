@@ -19,3 +19,9 @@ spec:
       defaultClassReplicaCount: 1
     defaultSettings:
       defaultReplicaCount: 1
+    service:
+      ui:
+        type: ClusterIP
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: web
+          traefik.ingress.kubernetes.io/router.rule: Host(`longhorn.k8s.kuipr.de`)
