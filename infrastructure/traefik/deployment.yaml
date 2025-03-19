@@ -90,7 +90,7 @@ spec:
       enabled: true
       name: traefik-data
       accessMode: ReadWriteMany
-      size: 1Gi
+      size: 5Gi
       path: /data
       storageClass: longhorn
 
