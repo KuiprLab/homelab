@@ -1,0 +1,9 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubewall-system
+  labels:
+    name: kubewall-system
+    kubernetes.io/managed-by: flux
+    # pod-security.kubernetes.io/enforce: privileged
