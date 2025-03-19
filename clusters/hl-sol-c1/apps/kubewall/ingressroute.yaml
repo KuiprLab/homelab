@@ -12,4 +12,4 @@ spec:
       kind: Rule
       services:
         - name: kubewall
-          port: 7080
+          port: 8443
