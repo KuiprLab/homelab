@@ -1,15 +1,23 @@
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
 metadata:
   name: kubewall
   namespace: kubewall-system
 spec:
-  targetNamespace: kubewall-system
   interval: 1h
-  retryInterval: 2m
-  timeout: 5m
-  wait: true
-  prune: true
-  sourceRef:
-    kind: OCIRepository
-    name: kubewall
+  chart:
+    spec:
+      chart: kubewall
+      version: ">=0.0.10"
+      sourceRef:
+        kind: OCIRepository
+        name: kubewall
+        namespace: kubewall-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Your custom values for the Helm chart go here
