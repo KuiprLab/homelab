@@ -154,5 +154,5 @@ spec:
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
       - --serversTransport.rootCAs=/etc/ssl/certs/ca-certificates.crt
-      - --entrypoints.web.forwardedHeaders.trustedIPs=10.2.1.16
-      - --entrypoints.websecure.proxyProtocol.trustedIPs=10.2.1.16
+      # - --entrypoints.web.forwardedHeaders.trustedIPs=10.2.1.16
+      # - --entrypoints.websecure.proxyProtocol.trustedIPs=10.2.1.16
