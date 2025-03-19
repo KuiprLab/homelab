@@ -26,10 +26,6 @@ spec:
     # yaml-language-server: $schema=https://raw.githubusercontent.com/traefik/traefik-helm-chart/refs/heads/master/traefik/values.schema.json
     deployment:
       replicas: 3
-      dnsPolicy: "None"
-      dnsConfig:
-        nameservers:
-          - 10.1.1.1
       initContainers:
         - name: volume-permissions
           image: busybox:latest
@@ -55,9 +51,9 @@ spec:
               "-c",
               "cp /usr/local/share/ca-certificates/custom-ca.crt /etc/ssl/certs/custom-ca.crt && update-ca-certificates",
             ]
-          volumeMounts:
-            - name: ssl-certs
-              mountPath: /etc/ssl/certs
+          # volumeMounts:
+          #   - name: ssl-certs
+          #     mountPath: /etc/ssl/certs
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -146,10 +142,6 @@ spec:
       size: 128Mi
       path: /data
       storageClass: longhorn
-
-    additionalVolumeMounts:
-      - name: ssl-certs
-        mountPath: /etc/ssl/certs
 
     additionalArguments:
       - --api=true
