@@ -68,24 +68,28 @@ spec:
       prometheus:
         serviceMonitor:
           enabled: true
+      port: 9100
+      protocol: TCP
 
     ports:
-       web:
-         port: 80
-         expose:
-           default: true
-         exposedPort: 80
-         nodePort: 30546
-         protocol: TCP
-       websecure:
-         port: 443
-         expose:
-           default: true
-         exposedPort: 443
-         nodePort: 32669
-         protocol: TCP
-         tls:
-           enabled: true
+      web:
+        port: 80
+        expose: true
+        protocol: TCP
+      websecure:
+        port: 443
+        expose: true
+        protocol: TCP
+        tls:
+          enabled: true
+      traefik:
+        port: 9000
+        expose: true
+        protocol: TCP
+      metrics:
+        port: 9100
+        expose: true
+        protocol: TCP
 
     persistence:
       enabled: true
@@ -114,5 +118,10 @@ spec:
       - --providers.kubernetesIngress=true
       - --providers.kubernetesCRD=true
       - --log.level=INFO
+      # Define all entrypoints explicitly
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
       - --entrypoints.traefik.address=:9000
+      - --entrypoints.metrics.address=:9100
+      # Enable TLS for websecure
+      - --entrypoints.websecure.http.tls=true
