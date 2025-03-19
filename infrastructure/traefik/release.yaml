@@ -18,7 +18,7 @@ spec:
     deployment:
       replicas: 1
     
-    # Enable dashboard but remove conflicting labels
+    # Enable dashboard with proper configuration
     ingressRoute:
       dashboard:
         enabled: true
@@ -28,22 +28,23 @@ spec:
       web:
         port: 80
         exposedPort: 80
-        expose: {}
+        expose: true
         protocol: TCP
       websecure:
         port: 443
         exposedPort: 443
-        expose: {}
+        expose: true
         protocol: TCP
-      dashbaord:
-        port: 8080
-        exposedPort: 8080
-        expose: {}
+      dashboard:
+        port: 9000
+        exposedPort: 9000
+        expose: true
         protocol: TCP
     
     # Configure settings for Traefik
     additionalArguments:
       - "--api.dashboard=true"
+      - "--api.insecure=true"  # Allows accessing dashboard without authentication
       - "--certificatesresolvers.letsencrypt.acme.email=daniel.imama02@example.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
