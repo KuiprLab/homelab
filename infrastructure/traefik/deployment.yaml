@@ -95,7 +95,7 @@ spec:
       storageClass: longhorn
 
     env:
-      - name: BUNNY_API_TOKEN
+      - name: BUNNY_API_KEY
         valueFrom:
           secretKeyRef:
             name: traefik-bunny
