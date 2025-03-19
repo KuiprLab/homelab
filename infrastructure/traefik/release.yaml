@@ -35,6 +35,11 @@ spec:
         exposedPort: 443
         expose: {}
         protocol: TCP
+      dashbaord:
+        port: 8080
+        exposedPort: 8080
+        expose: {}
+        protocol: TCP
     
     # Configure settings for Traefik
     additionalArguments:
