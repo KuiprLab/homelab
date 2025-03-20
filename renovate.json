@@ -1,39 +1,34 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "baseBranches": [
-        "dev",
-        "main"
-    ],
-    "kubernetes": {
-        "fileMatch": [
-            ".*\\.yaml$"
-        ]
-    },
-    "flux": {
-        "fileMatch": [
-            ".*\\.yaml$"
-        ]
-    },
-    "helm-values": {
-        "fileMatch": [
-            ".*\\.yaml$"
-        ]
-    },
-    "helmv3": {
-        "fileMatch": [
-            ".*\\.yaml$"
-        ]
-    },
+    "baseBranches": ["main", "dev"],
+    "kubernetes": { "fileMatch": ["\\.ya?ml$"] },
+    "flux": { "fileMatch": ["\\.ya?ml$"] },
+    "helm-values": { "fileMatch": ["\\.ya?ml$"] },
+    "helmv3": { "fileMatch": ["\\.ya?ml$"] },
+    "reviewers": ["ojsef39"],
     "customManagers": [
         {
             "customType": "regex",
-            "fileMatch": [
-                ".*\\.yaml$"
-            ],
+            "fileMatch": ["\\.ya?ml$"],
             "matchStrings": [
                 "repository: (?<depName>.*?)\n\\s+tag: (?<currentValue>.*?)\\s"
             ],
             "datasourceTemplate": "docker"
+        }
+    ],
+    "packageRules": [
+        {
+            "description": "Allow updates for renovate on both branches",
+            "matchPackageNames": ["renovate"],
+            "automerge": true,
+            "automergeType": "pr",
+            "major": { "automerge": false }
+        },
+        {
+            "description": "Disable updates for all packages except renovate on main branch",
+            "matchBaseBranches": ["main"],
+            "matchPackageNames": ["!renovate", "/.*/"],
+            "enabled": false
         }
     ]
 }
