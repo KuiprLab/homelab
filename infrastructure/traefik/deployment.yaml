@@ -107,8 +107,8 @@ spec:
       - --providers.kubernetesIngress=true
       - --providers.kubernetesCRD=true
       - --log.level=INFO
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      # - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      # - --entrypoints.web.http.redirections.entryPoint.scheme=https
       - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
       - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=bunny
       - --certificatesresolvers.letsencrypt.acme.email=daniel@kuipr.de
