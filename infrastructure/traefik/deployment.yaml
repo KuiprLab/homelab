@@ -109,8 +109,8 @@ spec:
       - --log.level=INFO
       # - --entrypoints.web.http.redirections.entryPoint.to=websecure
       # - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
-      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=bunny
+      # - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      # - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=bunny
       - --certificatesresolvers.letsencrypt.acme.email=daniel@kuipr.de
       - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
       - --entrypoints.websecure.http.tls=true
