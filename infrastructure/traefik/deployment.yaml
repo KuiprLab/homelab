@@ -96,7 +96,7 @@ spec:
       - --api.dashboard=true
       - --providers.kubernetesIngress=true
       - --providers.kubernetesCRD=true
-      - --log.level=INFO
+      - --log.level=DEBUG
       # HTTPS-related configurations below are commented out
       # - --entrypoints.web.http.redirections.entryPoint.to=websecure
       # - --entrypoints.web.http.redirections.entryPoint.scheme=https
