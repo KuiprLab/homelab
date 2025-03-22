@@ -51,59 +51,59 @@ spec:
         enabled: true
         entryPoints:
           - web  # Changed from websecure to web
-        # Removed tls configuration
-        services:
-          - name: api@internal
-            kind: TraefikService
-        hosts:
-          - traefik.k8s.kuipr.de
-    service:
-      type: LoadBalancer
-      spec:
-        externalTrafficPolicy: Local
-    dashboard:
-      enabled: true
-    ports:
-      web:
-        port: 80
-        expose:
-          default: true
-        exposedPort: 80
-        protocol: TCP
-      websecure:
-        port: 443
-        expose:
-          default: false  # Changed to false to not expose HTTPS
-        exposedPort: 443
-        protocol: TCP
-        tls:
-          enabled: false  # Disabled TLS
-    persistence:
-      enabled: true
-      name: traefik-data
-      accessMode: ReadWriteOnce
-      size: 5Gi
-      path: /data
-      storageClass: longhorn
-    env:
-      - name: BUNNY_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: traefik-bunny
-            key: api-token
-    additionalArguments:
-      - --api=true
-      - --api.dashboard=true
-      - --providers.kubernetesIngress=true
-      - --providers.kubernetesCRD=true
-      - --log.level=DEBUG
-      # HTTPS-related configurations below are commented out
-      # - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      # - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      # - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
-      # - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=bunny
-      # - --certificatesresolvers.letsencrypt.acme.email=daniel@kuipr.de
-      # - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
-      # - --entrypoints.websecure.http.tls=true
-      # - --entrypoints.websecure.http.tls.certresolver=letsencrypt
-      # - --entrypoints.websecure.http.tls.domains[0].main=traefik.k8s.kuipr.de
+          # Removed tls configuration
+services:
+- name: api@internal
+kind: TraefikService
+hosts:
+- traefik.k8s.kuipr.de
+service:
+type: LoadBalancer
+spec:
+externalTrafficPolicy: Local
+dashboard:
+enabled: true
+ports:
+web:
+port: 80
+expose:
+default: true
+exposedPort: 80
+protocol: TCP
+websecure:
+port: 443
+expose:
+default: false  # Changed to false to not expose HTTPS
+exposedPort: 443
+protocol: TCP
+tls:
+enabled: false  # Disabled TLS
+persistence:
+enabled: true
+name: traefik-data
+accessMode: ReadWriteOnce
+size: 5Gi
+path: /data
+storageClass: longhorn
+env:
+- name: BUNNY_API_KEY
+valueFrom:
+secretKeyRef:
+name: traefik-bunny
+key: api-token
+additionalArguments:
+- --api=true
+- --api.dashboard=true
+- --providers.kubernetesIngress=true
+- --providers.kubernetesCRD=true
+- --log.level=INFO
+# HTTPS-related configurations below are commented out
+# - --entrypoints.web.http.redirections.entryPoint.to=websecure
+# - --entrypoints.web.http.redirections.entryPoint.scheme=https
+# - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+# - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=bunny
+# - --certificatesresolvers.letsencrypt.acme.email=daniel@kuipr.de
+# - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+# - --entrypoints.websecure.http.tls=true
+# - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+# - --entrypoints.websecure.http.tls.domains[0].main=traefik.k8s.kuipr.de
