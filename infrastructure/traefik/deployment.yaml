@@ -41,7 +41,7 @@ spec:
 
     ingressRoute:
       dashboard:
-        matchRule: Host(`traefik.dev.k8.hla1.jhofer.lan`)
+        matchRule: Host(`traefik.k8s.kuipr.de`)
         enabled: true
         annotations: {}
         labels: {}
