@@ -11,8 +11,8 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      - app: kubernetes.io/name
-      - app: kubernetes.io/instance
+      app.kubernetes.io/name: traefik
+      app.kubernetes.io/instance: traefik
   template:
     metadata:
       labels:
