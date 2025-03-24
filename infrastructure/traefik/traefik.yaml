@@ -9,10 +9,10 @@ metadata:
     app.kubernetes.io/name: traefik
 spec:
   replicas: 1
-  # selector:
-  #   matchLabels:
-  #     app.kubernetes.io/name: traefik
-  #     app.kubernetes.io/instance: traefik
+  selector:
+    matchLabels:
+      - app: kubernetes.io/name
+      - app: kubernetes.io/instance
   template:
     metadata:
       labels:
