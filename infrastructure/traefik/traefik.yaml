@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: traefik
+  namesapce: traefik
   labels:
     app.kubernetes.io/instance: traefik
     app.kubernetes.io/name: traefik
@@ -31,7 +32,10 @@ spec:
             - "--api.dashboard=true"
             - "--ping=true"
             - "--providers.kubernetescrd"
-            - "--providers.kubernetescrd.allowCrossNamespace=true"
+            - "--providers.kubernetescrd.allowCrossNamespace=true" 
+            - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
+            - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+            - "--certificatesresolvers.myresolver.acme.email=me@dinama.dev"
           readinessProbe:
             httpGet:
               path: /ping
