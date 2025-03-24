@@ -23,16 +23,31 @@ spec:
     ingressRoute:
       dashboard:
         enabled: false
+    providers:
+      kubernetesCRD:
+        enabled: true
+        allowCrossNamespace: true
+      kubernetesIngress:
+        enabled: true
+        allowExternalNameServices: true
     ports:
       web:
         redirectTo: false
+    logs:
+      general:
+        level: INFO
+      access:
+        enabled: true
     additionalArguments:
       - "--api.dashboard=true"
+      - "--api.insecure=true"
       - "--providers.kubernetesingress.ingressclass=traefik"
-      - "--log.level=INFO"
     volumes:
       - name: traefik-config
-        mountPath: /etc/traefik/traefik.yaml
+        mountPath: /etc/traefik
         type: configMap
         configMap:
           name: traefik-config
+          items:
+            - key: traefik.yaml
+              path: traefik.yaml
