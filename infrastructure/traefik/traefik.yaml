@@ -64,18 +64,18 @@ spec:
               cpu: 100m
               memory: 50Mi
 
-          ports:
-            - name: web
-              containerPort: 8000
-              protocol: TCP
-
-            - name: websecure
-              containerPort: 8443
-              protocol: TCP
-
-            - name: traefik
-              containerPort: 9000
-              protocol: TCP
+          # ports:
+          #   - name: web
+          #     containerPort: 8000
+          #     protocol: TCP
+          #
+          #   - name: websecure
+          #     containerPort: 8443
+          #     protocol: TCP
+          #
+          #   - name: traefik
+          #     containerPort: 9000
+          #     protocol: TCP
 
           volumeMounts:
             - mountPath: /data

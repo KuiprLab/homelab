@@ -23,3 +23,6 @@ spec:
       name: websecure
       targetPort: websecure
       protocol: TCP
+    - port: 9000
+      name: traefik
+      protocol: TCP
