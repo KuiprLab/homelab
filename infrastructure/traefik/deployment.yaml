@@ -78,6 +78,12 @@ spec:
         protocol: TCP
         tls:
           enabled: false  # Disabled TLS
+      traefik:
+        port: 8080
+        expose:
+          default: true
+        exposedPort: 8080
+        protocol: TCP
     persistence:
       enabled: true
       name: traefik-data
