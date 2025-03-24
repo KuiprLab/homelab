@@ -1,9 +1,7 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: traefik
-  namespace: traefik
   labels:
     app.kubernetes.io/instance: traefik
     app.kubernetes.io/name: traefik
@@ -32,10 +30,10 @@ spec:
             - "--api.dashboard=true"
             - "--ping=true"
             - "--providers.kubernetescrd"
-            - "--providers.kubernetescrd.allowCrossNamespace=true" 
+            - "--providers.kubernetescrd.allowCrossNamespace=true"
             - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
             - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-            - "--certificatesresolvers.myresolver.acme.email=me@dinama.dev"
+            - "--certificatesresolvers.myresolver.acme.email=jakub.hajek@traefik.io"
           readinessProbe:
             httpGet:
               path: /ping
@@ -45,7 +43,6 @@ spec:
             periodSeconds: 5
             successThreshold: 1
             timeoutSeconds: 2
-
           livenessProbe:
             httpGet:
               path: /ping
@@ -55,7 +52,6 @@ spec:
             periodSeconds: 5
             successThreshold: 1
             timeoutSeconds: 2
-
           resources:
             limits:
               cpu: 1000m
@@ -63,20 +59,16 @@ spec:
             requests:
               cpu: 100m
               memory: 50Mi
-
-          # ports:
-          #   - name: web
-          #     containerPort: 8000
-          #     protocol: TCP
-          #
-          #   - name: websecure
-          #     containerPort: 8443
-          #     protocol: TCP
-          #
-          #   - name: traefik
-          #     containerPort: 9000
-          #     protocol: TCP
-
+          ports:
+            - name: web
+              containerPort: 8000
+              protocol: TCP
+            - name: websecure
+              containerPort: 8443
+              protocol: TCP
+            - name: traefik
+              containerPort: 9000
+              protocol: TCP
           volumeMounts:
             - mountPath: /data
               name: storage-volume
