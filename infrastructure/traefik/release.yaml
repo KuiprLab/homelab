@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: traefik
+      version: 20.8.0
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: flux-system
+  values:
+    deployment:
+      kind: Deployment
+    persistence:
+      enabled: true
+      storageClass: longhorn
+      size: 128M
+    ingressRoute:
+      dashboard:
+        enabled: false
+    ports:
+      web:
+        redirectTo: false
+    additionalArguments:
+      - "--api.dashboard=true"
+      - "--providers.kubernetesingress.ingressclass=traefik"
+      - "--log.level=INFO"
+    volumes:
+      - name: traefik-config
+        mountPath: /etc/traefik/traefik.yaml
+        type: configMap
+        configMap:
+          name: traefik-config

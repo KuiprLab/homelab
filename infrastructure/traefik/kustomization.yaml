@@ -1,8 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: traefik
 resources:
   - namespace.yaml
-  - rbac.yaml
-  - traefik.yaml
-  - svc.yaml
+  - configmap.yaml
+  - release.yaml
+  - dashboard.yaml
+  - repo.yaml
