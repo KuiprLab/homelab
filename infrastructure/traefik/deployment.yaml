@@ -47,8 +47,6 @@ spec:
         labels: {}
         entryPoints:
           - websecure
-        middlewares:
-          - name: internal@file
         services:
           - name: api@internal
             kind: TraefikService
