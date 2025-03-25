@@ -83,7 +83,7 @@ spec:
         port: 443
         expose:
           default: true
-        exposedPort: 8443
+        exposedPort: 443
         protocol: TCP
         tls:
           enabled: true
