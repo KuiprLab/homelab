@@ -47,6 +47,8 @@ spec:
         labels: {}
         entryPoints:
           - websecure
+        middlewares:
+          - name: authentik-forwardauth
         services:
           - name: api@internal
             kind: TraefikService
