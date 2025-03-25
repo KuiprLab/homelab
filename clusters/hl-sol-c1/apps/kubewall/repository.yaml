@@ -1,9 +1,0 @@
-apiVersion: source.toolkit.fluxcd.io/v1beta2
-kind: HelmRepository
-metadata:
-  name: kubewall
-  namespace: kubewall-system
-spec:
-  interval: 12h
-  url: oci://ghcr.io/kubewall/charts
-  type: oci

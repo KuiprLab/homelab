@@ -5,7 +5,6 @@ metadata:
   namespace: default
 spec:
   entryPoints:
-    - web
     - websecure
   routes:
     - match: Host(`hello-world.k8s.kuipr.de`)

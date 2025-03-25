@@ -1,0 +1,28 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: kubernetes-dashboard
+      version: 7.0.0
+      sourceRef:
+        kind: HelmRepository
+        name: kubernetes-dashboard
+        namespace: flux-system
+  values:
+    service:
+      type: NodePort
+      nodePort: 30000
+    rbac:
+      create: true
+      clusterRoleMetrics: true
+    settings:
+      clusterName: "talos-proxmox-cluster"
+      allowSkip: true
+    serviceAccount:
+      create: true
+      name: kubernetes-dashboard-admin
