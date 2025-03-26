@@ -3,9 +3,6 @@ kind: IngressRoute
 metadata:
   name: hello-world
   namespace: default
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: traefik-authentik-forwardauth@Namespace
-
 spec:
   entryPoints:
     - websecure
@@ -13,5 +10,8 @@ spec:
     - match: Host(`hello-world.k8s.kuipr.de`)
       kind: Rule
       services:
-        - name: hello-world
-          port: 80
+      - name: hello-world
+        port: 80
+      middlewares:
+        - name: authentik-forwardauth
+          namespace: traefik
