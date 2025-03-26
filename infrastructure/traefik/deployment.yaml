@@ -51,7 +51,7 @@ spec:
           - name: api@internal
             kind: TraefikService
         middlewares:
-          - name: authentik-forwardauth
+          - name: authentik-forwardauth@traefik
 
     service:
       type: LoadBalancer
