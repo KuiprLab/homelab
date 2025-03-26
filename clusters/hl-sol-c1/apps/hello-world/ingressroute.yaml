@@ -13,5 +13,4 @@ spec:
       - name: hello-world
         port: 80
       middlewares:
-        - name: authentik-forwardauth
-          namespace: traefik
+        - name: traefik-authentik-forwardauth@traefik
