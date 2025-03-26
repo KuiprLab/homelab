@@ -43,7 +43,8 @@ spec:
       dashboard:
         matchRule: Host(`traefik.k8s.kuipr.de`)
         enabled: true
-        annotations: {}
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-production
         labels: {}
         entryPoints:
           - websecure
@@ -52,6 +53,8 @@ spec:
             kind: TraefikService
         middlewares:
           - name: authentik-forwardauth
+        tls:
+          secretName: traefik-tls-cert
 
     service:
       type: LoadBalancer
@@ -81,6 +84,8 @@ spec:
           default: true
         exposedPort: 80
         protocol: TCP
+        redirectTo: 
+          port: websecure
       websecure:
         port: 443
         expose:
@@ -115,6 +120,10 @@ spec:
       - --serverstransport.insecureskipverify=false
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --certificatesResolvers.letsencrypt.acme.email=me@dinama.dev
+      - --certificatesResolvers.letsencrypt.acme.storage=/data/acme.json
+      - --certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web
+      - --certificatesResolvers.letsencrypt.acme.caServer=https://acme-v02.api.letsencrypt.org/directory
     logs:
       general:
         level: "INFO" # @schema enum:[TRACE,DEBUG,INFO,WARN,ERROR,FATAL,PANIC]; default: "INFO"
