@@ -43,16 +43,17 @@ spec:
       dashboard:
         matchRule: Host(`traefik.k8s.kuipr.de`)
         enabled: true
-        annotations: {}
+        annotations:
+          traefik.ingress.kubernetes.io/router.middlewares: traefik-authentik-forwardauth@Namespace
         labels: {}
         entryPoints:
           - websecure
         services:
           - name: api@internal
             kind: TraefikService
-        middlewares:
-          - name: authentik-forwardauth
-            namespace: traefik
+        # middlewares:
+        #   - name: authentik-forwardauth
+        #     namespace: traefik
 
     service:
       type: LoadBalancer
