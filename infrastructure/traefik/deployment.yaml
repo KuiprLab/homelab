@@ -25,7 +25,7 @@ spec:
   values:
     # yaml-language-server: $schema=https://raw.githubusercontent.com/traefik/traefik-helm-chart/refs/heads/master/traefik/values.schema.json
     deployment:
-      replicas: 3
+      replicas: 1
     podSecurityContext:
       fsGroup: 65532
       fsGroupChangePolicy: "OnRootMismatch"
