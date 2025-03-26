@@ -1,8 +1,7 @@
 apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
+kind: ClusterMiddleware
 metadata:
   name: authentik-forwardauth
-  namespace: traefik
 spec:
   forwardAuth:
     address: https://auth.kuipr.de/outpost.goauthentik.io/auth/traefik

@@ -49,6 +49,7 @@ spec:
           - websecure
         middlewares:
           - name: authentik-forwardauth
+            namespace: traefik
         services:
           - name: api@internal
             kind: TraefikService
