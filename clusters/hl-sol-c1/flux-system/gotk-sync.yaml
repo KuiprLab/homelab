@@ -10,8 +10,7 @@ spec:
   ref:
     branch: main
   secretRef:
-    # name: flux-system
-    name: git-auth
+    name: flux-system
   url: https://github.com/KuiprLab/homelab.git
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
