@@ -9,3 +9,4 @@ resources:
   - alerting
   - podinfo
   - crds
+  - certmanager
