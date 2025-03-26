@@ -47,12 +47,12 @@ spec:
         labels: {}
         entryPoints:
           - websecure
-        middlewares:
-          - name: authentik-forwardauth
-            namespace: traefik
         services:
           - name: api@internal
             kind: TraefikService
+        middlewares:
+          - name: authentik-forwardauth
+            namespace: traefik
 
     service:
       type: LoadBalancer
