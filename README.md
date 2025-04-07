@@ -2,7 +2,7 @@
   <br><img src="project-logo.svg" height="192px">
 </h1>
 
-# My Home iIfrastructure Using Flux
+# My Home Ifrastructure Using Flux
 ![Validate and Protect Flux Resources](https://github.com/KuiprLab/homelab/actions/workflows/validate.yaml/badge.svg)
 ![GitHub License](https://img.shields.io/github/license/KuiprLab/homelab)
 
