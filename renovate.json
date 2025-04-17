@@ -1,6 +1,6 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "baseBranches": ["main", "dev"],
+    "baseBranches": ["main"],
     "kubernetes": { "fileMatch": ["\\.ya?ml$"] },
     "flux": { "fileMatch": ["\\.ya?ml$"] },
     "helm-values": { "fileMatch": ["\\.ya?ml$"] },
@@ -23,12 +23,6 @@
             "automerge": true,
             "automergeType": "pr",
             "major": { "automerge": false }
-        },
-        {
-            "description": "Disable updates for all packages except renovate on main branch",
-            "matchBaseBranches": ["main"],
-            "matchPackageNames": ["!renovate", "/.*/"],
-            "enabled": false
         }
     ]
 }
