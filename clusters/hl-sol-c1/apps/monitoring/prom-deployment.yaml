@@ -1,0 +1,162 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 1h
+  timeout: 10m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: 70.4.2
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-charts
+        namespace: monitoring
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  valuesFrom:
+    - kind: ConfigMap
+      name: flux-kube-state-metrics
+      valuesKey: flux-kube-state-metrics_configmap.yaml
+    ## CRD is not working so like this idk
+    - kind: ConfigMap
+      name: scrape-configs
+      valuesKey: prometheus-blackbox-exporter_scrape-config.yaml
+    - kind: ConfigMap
+      name: alert-configs
+      valuesKey: prometheus-blackbox-exporter_alerts.yaml
+  values:
+    ## https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
+    grafana:
+      enabled: false
+
+    prometheus:
+      enabled: true
+      prometheusSpec:
+        secrets:
+          - etcd-client-cert
+        ##TODO: Thanos should pick up the rest so 90d retention is given for everything / or 90d here and rest in
+        # thanos, what will work best without blowing storage
+        retention: 4w
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteMany"]
+              resources:
+                requests:
+                  storage: 15Gi
+        serviceMonitorSelectorNilUsesHelmValues: false
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+        initContainers:
+          - command: ["chown", "-R", "1000:1000", "/prometheus"]
+            image: busybox
+            name: prometheus-data-permission-fix
+            volumeMounts:
+              - mountPath: /prometheus
+                name: prometheus-kube-prometheus-stack-prometheus-db
+                subPath: prometheus-db
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0
+              runAsGroup: 0
+
+      # Configure Prometheus ingress with Traefik
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: websecure
+          traefik.ingress.kubernetes.io/router.tls.certresolver: labca
+        paths:
+          - /
+        pathType: Prefix
+
+    ## Configure Alertmanager
+    alertmanager:
+      enabled: true
+
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: websecure
+          traefik.ingress.kubernetes.io/router.tls.certresolver: labca
+        paths:
+          - /
+        pathType: Prefix
+
+      alertmanagerSpec:
+        replicas: 1
+
+        ## Time duration Alertmanager shall retain data for. Default is '120h', and must match the regular expression
+        ## [0-9]+(ms|s|m|h) (milliseconds seconds minutes hours).
+        ##
+        retention: 2160h # 90 Days
+
+        ## Storage is the definition of how storage will be used by the Alertmanager instances.
+        ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md
+        ##
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteMany"]
+              resources:
+                requests:
+                  storage: 1Gi
+
+      config:
+        global:
+          resolve_timeout: 5m
+        route:
+          # Set the default/root route to null
+          receiver: "null"
+          group_by: ["alertname", "job"]
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          # Route based on severity to discord
+          routes:
+            - matchers:
+                - severity =~ "^(warning|critical)$"
+              receiver: discord
+
+      templateFiles:
+        discord.tmpl: |-
+          {{ define "discord.title" }}
+          [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+          {{ end }}
+          {{ define "discord.message" }}
+          {{ range .Alerts }}
+          **Alert:** {{ .Labels.alertname }}
+          **Severity:** {{ .Labels.severity }}
+          **Stage:** {{ .Labels.environment }}
+          {{ if .Annotations.summary }}
+          **Summary:**
+          {{ .Annotations.summary }}
+          {{ end }}{{ if .Annotations.description }}**Description:**
+          {{ .Annotations.description }}
+          {{ end }}
+          **Labels:**
+          {{ range .Labels.SortedPairs }}{{ if and (ne (.Name) "alertname") (ne (.Name) "severity") (ne (.Name) "environment") }}{{ .Name }}: {{ .Value }}
+          {{ end }}{{ end }}
+          **Links:**
+          {{ if .Annotations.runbook_url }}[View Runbook]({{ .Annotations.runbook_url }})
+          {{ end }}[View in Karma](https://karma.{{ .Labels.environment }}.k8.hla1.jhofer.lan/?q=%40state!%3Dsuppressed{{ if .Labels.job }}&q=job%3D{{ .Labels.job }}{{ end }}&q=alertname%3D{{ .Labels.alertname }})
+          {{ if .GeneratorURL }}[View in Prometheus]({{ .GeneratorURL }})
+          {{ end }}[View in Alertmanager](https://alertmanager.{{ .Labels.environment }}.k8.hla1.jhofer.lan/#/alerts?filter=%7Balertname%3D%22{{ .Labels.alertname }}%22{{ if .Labels.job }}%2Cjob%3D%22{{ .Labels.job }}%22{{ end }}%7D)
+          {{ end }}
+          {{ end }}
+
+    # Set default severities for the built-in rules
+    defaultRules:
+      create: true
