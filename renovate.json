@@ -5,7 +5,7 @@
     "flux": { "fileMatch": ["\\.ya?ml$"] },
     "helm-values": { "fileMatch": ["\\.ya?ml$"] },
     "helmv3": { "fileMatch": ["\\.ya?ml$"] },
-    "reviewers": ["ojsef39"],
+    "reviewers": ["frostplexx"],
     "customManagers": [
         {
             "customType": "regex",
