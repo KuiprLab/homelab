@@ -25,8 +25,8 @@ spec:
   values:
     installCRDs: true
     replicaCount: 3
-    podSecurityPolicy:
-      enabled: true
+    # podSecurityPolicy:
+    #   enabled: true
     prometheus:
       enabled: true
       servicemonitor:
