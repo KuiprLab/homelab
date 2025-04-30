@@ -24,13 +24,6 @@ spec:
     - kind: ConfigMap
       name: flux-kube-state-metrics
       valuesKey: flux-kube-state-metrics_configmap.yaml
-    ## CRD is not working so like this idk
-    - kind: ConfigMap
-      name: scrape-configs
-      valuesKey: prometheus-blackbox-exporter_scrape-config.yaml
-    - kind: ConfigMap
-      name: alert-configs
-      valuesKey: prometheus-blackbox-exporter_alerts.yaml
   values:
     ## https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
     grafana:
