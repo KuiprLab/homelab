@@ -5,5 +5,4 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - repo.yaml
-  - authentik-middleware.yaml
   - certmanager.yaml

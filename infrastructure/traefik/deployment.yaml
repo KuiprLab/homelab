@@ -51,8 +51,6 @@ spec:
         services:
           - name: api@internal
             kind: TraefikService
-        middlewares:
-          - name: authentik-forwardauth
         tls:
           secretName: traefik-tls-cert
 

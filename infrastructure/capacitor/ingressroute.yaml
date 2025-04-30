@@ -13,5 +13,3 @@ spec:
       services:
         - name: capacitor
           port: 9000
-      middlewares:
-        - name: authentik-forwardauth
