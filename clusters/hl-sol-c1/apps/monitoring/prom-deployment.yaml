@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
 spec:
   interval: 1h
-  timeout: 10m
+  timeout: 15m
   chart:
     spec:
       chart: kube-prometheus-stack
@@ -15,141 +15,181 @@ spec:
         name: prometheus-charts
         namespace: monitoring
   install:
+    createNamespace: false
     remediation:
       retries: 3
   upgrade:
     remediation:
       retries: 3
+  
+  dependsOn:
+    - name: grafana
+      namespace: monitoring
+  
   valuesFrom:
     - kind: ConfigMap
       name: flux-kube-state-metrics
-      valuesKey: flux-kube-state-metrics_configmap.yaml
+      valuesKey: kube-state-metrics.yaml
+  
   values:
-    ## https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
+    # Disable built-in Grafana since we deploy it separately
     grafana:
       enabled: false
 
+    # Prometheus configuration
     prometheus:
       enabled: true
       prometheusSpec:
-        secrets:
-          - etcd-client-cert
-        ##TODO: Thanos should pick up the rest so 90d retention is given for everything / or 90d here and rest in
-        # thanos, what will work best without blowing storage
-        retention: 4w
+        # Remove secrets reference if not needed
+        # secrets:
+        #   - etcd-client-cert
+        
+        retention: 30d
+        retentionSize: "10GB"
+        
+        # Fix storage configuration
         storageSpec:
           volumeClaimTemplate:
             spec:
               storageClassName: longhorn
-              accessModes: ["ReadWriteMany"]
+              accessModes: ["ReadWriteOnce"]  # Changed from ReadWriteMany
               resources:
                 requests:
                   storage: 15Gi
+        
+        # Service monitor configuration
         serviceMonitorSelectorNilUsesHelmValues: false
+        serviceMonitorSelector: {}
+        serviceMonitorNamespaceSelector: {}
+        
+        # Security context - simplified
         securityContext:
           runAsNonRoot: true
-          runAsUser: 1000
-        initContainers:
-          - command: ["chown", "-R", "1000:1000", "/prometheus"]
-            image: busybox
-            name: prometheus-data-permission-fix
-            volumeMounts:
-              - mountPath: /prometheus
-                name: prometheus-kube-prometheus-stack-prometheus-db
-                subPath: prometheus-db
-            securityContext:
-              runAsNonRoot: false
-              runAsUser: 0
-              runAsGroup: 0
+          runAsUser: 65534
+          runAsGroup: 65534
+          fsGroup: 65534
+        
+        # Remove problematic init container
+        # initContainers: []
+        
+        # Resource limits
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
 
-      # Configure Prometheus ingress with Traefik
+      # Ingress configuration
       ingress:
-        enabled: true
-        ingressClassName: traefik
-        annotations:
-          traefik.ingress.kubernetes.io/router.entrypoints: websecure
-          traefik.ingress.kubernetes.io/router.tls.certresolver: labca
-        paths:
-          - /
-        pathType: Prefix
+        enabled: false  # We'll use IngressRoute instead
 
-    ## Configure Alertmanager
+    # Alertmanager configuration
     alertmanager:
       enabled: true
-
+      
       ingress:
-        enabled: true
-        ingressClassName: traefik
-        annotations:
-          traefik.ingress.kubernetes.io/router.entrypoints: websecure
-          traefik.ingress.kubernetes.io/router.tls.certresolver: labca
-        paths:
-          - /
-        pathType: Prefix
+        enabled: false  # We'll use IngressRoute instead
 
       alertmanagerSpec:
         replicas: 1
-
-        ## Time duration Alertmanager shall retain data for. Default is '120h', and must match the regular expression
-        ## [0-9]+(ms|s|m|h) (milliseconds seconds minutes hours).
-        ##
         retention: 2160h # 90 Days
-
-        ## Storage is the definition of how storage will be used by the Alertmanager instances.
-        ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md
-        ##
+        
+        # Fix storage configuration
         storage:
           volumeClaimTemplate:
             spec:
               storageClassName: longhorn
-              accessModes: ["ReadWriteMany"]
+              accessModes: ["ReadWriteOnce"]  # Changed from ReadWriteMany
               resources:
                 requests:
                   storage: 1Gi
+        
+        # Resource limits
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
 
+      # Alertmanager configuration
       config:
         global:
           resolve_timeout: 5m
+        
         route:
-          # Set the default/root route to null
           receiver: "null"
           group_by: ["alertname", "job"]
           group_wait: 30s
           group_interval: 5m
           repeat_interval: 12h
-          # Route based on severity to discord
           routes:
             - matchers:
                 - severity =~ "^(warning|critical)$"
               receiver: discord
+        
+        receivers:
+          - name: "null"
+          - name: discord
+            discord_configs:
+              - webhook_url_file: /etc/alertmanager/secrets/discord-webhook/webhook-url
+                title: |
+                  [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+                message: |
+                  {{ range .Alerts }}
+                  **Alert:** {{ .Labels.alertname }}
+                  **Severity:** {{ .Labels.severity }}
+                  {{ if .Annotations.summary }}**Summary:** {{ .Annotations.summary }}{{ end }}
+                  {{ if .Annotations.description }}**Description:** {{ .Annotations.description }}{{ end }}
+                  {{ end }}
 
-      templateFiles:
-        discord.tmpl: |-
-          {{ define "discord.title" }}
-          [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
-          {{ end }}
-          {{ define "discord.message" }}
-          {{ range .Alerts }}
-          **Alert:** {{ .Labels.alertname }}
-          **Severity:** {{ .Labels.severity }}
-          **Stage:** {{ .Labels.environment }}
-          {{ if .Annotations.summary }}
-          **Summary:**
-          {{ .Annotations.summary }}
-          {{ end }}{{ if .Annotations.description }}**Description:**
-          {{ .Annotations.description }}
-          {{ end }}
-          **Labels:**
-          {{ range .Labels.SortedPairs }}{{ if and (ne (.Name) "alertname") (ne (.Name) "severity") (ne (.Name) "environment") }}{{ .Name }}: {{ .Value }}
-          {{ end }}{{ end }}
-          **Links:**
-          {{ if .Annotations.runbook_url }}[View Runbook]({{ .Annotations.runbook_url }})
-          {{ end }}[View in Karma](https://karma.{{ .Labels.environment }}.k8.hla1.jhofer.lan/?q=%40state!%3Dsuppressed{{ if .Labels.job }}&q=job%3D{{ .Labels.job }}{{ end }}&q=alertname%3D{{ .Labels.alertname }})
-          {{ if .GeneratorURL }}[View in Prometheus]({{ .GeneratorURL }})
-          {{ end }}[View in Alertmanager](https://alertmanager.{{ .Labels.environment }}.k8.hla1.jhofer.lan/#/alerts?filter=%7Balertname%3D%22{{ .Labels.alertname }}%22{{ if .Labels.job }}%2Cjob%3D%22{{ .Labels.job }}%22{{ end }}%7D)
-          {{ end }}
-          {{ end }}
+    # Kube-state-metrics configuration
+    kube-state-metrics:
+      enabled: true
 
-    # Set default severities for the built-in rules
+    # Node exporter configuration  
+    nodeExporter:
+      enabled: true
+
+    # Prometheus operator configuration
+    prometheusOperator:
+      enabled: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+    # Default rules configuration
     defaultRules:
       create: true
+      rules:
+        alertmanager: true
+        etcd: false  # Disable if not monitoring etcd
+        configReloaders: true
+        general: true
+        k8s: true
+        kubeApiserver: true
+        kubeApiserverAvailability: true
+        kubeApiserverSlos: true
+        kubelet: true
+        kubeProxy: true
+        kubePrometheusGeneral: true
+        kubePrometheusNodeRecording: true
+        kubernetesApps: true
+        kubernetesResources: true
+        kubernetesStorage: true
+        kubernetesSystem: true
+        kubeScheduler: true
+        kubeStateMetrics: true
+        network: true
+        node: true
+        nodeExporterAlerting: true
+        nodeExporterRecording: true
+        prometheus: true
+        prometheusOperator: true

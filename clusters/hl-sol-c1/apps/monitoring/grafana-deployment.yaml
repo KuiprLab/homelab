@@ -19,55 +19,86 @@ spec:
   upgrade:
     remediation:
       retries: 3
+  
   values:
-    ## https://github.com/grafana/helm-charts/blob/main/charts/grafana/values.yaml
-
+    # Service monitor for Prometheus scraping
     serviceMonitor:
-      ## If true, a ServiceMonitor CR is created for a prometheus operator
-      ## https://github.com/coreos/prometheus-operator
-      ##
       enabled: true
 
+    # Ingress configuration - disabled, using IngressRoute
     ingress:
-      enabled: true
-      annotations:
-        kubernetes.io/ingress.class: traefik
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure
-        traefik.ingress.kubernetes.io/router.tls.certresolver: labca
+      enabled: false
 
+    # Admin user configuration
     admin:
       existingSecret: "default-grafana-user-secret"
       userKey: username
       passwordKey: password
 
-    plugins:
-      []
-      # - digrich-bubblechart-panel
-      # - grafana-clock-panel
-      ## You can also use other plugin download URL, as long as they are valid zip files,
-      ## and specify the name of the plugin after the semicolon. Like this:
-      # - https://grafana.com/api/plugins/marcusolsson-json-datasource/versions/1.3.2/download;marcusolsson-json-datasource
+    # Grafana plugins
+    plugins: []
 
-    ## Configure grafana datasources
-    ## ref: http://docs.grafana.org/administration/provisioning/#datasources
-    ##
+    # Datasource configuration
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://kube-prometheus-stack-prometheus:9090
+            access: proxy
+            isDefault: true
+            jsonData:
+              timeInterval: 30s
 
-    datasources: {}
-    #  datasources.yaml:
-    #    apiVersion: 1
-    #    datasources:
-    #    - name: Prometheus
-    #      type: prometheus
-    #      url: http://prometheus-prometheus-server
-    #      access: proxy
-    #      isDefault: true
-    #    - name: CloudWatch
-    #      type: cloudwatch
-    #      access: proxy
-    #      uid: cloudwatch
-    #      editable: false
-    #      jsonData:
-    #        authType: default
-    #        defaultRegion: us-east-1
-    #    deleteDatasources: []
-    #    - name: Prometheus
+    # Dashboard providers
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/default
+
+    # Pre-installed dashboards
+    dashboards:
+      default:
+        # Kubernetes cluster monitoring dashboard
+        kubernetes-cluster-monitoring:
+          gnetId: 7249
+          revision: 1
+          datasource: Prometheus
+        
+        # Node exporter dashboard
+        node-exporter:
+          gnetId: 1860
+          revision: 37
+          datasource: Prometheus
+        
+        # Flux monitoring dashboard
+        flux-cluster:
+          gnetId: 16714
+          revision: 1
+          datasource: Prometheus
+
+    # Resource configuration
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Persistence
+    persistence:
+      enabled: true
+      storageClassName: longhorn
+      accessModes:
+        - ReadWriteOnce
+      size: 1Gi
