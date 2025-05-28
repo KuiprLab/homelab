@@ -6,7 +6,6 @@ resources:
   - repo.yaml
   - prom-deployment.yaml
   - grafana-deployment.yaml
-  - ingress-routes.yaml
 
 configMapGenerator:
   - name: flux-kube-state-metrics
