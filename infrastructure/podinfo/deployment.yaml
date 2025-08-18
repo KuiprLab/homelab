@@ -21,4 +21,4 @@ spec:
     redis:
       enabled: true
       repository: public.ecr.aws/docker/library/redis
-      tag: 8.2.0
+      tag: 8.2.1
