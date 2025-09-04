@@ -6,6 +6,7 @@
     "helm-values": { "fileMatch": ["\\.ya?ml$"] },
     "helmv3": { "fileMatch": ["\\.ya?ml$"] },
     "reviewers": ["frostplexx"],
+    "enabled": false,
     "customManagers": [
         {
             "customType": "regex",
