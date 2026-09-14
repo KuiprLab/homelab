@@ -3,7 +3,7 @@
 #
 # Config: full config.json encrypted with sops at secrets/sorbet/multi-scrobbler.
 # Auth sessions (spotify tokens, last.fm sessions) stored in podman volume.
-{config, ...}: {
+_: {
   flake = {
     caddyVirtualHosts."scrobble.int.kuipr.de" = {
       extraConfig = ''
