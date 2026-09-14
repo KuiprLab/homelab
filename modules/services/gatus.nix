@@ -224,13 +224,16 @@
 
     caddyVirtualHosts."gatus.int.kuipr.de" = {
       extraConfig = ''
-        reverse_proxy localhost:8888
-
-        forward_auth 127.0.0.1:9091 {
-           uri /api/authz/forward-auth
-           copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+        route /healthz {
+         respond "ok" 200
         }
-
+        route {
+         forward_auth 127.0.0.1:9091 {
+                 uri /api/authz/forward-auth
+                 copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+         }
+         reverse_proxy localhost:8888
+            }
       '';
       name = "Gatus";
     };
