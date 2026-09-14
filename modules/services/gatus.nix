@@ -226,11 +226,9 @@
       extraConfig = ''
         reverse_proxy localhost:8888
 
-        forward_auth auth.ext.kuipr.de:9091 {
-                ## The following commented line is for configuring the Authelia URL in the proxy. We strongly suggest
-                ## this is configured in the Session Cookies section of the Authelia configuration.
-                uri /api/authz/forward-auth?authelia_url=https://auth.ext.kuipr.de
-                copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+        forward_auth 127.0.0.1:9091 {
+           uri /api/authz/forward-auth
+           copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
         }
 
       '';
