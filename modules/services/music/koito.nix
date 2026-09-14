@@ -8,6 +8,7 @@ _: {
           reverse_proxy localhost:4110
         '';
         name = "Koito";
+        authelia.enable = true;
       };
 
       "subtidal.ext.kuipr.de" = {

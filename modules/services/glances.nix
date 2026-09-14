@@ -7,6 +7,7 @@ _: {
       extraConfig = ''
         reverse_proxy localhost:61208
       '';
+      authelia.enable = true;
       name = "Glances";
     };
 

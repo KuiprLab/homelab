@@ -10,6 +10,7 @@ _: {
         reverse_proxy localhost:9078
       '';
       name = "Multi Scrobbler";
+      authelia.enable = true;
     };
 
     gatusEndpoints = [
@@ -69,7 +70,10 @@ _: {
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         ports = ["127.0.0.1:9078:9078"];
-        extraOptions = ["--network=podman" "--network=msv6"];
+        extraOptions = [
+          "--network=podman"
+          "--network=msv6"
+        ];
         labels = {
           "io.containers.autoupdate" = "registry";
         };
