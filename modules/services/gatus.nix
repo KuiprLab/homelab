@@ -64,10 +64,21 @@
     # without waiting for a 24h panic.
     certWarnHours = "168h";
 
+    # .ext vhosts behind authelia SSO, kept in sync with
+    # modules/services/music/default.nix. A bare-root probe gets a 302 from
+    # authelia and fails [STATUS] == 200, so they are excluded from the
+    # auto-generated ext endpoints and monitored by their explicit /healthz
+    # endpoint instead.
+    ssoProtectedExtHosts = [
+      "music.ext.kuipr.de"
+    ];
+
     extHostNames =
-      lib.filter
-      (lib.hasSuffix ".ext.kuipr.de")
-      (lib.attrNames config.flake.caddyVirtualHosts);
+      builtins.filter
+      (host: !(lib.elem host ssoProtectedExtHosts))
+      (lib.filter
+        (lib.hasSuffix ".ext.kuipr.de")
+        (lib.attrNames config.flake.caddyVirtualHosts));
 
     # Inject a [RESPONSE_TIME] < 2000 condition into any HTTPS endpoint that
     # doesn't already have one. Without this, a stripe pattern of 5s
