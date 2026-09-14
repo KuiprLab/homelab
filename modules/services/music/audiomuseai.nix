@@ -58,6 +58,7 @@ _: {
                 POSTGRES_PORT = "5432";
                 REDIS_URL = "redis://audiomuse-redis:6379/0";
                 TEMP_DIR = "/app/temp_audio";
+                AUTH_ENABLED = "false";
               };
               volumes = ["audiomuse-temp-audio-flask:/app/temp_audio"];
             };
@@ -74,7 +75,6 @@ _: {
                 POSTGRES_PORT = "5432";
                 REDIS_URL = "redis://audiomuse-redis:6379/0";
                 TEMP_DIR = "/app/temp_audio";
-                AUTH_ENABLED = "false";
               };
               volumes = ["audiomuse-temp-audio-worker:/app/temp_audio"];
             };
