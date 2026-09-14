@@ -16,12 +16,14 @@ _: {
         "authelia/authelia.env" = {
           sopsFile = ../../secrets/sorbet/authelia/authelia.env;
           format = "dotenv";
+          owner = "daniel";
           key = "";
           restartUnits = ["podman-authelia.service"];
         };
 
         "authelia/configuration.yml" = {
           sopsFile = ../../secrets/sorbet/authelia/configuration.yml;
+          owner = "daniel";
           format = "yaml";
           key = "";
           restartUnits = ["podman-authelia.service"];
@@ -29,6 +31,7 @@ _: {
 
         "authelia/authelia-users.yaml" = {
           sopsFile = ../../secrets/sorbet/authelia/users.yaml;
+          owner = "daniel";
           key = "";
           restartUnits = ["podman-authelia.service"];
         };
