@@ -5,8 +5,10 @@ _: let
   # Navidrome "Externalized Authentication":
   #  - always strip any client-supplied Remote-User (trust only authelia)
   #  - forward_auth the web app
-  #  - /share/* and /rest/* keep their own auth so share links and subsonic
-  #    clients work without an authelia session
+  #  - /share/* keeps its own auth so share links work without a session
+  #  - /rest/* also sits behind forward_auth: authelia authenticates subsonic
+  #    clients via BasicAuth (the subsonic u/t/s scheme is meaningless to
+  #    authelia) and hands over Remote-User, so third-party apps get SSO too
   #  - /healthz is a caddy-local 200 for gatus, which probes sessionless
   forwardAuth = ''
     request_header -Remote-User
@@ -33,6 +35,18 @@ _: let
     }
     route /rest/* {
       request_header -Remote-User
+      forward_auth 127.0.0.1:9091 {
+        uri /api/authz/forward-auth
+        copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+        @error status 1xx 3xx 4xx 5xx
+        handle_response @error {
+          respond <<SUBSONICERR
+            <subsonic-response xmlns="http://subsonic.org/restapi" status="failed" version="1.16.1" type="proxy-auth" serverVersion="n/a" openSubsonic="true">
+              <error code="40" message="Invalid credentials or unsupported client"></error>
+            </subsonic-response>
+            SUBSONICERR 200
+        }
+      }
       ${toNavidrome}
     }
     route {
