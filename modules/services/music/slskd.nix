@@ -12,7 +12,7 @@ _: {
     #   name = "SLSKD";
     # };
 
-    nixosModules.slskd = {config, ...}: {
+    nixosModules.slskd = _: {
       # sops.secrets."slskd" = {
       #   sopsFile = ../../../secrets/sorbet/slskd.yml;
       #   format = "yaml";
