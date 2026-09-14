@@ -39,6 +39,7 @@ _: {
 
       # Keep the static lease for the server itself
       dhcp-host=18:31:bf:b7:fd:3f,sorbet,${serverIp},infinite
+      dhcp-host=74:56:3c:30:fc:b7,tiramisu,192.168.0.5,infinite
 
       no-resolv
       log-dhcp

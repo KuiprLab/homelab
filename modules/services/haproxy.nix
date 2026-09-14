@@ -29,7 +29,7 @@ _: {
       extHostNames;
   in {
     networking.firewall.allowedTCPPorts = [80 443];
-    # Stats + prometheus metrics, tailnet-only.
+    # Stats, tailnet-only.
     networking.firewall.interfaces."tailscale0".allowedTCPPorts = [8404];
 
     services.haproxy = {
@@ -52,13 +52,12 @@ _: {
           timeout server  30s
 
         #--------------------------------------------------------------------
-        # Stats — scraped by local gatus + prometheus on sorbet
+        # Stats — scraped by local gatus
         #--------------------------------------------------------------------
         # CSV at /stats;csv exposes backend up/down so gatus can alert on
         # be_sorbet flipping to DOWN before users see 503s.
-        # Prometheus exporter at /metrics scraped by prometheus on sorbet
-        # via tailnet. Bound to all interfaces, firewall restricts 8404 to
-        # tailscale0 + loopback so it's never publicly reachable.
+        # Bound to all interfaces; firewall restricts 8404 to tailscale0 +
+        # loopback so it's never publicly reachable.
         frontend fe_stats
           mode http
           bind *:8404
@@ -68,8 +67,6 @@ _: {
           stats show-node
           # Health check endpoint for monitoring tools
           monitor-uri /haproxy_health
-          # Native prometheus metrics endpoint (haproxy 2.x).
-          http-request use-service prometheus-exporter if { path /metrics }
 
         #--------------------------------------------------------------------
         # HTTP — redirect to HTTPS

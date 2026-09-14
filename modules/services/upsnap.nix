@@ -1,8 +1,11 @@
 _: {
   flake = {
-    caddyVirtualHosts."up.int.kuipr.de" = ''
-      reverse_proxy 127.0.0.1:8090
-    '';
+    caddyVirtualHosts."up.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:8090
+      '';
+      name = "Upsnap";
+    };
 
     nixosModules.upsnap = {pkgs, ...}: {
       virtualisation.oci-containers.containers.upsnap = {

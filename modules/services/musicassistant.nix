@@ -1,8 +1,11 @@
 _: {
   flake = {
-    caddyVirtualHosts."mus.int.kuipr.de" = ''
-      reverse_proxy localhost:8095
-    '';
+    caddyVirtualHosts."mus.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy localhost:8095
+      '';
+      name = "Music Assistant";
+    };
 
     gatusEndpoints = [
       {

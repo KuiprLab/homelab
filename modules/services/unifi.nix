@@ -13,18 +13,21 @@ _: {
       }
     ];
 
-    caddyVirtualHosts."unifi.int.kuipr.de" = ''
-      reverse_proxy https://localhost:11443 {
-        transport http {
-          tls_insecure_skip_verify
+    caddyVirtualHosts."unifi.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy https://localhost:11443 {
+          transport http {
+            tls_insecure_skip_verify
+          }
+          # Required for UniFi WebSocket connections
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
         }
-        # Required for UniFi WebSocket connections
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-      }
-    '';
+      '';
+      name = "UniFi";
+    };
 
     nixosModules.unifi = _: {
       imports = [../../pkgs/unifi-os-server-image/module.nix];

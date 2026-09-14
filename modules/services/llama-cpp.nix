@@ -41,9 +41,12 @@ in {
   };
 
   config.flake = {
-    caddyVirtualHosts."ai.int.kuipr.de" = ''
-      reverse_proxy 127.0.0.1:5890
-    '';
+    caddyVirtualHosts."ai.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:5890
+      '';
+      name = "Llama.cpp";
+    };
 
     llamaCppModels = [
       {
@@ -61,7 +64,7 @@ in {
       # Nix store paths for hashed models (pkgs.fetchurl only available in NixOS module scope)
       fetchedModels = builtins.listToAttrs (
         map (m: {
-          name = m.name;
+          inherit (m) name;
           value = pkgs.fetchurl {inherit (m) url hash;};
         })
         buildModels

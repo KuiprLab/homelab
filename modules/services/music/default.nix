@@ -4,6 +4,7 @@
 _: {
   flake = {
     caddyVirtualHosts = {
+<<<<<<< HEAD
       "music.ext.kuipr.de" = ''
         request_header -Remote-User
 

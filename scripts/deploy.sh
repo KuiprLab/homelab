@@ -17,7 +17,7 @@ else
       echo "Deploying configuration: $HOST"
       git add . || true
       git commit -m "chore: automatic commit before deployment" || true
-      nix run nixpkgs#deploy-rs -- --remote-build -s .#"$HOST"
+      nix run nixpkgs#deploy-rs -- -s .#"$HOST"
     else
       echo "No configuration selected."
     fi

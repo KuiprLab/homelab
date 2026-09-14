@@ -16,7 +16,10 @@
   ];
 
   # Helper to collect all modules from an attrset
-  collectModules = attrs: lib.attrValues (lib.filterAttrs (_n: v: v != {}) attrs);
+  # sorbetConfiguration and sorbetHardwareConfiguration are declared
+  # explicitly below; skip them in the bulk collection so they do not
+  # merge twice (list options like podman subnets would duplicate).
+  collectModules = attrs: lib.attrValues (lib.filterAttrs (n: v: v != {} && n != "sorbetConfiguration" && n != "sorbetHardwareConfiguration") attrs);
 in {
   flake = {
     nixosModules = {};
@@ -27,12 +30,12 @@ in {
       modules =
         [
           self.nixosModules.sorbetConfiguration
+          self.nixosModules.sorbetHardwareConfiguration
           # Core modules
           inputs.home-manager.nixosModules.home-manager
           inputs.determinate.nixosModules.default
 
           inputs.sops-nix.nixosModules.sops
-          inputs.beetroot.nixosModules.default
           # Nixpkgs configuration
           {
             nixpkgs.config = nixpkgsConfig;

@@ -26,8 +26,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    beetroot.url = "github:frostplexx/Beetroot";
-
     # nixpkgs PR #446307 — crowdsec module refactor
     # Overrides the upstream crowdsec NixOS modules on eclair.
     nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";

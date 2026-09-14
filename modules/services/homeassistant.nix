@@ -1,13 +1,16 @@
 _: {
   flake = {
-    caddyVirtualHosts."has.int.kuipr.de" = ''
-      reverse_proxy localhost:8123 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-      }
-    '';
+    caddyVirtualHosts."has.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy localhost:8123 {
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
+        }
+      '';
+      name = "Home Assistant";
+    };
 
     gatusEndpoints = [
       {
@@ -28,6 +31,7 @@ _: {
         8123
         5353
         1900
+        8097
         51827
       ];
 

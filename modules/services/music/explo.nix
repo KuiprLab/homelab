@@ -1,9 +1,12 @@
 _: {
   flake = {
     caddyVirtualHosts = {
-      "explo.int.kuipr.de" = ''
-        reverse_proxy localhost:7288
-      '';
+      "explo.int.kuipr.de" = {
+        extraConfig = ''
+          reverse_proxy localhost:7288
+        '';
+        name = "Explo";
+      };
     };
 
     nixosModules.explo = {config, ...}: {

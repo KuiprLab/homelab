@@ -17,12 +17,14 @@
     };
 
     eclair = {
-      # Replace with eclair's public IP or hostname after provisioning.
-      hostname = "46.38.236.192";
+      # Tailnet IP — the public IP refuses port 22 (provider firewall).
+      # Set to the output of `tailscale ip -4 eclair`.
+      hostname = "100.99.168.34";
       profiles.system = {
         inherit user;
         sshUser = user;
-        remoteBuild = false; # build locally, push closure to VPS
+        # Built on the Mac, delegated to sorbet via the Mac's nix builders.
+        remoteBuild = false;
         path = inputs.deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.eclair;
       };
     };

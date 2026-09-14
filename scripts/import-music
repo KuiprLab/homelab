@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Upload local music to sorbet and import it into beets.
+#
+# Usage:
+#   import-music ~/Downloads/Album          # import a whole album/folder
+#   import-music --single ~/Music/track.flac  # import a single track as a singleton
+#
+# Copies the given path to the inbox on the server with rsync, then runs
+# `beet import` on the server so beets applies the configured import settings
+# (move, autotag, group albums, etc.).
+
+set -euo pipefail
+
+HOST="${BEETS_HOST:-daniel@192.168.0.85}"
+INBOX="/home/daniel/.beets/inbox"
+
+BEET_ARGS=()
+
+if [[ "${1:-}" == "--single" ]]; then
+    BEET_ARGS+=("--single")
+    shift
+fi
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: $0 [--single] <local music file or folder>" >&2
+    exit 1
+fi
+
+SRC="$1"
+
+if [[ ! -e "$SRC" ]]; then
+    echo "error: '$SRC' does not exist" >&2
+    exit 1
+fi
+
+rsync -a --partial "$SRC" "${HOST}:${INBOX}/"
+
+SRC_NAME="$(basename "${SRC%/}")"
+REMOTE_PATH="${INBOX}/${SRC_NAME}"
+REMOTE_ARG="$(printf '%q' "${REMOTE_PATH}")"
+
+ssh -t "$HOST" "beet import ${BEET_ARGS[*]:-} ${REMOTE_ARG}"

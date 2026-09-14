@@ -3,6 +3,7 @@ _: {
   flake.nixosModules.navidrome = {
     pkgs,
     lib,
+    config,
     ...
   }: let
     homeDir = "/home/daniel";
@@ -21,20 +22,22 @@ _: {
 
     plugins = [
       (mkPlugin {
-        name = "listenbrainz-daily-playlist";
-        url = "https://github.com/kgarner7/navidrome-listenbrainz-daily-playlist/releases/download/v5.0.2/listenbrainz-daily-playlist.ndp";
-        hash = "sha256-P1lB18Gjqjg6p2atn+PqQRcM0U1jSCtGWqkZDNWQ3Pk=";
-      })
-      (mkPlugin {
         name = "audiomuseai";
         url = "https://github.com/NeptuneHub/AudioMuse-AI-NV-plugin/releases/download/v7/audiomuseai.ndp";
         hash = "sha256-+rfCg8PrnfDhB75Q/HNE1lfFG8n0sBBB+y/cOMvaQ/g=";
       })
     ];
   in {
+    sops.secrets."navidrome/env" = {
+      sopsFile = ../../../secrets/sorbet/navidrome.env;
+      format = "dotenv";
+      key = "";
+    };
+
     systemd = {
       services.navidrome.serviceConfig = {
         BindReadOnlyPaths = [musicFolder];
+        EnvironmentFile = config.sops.secrets."navidrome/env".path;
         ProtectHome = lib.mkForce false;
       };
 
@@ -56,6 +59,10 @@ _: {
         "Backup.Path" = "/var/lib/navidrome/backups";
         "Backup.Count" = 7;
         "Backup.Schedule" = "0 0 * * *";
+        # Last.fm: artist bios, images, similar artists, top songs, album art
+        # API keys injected via ND_LASTFM_APIKEY / ND_LASTFM_SECRET from sops
+        "LastFM.Enabled" = true;
+
         "CoverArtPriority" = "embedded, cover.*, folder.*, external";
         "ArtistArtPriority" = "artist.*, album/artist.*, external";
         "Scanner.PurgeMissing" = "always";
