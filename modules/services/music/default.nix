@@ -35,6 +35,11 @@ _: {
             header_up X-Forwarded-Proto {scheme}
           }
         '';
+        authelia = {
+          enable = true;
+          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
+          bypassPaths = ["/healthz"];
+        };
         name = "Audiomuse AI";
       };
     };
