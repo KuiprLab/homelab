@@ -4,44 +4,39 @@
 _: {
   flake = {
     caddyVirtualHosts = {
-      "music.ext.kuipr.de" = ''
-        request_header -Remote-User
-
-        @protected {
-          not path /share/*
-          not {
-            path /rest/*
-            not query c=NavidromeUI
+      "music.int.kuipr.de" = {
+        extraConfig = ''
+          reverse_proxy localhost:4533 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
           }
-        }
-        forward_auth @protected localhost:9091 {
-          uri /api/authz/forward-auth?rd=https://auth.ext.kuipr.de/
-          copy_headers Remote-User
-        }
-
-        reverse_proxy localhost:4533 {
-          header_up Host {host}
-          header_up X-Real-IP {remote_host}
-          header_up X-Forwarded-For {remote_host}
-          header_up X-Forwarded-Proto {scheme}
-        }
-      '';
-      "tagger.int.kuipr.de" = ''
-        reverse_proxy localhost:8099 {
-          header_up Host {host}
-          header_up X-Real-IP {remote_host}
-          header_up X-Forwarded-For {remote_host}
-          header_up X-Forwarded-Proto {scheme}
-        }
-      '';
-      "musai.int.kuipr.de" = ''
-        reverse_proxy localhost:8000 {
-          header_up Host {host}
-          header_up X-Real-IP {remote_host}
-          header_up X-Forwarded-For {remote_host}
-          header_up X-Forwarded-Proto {scheme}
-        }
-      '';
+        '';
+        name = "Navidrome";
+      };
+      "music.ext.kuipr.de" = {
+        extraConfig = ''
+          reverse_proxy localhost:4533 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+          }
+        '';
+        name = "Navidrome (ext)";
+      };
+      "musai.int.kuipr.de" = {
+        extraConfig = ''
+          reverse_proxy localhost:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+          }
+        '';
+        name = "Audiomuse AI";
+      };
     };
 
     gatusEndpoints = [
