@@ -1,9 +1,10 @@
 _: {
   flake = {
-    caddyVirtualHosts = {
-      "auth.ext.kuipr.de" = ''
+    caddyVirtualHosts."auth.ext.kuipr.de" = {
+      extraConfig = ''
         reverse_proxy localhost:9091
       '';
+      name = "Authelia";
     };
     nixosModules.authelia = {
       pkgs,
