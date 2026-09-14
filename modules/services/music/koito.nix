@@ -8,6 +8,11 @@ _: {
           reverse_proxy localhost:4110
         '';
         name = "Koito";
+        authelia = {
+          enable = true;
+          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
+          bypassPaths = ["/healthz"];
+        };
       };
 
       "subtidal.ext.kuipr.de" = {
@@ -22,7 +27,7 @@ _: {
       {
         name = "Koito";
         group = "Music";
-        url = "https://koito.int.kuipr.de";
+        url = "https://koito.int.kuipr.de/healthz";
         conditions = [
           "[STATUS] == 200"
           "[CERTIFICATE_EXPIRATION] > 168h"

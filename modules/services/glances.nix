@@ -7,6 +7,11 @@ _: {
       extraConfig = ''
         reverse_proxy localhost:61208
       '';
+      authelia = {
+        enable = true;
+        # gatus probes this vhost sessionless; /healthz bypasses forward auth.
+        bypassPaths = ["/healthz"];
+      };
       name = "Glances";
     };
 
@@ -14,7 +19,7 @@ _: {
       {
         name = "Glances";
         group = "Monitoring";
-        url = "https://glances.int.kuipr.de";
+        url = "https://glances.int.kuipr.de/healthz";
         interval = "60s";
         conditions = [
           "[STATUS] == 200"

@@ -93,7 +93,6 @@ _: {
         #--------------------------------------------------------------------
         backend be_sorbet
           mode tcp
-          option ssl-hello-chk
           server sorbet ${sorbetTailscaleIp}:443 check inter 10s rise 2 fall 3
 
         #--------------------------------------------------------------------

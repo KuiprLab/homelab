@@ -20,6 +20,35 @@
             Falls back to the hostname when null.
           '';
         };
+
+        authelia = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = ''
+                  Protect this vhost with Authelia forward auth. Caddy checks
+                  the session against authelia on 127.0.0.1:9091 before the
+                  backend receives the request.
+                '';
+              };
+              bypassPaths = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                default = [];
+                description = ''
+                  Paths that skip forward auth and answer HTTP 200 directly.
+                  Use for sessionless health checks, for example gatus probing
+                  its own dashboard.
+                '';
+              };
+            };
+          };
+          default = {};
+          description = ''
+            Authelia forward-auth settings for this vhost.
+          '';
+        };
       };
     });
     default = {};
@@ -59,6 +88,33 @@
 
     nixosModules.caddy = let
       virtualHosts = config.flake.caddyVirtualHosts;
+
+      # Render one vhost's Caddyfile site block. With authelia enabled, wrap
+      # the service config in a route group so forward_auth runs before the
+      # backend directives. Bypass paths become sibling route blocks that
+      # answer 200 directly — sibling routes match first-come, so a bypassed
+      # path never reaches forward_auth.
+      siteConfig = v: let
+        bypassBlocks =
+          lib.concatMapStringsSep "\n" (p: ''
+            route ${p} {
+              respond "ok" 200
+            }
+          '')
+          v.authelia.bypassPaths;
+      in
+        if !v.authelia.enable
+        then v.extraConfig
+        else ''
+          ${bypassBlocks}
+          route {
+            forward_auth 127.0.0.1:9091 {
+                    uri /api/authz/forward-auth
+                    copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+            }
+            ${v.extraConfig}
+          }
+        '';
     in
       {
         pkgs,
@@ -124,7 +180,7 @@
             acme_dns bunny {env.BUNNY_API_KEY}
           '';
           virtualHosts =
-            lib.mapAttrs (_: v: {inherit (v) extraConfig;}) virtualHosts
+            lib.mapAttrs (_: v: {extraConfig = siteConfig v;}) virtualHosts
             // {
               "home.int.kuipr.de" = {
                 extraConfig = ''

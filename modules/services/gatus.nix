@@ -64,10 +64,21 @@
     # without waiting for a 24h panic.
     certWarnHours = "168h";
 
+    # .ext vhosts behind authelia SSO, kept in sync with
+    # modules/services/music/default.nix. A bare-root probe gets a 302 from
+    # authelia and fails [STATUS] == 200, so they are excluded from the
+    # auto-generated ext endpoints and monitored by their explicit /healthz
+    # endpoint instead.
+    ssoProtectedExtHosts = [
+      "music.ext.kuipr.de"
+    ];
+
     extHostNames =
-      lib.filter
-      (lib.hasSuffix ".ext.kuipr.de")
-      (lib.attrNames config.flake.caddyVirtualHosts);
+      builtins.filter
+      (host: !(lib.elem host ssoProtectedExtHosts))
+      (lib.filter
+        (lib.hasSuffix ".ext.kuipr.de")
+        (lib.attrNames config.flake.caddyVirtualHosts));
 
     # Inject a [RESPONSE_TIME] < 2000 condition into any HTTPS endpoint that
     # doesn't already have one. Without this, a stripe pattern of 5s
@@ -134,7 +145,9 @@
       [
         {
           name = "Caddy";
-          url = "https://gatus.int.kuipr.de";
+          # /healthz bypasses forward auth (see vhost below) — a bare probe
+          # would get a 302 from authelia and fail [STATUS] == 200.
+          url = "https://gatus.int.kuipr.de/healthz";
           group = "Network";
           conditions = [
             "[STATUS] == 200"
@@ -185,7 +198,8 @@
         {
           name = "sorbet caddy (tailnet)";
           group = "sorbet-perspective";
-          url = "https://gatus.int.kuipr.de";
+          # /healthz bypasses forward auth, same as the sorbet-side Caddy check.
+          url = "https://gatus.int.kuipr.de/healthz";
           interval = "60s";
           client = {
             timeout = "10s";
@@ -223,10 +237,14 @@
       ++ eclairExtLoopbackEndpoints;
 
     caddyVirtualHosts."gatus.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:8888
-      '';
+      extraConfig = "reverse_proxy localhost:8888";
       name = "Gatus";
+      authelia = {
+        enable = true;
+        # gatus probes its own dashboard with no session; authelia would 302
+        # it. /healthz answers 200 from caddy, bypassing forward auth.
+        bypassPaths = ["/healthz"];
+      };
     };
 
     gatusExtraConfig = {

@@ -10,13 +10,18 @@ _: {
         reverse_proxy localhost:9078
       '';
       name = "Multi Scrobbler";
+      authelia = {
+        enable = true;
+        # gatus probes this vhost sessionless; /healthz bypasses forward auth.
+        bypassPaths = ["/healthz"];
+      };
     };
 
     gatusEndpoints = [
       {
         name = "Multi-Scrobbler";
         group = "Music";
-        url = "https://scrobble.int.kuipr.de";
+        url = "https://scrobble.int.kuipr.de/healthz";
         conditions = [
           "[STATUS] == 200"
           "[CERTIFICATE_EXPIRATION] > 168h"
@@ -69,7 +74,10 @@ _: {
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         ports = ["127.0.0.1:9078:9078"];
-        extraOptions = ["--network=podman" "--network=msv6"];
+        extraOptions = [
+          "--network=podman"
+          "--network=msv6"
+        ];
         labels = {
           "io.containers.autoupdate" = "registry";
         };
