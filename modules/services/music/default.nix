@@ -54,22 +54,6 @@ in {
         extraConfig = navidromeBlock;
         name = "Navidrome (ext)";
       };
-      "musai.int.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:8000 {
-            header_up Host {host}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-          }
-        '';
-        authelia = {
-          enable = true;
-          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
-          bypassPaths = ["/healthz"];
-        };
-        name = "Audiomuse AI";
-      };
     };
 
     gatusEndpoints = [
