@@ -78,7 +78,7 @@
       (host: !(lib.elem host ssoProtectedExtHosts))
       (lib.filter
         (lib.hasSuffix ".ext.kuipr.de")
-        (lib.attrNames config.flake.caddyVirtualHosts));
+        (lib.attrNames (config.flake.caddyVirtualHosts // config.flake.eclairCaddyVirtualHosts)));
 
     # Inject a [RESPONSE_TIME] < 2000 condition into any HTTPS endpoint that
     # doesn't already have one. Without this, a stripe pattern of 5s

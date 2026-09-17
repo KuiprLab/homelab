@@ -1,6 +1,8 @@
 # haproxy TCP SNI reverse proxy for eclair VPS
 # Auto-routes any *.ext.kuipr.de domain (collected from flake.caddyVirtualHosts)
 # to sorbet via tailnet — TCP passthrough, caddy on sorbet terminates TLS.
+# Hosts in flake.eclairCaddyVirtualHosts are instead routed to the local
+# caddy (127.0.0.1:8443), which terminates TLS on the VPS itself.
 # IP banning is handled upstream by crowdsec-firewall-bouncer (nftables).
 #
 # sorbetTailscaleIp is passed via _module.args from eclair/default.nix.
@@ -10,6 +12,7 @@ _: {
     lib,
     sorbetTailscaleIp,
     caddyVirtualHosts,
+    eclairCaddyVirtualHosts,
     ...
   }: let
     # Collect all *.ext.kuipr.de hostnames contributed by service modules.
@@ -18,15 +21,18 @@ _: {
       (lib.hasSuffix ".ext.kuipr.de")
       (lib.attrNames caddyVirtualHosts);
 
+    localHostNames = lib.attrNames eclairCaddyVirtualHosts;
+
     # One ACL + use-backend line per ext host.
-    aclBlock =
+    aclBlockFor = backend:
       lib.concatMapStrings (host: let
         aclName = "sni_" + lib.replaceStrings ["."] ["_"] host;
       in ''
         acl ${aclName} req.ssl_sni -i ${host}
-        use_backend be_sorbet if ${aclName}
-      '')
-      extHostNames;
+        use_backend ${backend} if ${aclName}
+      '');
+
+    aclBlock = aclBlockFor "be_local" localHostNames + aclBlockFor "be_sorbet" extHostNames;
   in {
     networking.firewall.allowedTCPPorts = [80 443];
     # Stats, tailnet-only.
@@ -94,6 +100,13 @@ _: {
         backend be_sorbet
           mode tcp
           server sorbet ${sorbetTailscaleIp}:443 check inter 10s rise 2 fall 3
+
+        #--------------------------------------------------------------------
+        # Backend: local caddy (services hosted on eclair itself)
+        #--------------------------------------------------------------------
+        backend be_local
+          mode tcp
+          server local 127.0.0.1:8443 check inter 10s rise 2 fall 3
 
         #--------------------------------------------------------------------
         # Backend: reject unknown SNI

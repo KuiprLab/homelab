@@ -14,13 +14,6 @@ _: {
           bypassPaths = ["/healthz"];
         };
       };
-
-      "subtidal.ext.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:4234
-        '';
-        name = "Subtidal";
-      };
     };
 
     gatusEndpoints = [
@@ -41,13 +34,6 @@ _: {
         "last-fm-presence" = {
           sopsFile = ../../../secrets/sorbet/last-fm-presence.env;
           format = "dotenv";
-          key = "";
-        };
-        "subtidal" = {
-          sopsFile = ../../../secrets/sorbet/subtidal.toml;
-          format = "binary";
-          owner = "daniel";
-          mode = "755";
           key = "";
         };
       };
@@ -72,25 +58,6 @@ _: {
           image = "ghcr.io/frostplexx/lastfm-discord-presence:main";
           volumes = [];
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
-          labels = {
-            "io.containers.autoupdate" = "registry";
-          };
-        };
-
-        subtidal = {
-          image = "ghcr.io/frostplexx/subtidal:latest";
-          volumes = [
-            "/home/daniel/subtidal:/data:rw"
-            "${config.sops.secrets."subtidal".path}:/config/subtidal/settings.toml:ro"
-          ];
-          user = "1000:100";
-          ports = ["4234:8000"];
-          environment = {
-            TZ = "Europe/Berlin";
-            XDG_CONFIG_HOME = "/config";
-            SUBTIDAL_TOKEN_FILE = "/data/tokens.json";
-            RUST_LOG = "info";
-          };
           labels = {
             "io.containers.autoupdate" = "registry";
           };

@@ -32,6 +32,7 @@ in {
           # Pass flake-level values into nixos modules via _module.args
           _module.args.sorbetTailscaleIp = sorbetTailscaleIp;
           _module.args.caddyVirtualHosts = config.flake.caddyVirtualHosts;
+          _module.args.eclairCaddyVirtualHosts = config.flake.eclairCaddyVirtualHosts;
 
           # Replace upstream crowdsec modules with PR #446307
           disabledModules = [
