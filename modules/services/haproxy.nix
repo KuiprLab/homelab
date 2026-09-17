@@ -80,7 +80,11 @@ _: {
         frontend fe_http
           mode http
           bind *:80
-          http-request redirect scheme https code 301
+          # ACME HTTP-01 for hosts terminated by the local caddy: must reach
+          # caddy's http_port unredirected, everything else goes to HTTPS.
+          acl acme_challenge path_beg /.well-known/acme-challenge/
+          use_backend be_local_http if acme_challenge
+          http-request redirect scheme https code 301 unless acme_challenge
 
         #--------------------------------------------------------------------
         # HTTPS — TCP SNI passthrough
@@ -107,6 +111,10 @@ _: {
         backend be_local
           mode tcp
           server local 127.0.0.1:8443 check inter 10s rise 2 fall 3
+
+        backend be_local_http
+          mode http
+          server local 127.0.0.1:8080
 
         #--------------------------------------------------------------------
         # Backend: reject unknown SNI

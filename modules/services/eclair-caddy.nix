@@ -44,7 +44,15 @@
         '';
         virtualHosts =
           lib.mapAttrs (_: v: {
-            extraConfig = v.extraConfig;
+            extraConfig = ''
+              # TLS-ALPN-01 doesn't survive the haproxy SNI hop; HTTP-01 does.
+              tls {
+                issuer acme {
+                  disable_tlsalpn_challenge
+                }
+              }
+              ${v.extraConfig}
+            '';
           })
           virtualHosts;
       };
