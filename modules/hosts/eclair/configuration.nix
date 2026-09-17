@@ -42,6 +42,8 @@ _: {
 
     users.users.root = {
       openssh.authorizedKeys.keys = [
+        # CI deploy key — actions-deploy on sorbet uses this to deploy eclair.
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPXjQyHCTzpYClf9vsYRO60SJKJD2hafvnyRN3bJ7fhI sorbet-ci-eclair-deploy"
         "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCpYD5c/fhtozkcqkmTkBpLU+MV+abkfJTNurMLX0PcgWN8jJV/+5ITjkWo2hXQPloTTywZRgATRL0vXkZ5PsMSmOlvd6s/09hInCdb9WDkYtQvOiB6EBr9SvhldLtoM+BapMQx87QI1VT5EAnWIxgyYFEE8IB2VWPUqX7RjOj8+1dO8CYNhxya36SpXFFu9HLLdw+RtNQM8N/j52gzKzgI8JYejP7su9dFARtRSzYvyV4IZmVdyFr9XS8dVao9MDuiOx6PY5OZchnqYGxz9qnTdappvpIJAc0BZ90GehUU5X6ah/mFU9N8NWOXyXav0+LY0bMmdDU50PT/PUh+eQ2/HABn2N2aRoxxEhsSdNTB+VgZS0nXu3+CANiBIw8ntlq68IxjaPk9bAm8wDgRvQTN4BphAearFKFqD+xFpNR2uoYl9jL/pLTLbJxCSyGLItkPVPn2E046Xt4qf9lAJ/8ft8QphqaaS1/9LmUOW2infQdxZWeVTzhYEv7QmQiP4E0gOwGKI/damvbFsHuHr3hGWEvtZMHh0D1b4kn+v6oQVN3DNI+eSIxM4QNvZ0nw8mOSGVsIunPymgKn6/Zph04YKpfzrslwCSp7lrXytHYOz/XrcFhlq6nuAGEbeff9deNLQCsVsgTP5XD6K7EF5RogMORRvecgTAcVYqLhoj98w=="
       ];
     };
