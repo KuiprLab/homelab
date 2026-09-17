@@ -61,7 +61,7 @@
           # receives the closure.
           ECLAIR_EXIT=0
           deploy -s "github:KuiprLab/sorbet.nix#eclair" \
-            --ssh-opts "-o StrictHostKeyChecking=accept-new -i ${config.sops.secrets."eclair-deploy-key".path}" \
+            --ssh-opts "-o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes -i ${config.sops.secrets."eclair-deploy-key".path}" \
             > /tmp/deploy-eclair.log 2>&1 || ECLAIR_EXIT=$?
 
           if [ "''${EXIT}" -eq 0 ]; then

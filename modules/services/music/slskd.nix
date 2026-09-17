@@ -27,8 +27,12 @@ _: {
         wantedBy = ["podman-compose-gluetun-root.target"];
       };
 
+      systemd.tmpfiles.rules = ["d /var/lib/slskd 0755 1000 100 -"];
+
       virtualisation.oci-containers.containers.slskd = {
         volumes = [
+          # Image requires /app writable by its user (slskd state: db, logs).
+          "/var/lib/slskd:/app"
           "/home/daniel/slskd-downloads:/app/downloads"
           "${config.sops.secrets."slskd".path}:/app/slskd.yml:ro"
         ];
