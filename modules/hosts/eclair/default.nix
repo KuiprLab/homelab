@@ -33,7 +33,7 @@ in {
           _module.args = {
             inherit sorbetTailscaleIp;
             inherit (config.flake) caddyVirtualHosts;
-            inherit  (config.flake) eclairCaddyVirtualHosts;
+            inherit (config.flake) eclairCaddyVirtualHosts;
           };
 
           # Replace upstream crowdsec modules with PR #446307
