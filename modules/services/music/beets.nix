@@ -35,7 +35,13 @@ _: {
           mkdir -p "${reviewDir}" "${failedDir}"
           shopt -s nullglob
           for event in "${eventsDir}"/*.json; do
-            rel=$(jq -r '.localDirectoryName // empty' "$event")
+            # Never let one bad event take the unit down: park it and move on,
+            # otherwise the path unit retriggers until it hits its start limit.
+            if ! rel=$(jq -r '.localDirectoryName // empty' "$event"); then
+              echo "event $event: unparseable JSON, parking event" >&2
+              mv "$event" "${failedDir}/"
+              continue
+            fi
             rel=''${rel#${containerDownloads}/}
             dir="${hostDownloads}/$rel"
             if [[ -z "$rel" || ! -d "$dir" ]]; then
