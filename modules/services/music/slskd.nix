@@ -8,6 +8,9 @@ _: {
         reverse_proxy 127.0.0.1:5030
       '';
       name = "SLSKD";
+      # slskd has no SSO of its own; authelia gates the vhost and slskd's
+      # built-in login is disabled in slskd.yml (web.authentication.disabled).
+      authelia.enable = true;
     };
 
     nixosModules.slskd = {config, ...}: {

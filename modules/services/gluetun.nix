@@ -63,7 +63,8 @@ _: {
             ];
             ports = [
               "8081:8080"
-              "5030:5030"
+              # slskd web UI: loopback only, so caddy + authelia is the sole way in
+              "127.0.0.1:5030:5030"
               "47594/tcp"
               "47594/udp"
             ];
