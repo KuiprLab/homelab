@@ -37,10 +37,12 @@ _: {
           for event in "${eventsDir}"/*.json; do
             # Never let one bad event take the unit down: park it and move on,
             # otherwise the path unit retriggers until it hits its start limit.
-            if ! rel=$(jq -r '.localDirectoryName // empty' "$event"); then
-              echo "event $event: unparseable JSON, parking event" >&2
-              mv "$event" "${failedDir}/"
-              continue
+            # remoteDirectoryName holds Windows-style paths whose backslashes get
+            # mangled if the slskd-side script uses echo instead of printf; the
+            # local path is a plain Linux path, so fall back to a regex for it.
+            if ! rel=$(jq -r '.localDirectoryName // empty' "$event" 2>/dev/null); then
+              echo "event $event: invalid JSON, extracting localDirectoryName with sed" >&2
+              rel=$(sed -n 's/.*"localDirectoryName":"\([^"]*\)".*/\1/p' "$event")
             fi
             rel=''${rel#${containerDownloads}/}
             dir="${hostDownloads}/$rel"
