@@ -1,8 +1,6 @@
 # slskd container (Soulseek daemon) — VPN-routed via gluetun.
-# Reverse-proxied by caddy as slskd.int.kuipr.de.
-#
-# Note: this file used to bundle the upstream "soulbeet" web UI alongside
-# slskd. soulbeet has been replaced by ./harvest.nix; only slskd remains here.
+# Shares gluetun's network namespace, so port 5030 is published by the gluetun
+# container (see ../gluetun.nix); caddy proxies it as slskd.int.kuipr.de.
 _: {
   flake = {
     caddyVirtualHosts."slskd.int.kuipr.de" = {

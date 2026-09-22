@@ -69,16 +69,6 @@ in {
         ];
         alerts = [{type = "discord";}];
       }
-      {
-        name = "Audiomuse AI";
-        url = "https://musai.int.kuipr.de";
-        group = "Music";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
     ];
   };
 }
