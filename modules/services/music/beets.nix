@@ -30,8 +30,16 @@ _: {
       '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
-        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils];
+        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl];
         text = ''
+          # DISCORD_WEBHOOK_URL comes from the unit's EnvironmentFile
+          notify() {
+            [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || return 0
+            jq -n --arg c "🎵 slskd → beets: $1" '{content: $c}' \
+              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
+              || echo "discord notification failed" >&2
+          }
+
           mkdir -p "${reviewDir}" "${failedDir}"
           shopt -s nullglob
           for event in "${eventsDir}"/*.json; do
@@ -49,18 +57,21 @@ _: {
             if [[ -z "$rel" || ! -d "$dir" ]]; then
               echo "event $event: directory '$dir' missing, parking event" >&2
               mv "$event" "${failedDir}/"
+              notify "directory \`$dir\` missing, event parked in \`${failedDir}\`"
               continue
             fi
             echo "importing $dir"
             if ! beet -c "${autoImportConfig}" import "$dir"; then
               echo "beet import failed for $dir" >&2
               mv "$event" "${failedDir}/"
+              notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
               continue
             fi
             # import.move=true empties the dir on success; leftovers were skipped
             if find "$dir" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .; then
               echo "unmatched, moving $dir to ${reviewDir}"
               mv "$dir" "${reviewDir}/"
+              notify "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import"
             else
               rm -rf "$dir"
             fi
@@ -68,7 +79,25 @@ _: {
           done
         '';
       };
+      unitFailedScript = pkgs.writeShellApplication {
+        name = "slskd-beets-import-failed";
+        runtimeInputs = [pkgs.jq pkgs.curl];
+        text = ''
+          [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || exit 0
+          jq -n --arg c "🎵 slskd → beets: ❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" '{content: $c}' \
+            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL"
+        '';
+      };
     in {
+      # Same encrypted env file gatus uses (DISCORD_WEBHOOK_URL=...); systemd
+      # reads EnvironmentFile as root before dropping to daniel.
+      sops.secrets."beets/discord_webhook" = {
+        sopsFile = ../../../secrets/sorbet/gatus;
+        format = "binary";
+        key = "";
+        owner = "root";
+      };
+
       systemd = {
         tmpfiles.rules = [
           "d ${eventsDir} 0755 daniel users - -"
@@ -82,15 +111,30 @@ _: {
           pathConfig.DirectoryNotEmpty = eventsDir;
         };
 
-        services.slskd-beets-import = {
-          description = "Import finished slskd downloads into beets";
-          serviceConfig = {
-            Type = "oneshot";
-            User = "daniel";
-            Group = "users";
-            ExecStart = "${importScript}/bin/slskd-beets-import";
+        services = {
+          slskd-beets-import = {
+            description = "Import finished slskd downloads into beets";
+            unitConfig.OnFailure = ["slskd-beets-import-failed.service"];
+            serviceConfig = {
+              Type = "oneshot";
+              User = "daniel";
+              Group = "users";
+              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              ExecStart = "${importScript}/bin/slskd-beets-import";
+            };
+            environment.HOME = "/home/daniel";
           };
-          environment.HOME = "/home/daniel";
+
+          # Per-event problems are reported by the script itself; this only
+          # fires if the unit as a whole dies (script bug, missing binary, ...).
+          slskd-beets-import-failed = {
+            description = "Notify Discord that slskd-beets-import crashed";
+            serviceConfig = {
+              Type = "oneshot";
+              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              ExecStart = "${unitFailedScript}/bin/slskd-beets-import-failed";
+            };
+          };
         };
       };
 
