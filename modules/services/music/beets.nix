@@ -1,9 +1,91 @@
-# Beets auto-import pipeline and home-manager configuration
+# Beets home-manager configuration and slskd → beets import bridge.
+#
+# slskd runs a script on DownloadDirectoryComplete (configured in the slskd.yml
+# secret) that dumps the event JSON into /app/events, which is
+# /var/lib/slskd/events on the host. A path unit picks each event up and runs a
+# non-interactive `beet import` on the finished directory. Anything beets can't
+# match confidently is skipped and moved to ~/music-inbox/slskd-review for a
+# manual `just beet import`.
 _: {
   flake = {
-    nixosModules.beets = {pkgs, ...}: let
+    nixosModules.beets = {
+      pkgs,
+      config,
+      ...
+    }: let
       musicFolder = "/media/data/music/beetroot";
+      eventsDir = "/var/lib/slskd/events";
+      failedDir = "/var/lib/slskd/events-failed";
+      reviewDir = "/home/daniel/music-inbox/slskd-review";
+      # Container path of the downloads dir (see slskd.nix volumes) → host path
+      containerDownloads = "/app/downloads";
+      hostDownloads = "/home/daniel/slskd-downloads";
+      beets = config.home-manager.users.daniel.programs.beets.package;
+      # Overrides for the unattended run only; interactive imports keep the
+      # home-manager defaults (quiet_fallback = asis would import untagged junk).
+      autoImportConfig = pkgs.writeText "beets-auto-import.yaml" ''
+        import:
+          quiet: yes
+          quiet_fallback: skip
+      '';
+      importScript = pkgs.writeShellApplication {
+        name = "slskd-beets-import";
+        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils];
+        text = ''
+          mkdir -p "${reviewDir}" "${failedDir}"
+          shopt -s nullglob
+          for event in "${eventsDir}"/*.json; do
+            rel=$(jq -r '.localDirectoryName // empty' "$event")
+            rel=''${rel#${containerDownloads}/}
+            dir="${hostDownloads}/$rel"
+            if [[ -z "$rel" || ! -d "$dir" ]]; then
+              echo "event $event: directory '$dir' missing, parking event" >&2
+              mv "$event" "${failedDir}/"
+              continue
+            fi
+            echo "importing $dir"
+            if ! beet -c "${autoImportConfig}" import "$dir"; then
+              echo "beet import failed for $dir" >&2
+              mv "$event" "${failedDir}/"
+              continue
+            fi
+            # import.move=true empties the dir on success; leftovers were skipped
+            if find "$dir" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .; then
+              echo "unmatched, moving $dir to ${reviewDir}"
+              mv "$dir" "${reviewDir}/"
+            else
+              rm -rf "$dir"
+            fi
+            rm -f "$event"
+          done
+        '';
+      };
     in {
+      systemd = {
+        tmpfiles.rules = [
+          "d ${eventsDir} 0755 daniel users - -"
+          "d ${failedDir} 0755 daniel users - -"
+          "d ${reviewDir} 0775 daniel daniel - -"
+        ];
+
+        paths.slskd-beets-import = {
+          description = "Watch for slskd download-complete events";
+          wantedBy = ["multi-user.target"];
+          pathConfig.DirectoryNotEmpty = eventsDir;
+        };
+
+        services.slskd-beets-import = {
+          description = "Import finished slskd downloads into beets";
+          serviceConfig = {
+            Type = "oneshot";
+            User = "daniel";
+            Group = "users";
+            ExecStart = "${importScript}/bin/slskd-beets-import";
+          };
+          environment.HOME = "/home/daniel";
+        };
+      };
+
       sops.secrets."beets/acoustid_key" = {
         sopsFile = ../../../secrets/sorbet/beets;
         format = "binary";
