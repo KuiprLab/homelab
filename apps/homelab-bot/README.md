@@ -47,12 +47,27 @@ you push the definitions.
 
 ## Working on it
 
+Node and npm come from the dev shell -- nothing has to be installed globally.
+
 ```bash
-cd apps/homelab-bot
-npm install          # local node_modules, gitignored
+nix develop .#homelab-bot
+```
+
+Or just `cd` into this directory: `.envrc` enters the shell automatically via
+direnv. Run `direnv allow` once to trust it.
+
+Inside the shell:
+
+```bash
+npm ci               # deps into ./node_modules (gitignored)
 npm run typecheck    # tsc --noEmit
+npm run build        # tsc -> dist/
 nix build .#homelab-bot
 ```
+
+The shell's nodejs is the same derivation `_package.nix` builds with, so a
+lockfile written here is one Nix can consume. A mismatched npm produces a
+lockfile that only fails in CI.
 
 Dependencies are pinned by `package-lock.json` and nothing else. `importNpmLock`
 derives every hash from that file, so bumping a dependency is `npm install` plus
