@@ -22,7 +22,7 @@
       };
 
       # Dedicated ed25519 key for deploying eclair from CI. Pubkey lives in
-      # modules/hosts/eclair/configuration.nix.
+      # hosts/eclair/configuration.nix.
       "eclair-deploy-key" = {
         sopsFile = ../secrets/sorbet/eclair-deploy-key;
         format = "binary";

@@ -2,7 +2,7 @@
 # Updates UniFi OS Server to the latest release:
 #   - pkgs/unifi-os-server-image/default.nix  → version, url
 #   - pkgs/unifi-os-server-image/module.nix   → imageTag
-#   - modules/services/unifi.nix              → sha256
+#   - services/unifi.nix                      → sha256
 #
 # Usage: ./scripts/update-unifi.sh [linux-x64|linux-arm64]
 #
@@ -16,7 +16,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_NIX="$REPO_ROOT/pkgs/unifi-os-server-image/default.nix"
 MODULE_NIX="$REPO_ROOT/pkgs/unifi-os-server-image/module.nix"
-UNIFI_MODULE="$REPO_ROOT/modules/services/unifi.nix"
+UNIFI_MODULE="$REPO_ROOT/services/unifi.nix"
+
+# perl -i warns to stderr but exits 0 on a missing file, so `set -e` will not
+# catch a stale path here -- the rewrite is skipped and the summary below still
+# reports success. Check up front instead.
+for target in "$DEFAULT_NIX" "$MODULE_NIX" "$UNIFI_MODULE"; do
+  if [[ ! -f $target ]]; then
+    echo "ERROR: target file not found: $target" >&2
+    echo "A path near the top of this script is stale." >&2
+    exit 1
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # 1. Fetch latest version metadata from Ubiquiti firmware API

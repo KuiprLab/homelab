@@ -55,7 +55,7 @@
     # Update both if the VPS gets renumbered.
     eclairPublicIp = "46.38.236.192";
 
-    # Sorbet tailscale IP — also defined in modules/hosts/eclair/default.nix:14.
+    # Sorbet tailscale IP — also defined in hosts/eclair/default.nix:14.
     # Used by eclair gatus to probe sorbet over tailnet.
     sorbetTailscaleIp = "100.120.32.9";
 
@@ -65,7 +65,7 @@
     certWarnHours = "168h";
 
     # .ext vhosts behind authelia SSO, kept in sync with
-    # modules/services/music/default.nix. A bare-root probe gets a 302 from
+    # services/music/default.nix. A bare-root probe gets a 302 from
     # authelia and fails [STATUS] == 200, so they are excluded from the
     # auto-generated ext endpoints and monitored by their explicit /healthz
     # endpoint instead.

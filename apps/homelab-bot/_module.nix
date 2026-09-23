@@ -64,6 +64,11 @@ in {
     sopsFile = ../../secrets/sorbet/homelab-bot.env;
     format = "dotenv";
     key = "";
+
+    # Without this, filling in the real token and deploying leaves the running
+    # bot on the old environment -- it keeps failing to log in after you fixed
+    # the thing that was broken.
+    restartUnits = ["homelab-bot.service"];
   };
 
   systemd.services = {
