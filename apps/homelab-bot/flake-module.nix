@@ -22,6 +22,7 @@ _: {
         echo "homelab-bot -- node $(node --version), npm $(npm --version)"
         echo
         echo "  npm install         deps into ./node_modules (gitignored)"
+        echo "  npm run dev         run from src/, restart on change (.env)"
         echo "  npm run typecheck   tsc --noEmit"
         echo "  npm run build       tsc -> dist/"
         echo "  nix build .#homelab-bot"

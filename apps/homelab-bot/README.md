@@ -60,14 +60,44 @@ Inside the shell:
 
 ```bash
 npm ci               # deps into ./node_modules (gitignored)
+npm run dev          # run from src/, restart on change
+npm run dev:register # register this build's commands to your dev guild
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc -> dist/
 nix build .#homelab-bot
 ```
 
+`npm run dev` skips the build entirely: Node 24 strips types and runs
+`src/index.ts` directly, and `--watch` restarts on save. There is no `dist/`
+involved, so what you edit is what runs.
+
+### Credentials for `npm run dev`
+
+`dev` reads `apps/homelab-bot/.env` if it exists (gitignored):
+
+```
+DISCORD_TOKEN=...
+DISCORD_APPLICATION_ID=...
+DISCORD_GUILD_ID=...
+```
+
+**Use a second Discord application for this, not the deployed bot's token.**
+Two instances on one token both receive the same interaction, so `/ping` gets
+answered twice and the loser errors on an already-acknowledged interaction.
+It also keeps the production token out of plaintext on your laptop — the real
+one stays in `secrets/sorbet/homelab-bot.env`, encrypted.
+
+Point `DISCORD_GUILD_ID` at a throwaway server and `npm run dev:register`
+puts the commands there instantly, without touching the real one.
+
 The shell's nodejs is the same derivation `_package.nix` builds with, so a
 lockfile written here is one Nix can consume. A mismatched npm produces a
 lockfile that only fails in CI.
+
+Relative imports in `src/` are written with `.ts` extensions so Node can
+resolve them when running the source directly. `rewriteRelativeImportExtensions`
+in `tsconfig.json` turns them into `.js` on emit, which is what the built
+`dist/` needs. Change one without the other and dev and build stop agreeing.
 
 Dependencies are pinned by `package-lock.json` and nothing else. `importNpmLock`
 derives every hash from that file, so bumping a dependency is `npm install` plus

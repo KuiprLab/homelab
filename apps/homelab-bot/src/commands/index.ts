@@ -1,6 +1,6 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 
-import * as ping from "./ping.js";
+import * as ping from "./ping.ts";
 
 export interface Command {
   readonly data: {

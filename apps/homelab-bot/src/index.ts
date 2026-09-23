@@ -1,7 +1,7 @@
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 
-import { byName } from "./commands/index.js";
-import { config } from "./config.js";
+import { byName } from "./commands/index.ts";
+import { config } from "./config.ts";
 
 // Guilds is the only intent a slash-command bot needs. Adding MessageContent
 // or GuildMembers later makes the bot privileged and requires approval from

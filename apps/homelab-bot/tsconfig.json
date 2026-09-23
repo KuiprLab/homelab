@@ -10,6 +10,13 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
+
+    // Source imports siblings as "./x.ts" so `node src/index.ts` resolves them
+    // natively; tsc rewrites those specifiers to "./x.js" on emit, which is
+    // what the built dist/ needs. Without this pair, dev and build cannot
+    // agree on an extension.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "sourceMap": true

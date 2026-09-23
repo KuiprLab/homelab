@@ -10,8 +10,8 @@
  */
 import { REST, Routes } from "discord.js";
 
-import { commands } from "./commands/index.js";
-import { config } from "./config.js";
+import { commands } from "./commands/index.ts";
+import { config } from "./config.ts";
 
 const body = commands.map((command) => command.data.toJSON());
 const rest = new REST().setToken(config.token);

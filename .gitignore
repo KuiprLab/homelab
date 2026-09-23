@@ -16,3 +16,6 @@ session-*.md
 # Node apps
 node_modules/
 dist/
+
+# Local dev credentials (plaintext). Real secrets live in secrets/, via sops.
+.env
