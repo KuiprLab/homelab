@@ -349,11 +349,7 @@ export class SlskdClient {
     return (await response.json()) as T;
   }
 
-  async #send(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<Response> {
+  async #send(method: string, path: string, body?: unknown): Promise<Response> {
     const url = `${this.#baseUrl}${API_PREFIX}${path}`;
 
     let response: Response;
@@ -363,9 +359,7 @@ export class SlskdClient {
         headers: {
           "X-API-Key": this.#apiKey,
           Accept: "application/json",
-          ...(body === undefined
-            ? {}
-            : { "Content-Type": "application/json" }),
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(this.#timeoutMs),
