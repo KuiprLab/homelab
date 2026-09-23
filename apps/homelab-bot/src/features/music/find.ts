@@ -1,48 +1,64 @@
-import { MessageFlags, escapeMarkdown } from "discord.js";
-
+import { MessageFlags, SectionBuilder, TextDisplayBuilder } from "discord.js";
 import type { Subcommand } from "../../feature.ts";
+import { fetchCoverArt, mbApi } from "./musicbrainz.ts";
+import type { IRecordingMatch, IReleaseList, IReleaseMatch } from "musicbrainz-api";
 
 export const find: Subcommand = {
-  name: "find",
-  description: "Search the music library",
+    name: "find",
+    description: "Search the music library",
 
-  options: (builder) =>
-    builder.addStringOption((option) =>
-      option
-        .setName("query")
-        .setDescription("Artist, album or track to look for")
-        .setRequired(true)
-        // Discord enforces these itself, so a junk query is rejected in the
-        // client before it ever reaches us.
-        .setMinLength(2)
-        .setMaxLength(100),
-    ),
+    options: (builder) =>
+        builder.addStringOption((option) =>
+            option
+                .setName("query")
+                .setDescription("Artist, album or track to look for")
+                .setRequired(true)
+                // Discord enforces these itself, so a junk query is rejected in the
+                // client before it ever reaches us.
+                .setMinLength(2)
+                .setMaxLength(100),
+        ),
 
-  execute: async (interaction) => {
-    const query = interaction.options.getString("query", true).trim();
+    execute: async (interaction) => {
+        const query = interaction.options.getString("query", true).trim();
 
-    if (query.length === 0) {
-      await interaction.reply({
-        content: "Give me something to search for.",
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+        const albums: IReleaseList = await mbApi.search("release", {
+            query: query,
+            limit: 5,
+        });
 
-    // TODO: search Navidrome. Its Subsonic API lives at
-    // https://music.int.kuipr.de/rest/search3 and is reachable without an
-    // authelia session -- /rest/* is exempted in services/music/default.nix
-    // precisely so subsonic clients can authenticate on their own.
-    //
-    // Whatever goes here should deferReply() first: Discord closes an
-    // interaction after three seconds and a library search will not always
-    // beat that.
-    await interaction.reply({
-      // Echoing user input back into a message is how an @everyone ends up
-      // sent by the bot. escapeMarkdown stops it rendering as formatting;
-      // allowedMentions stops it pinging anyone regardless of what it says.
-      content: `Would search for \`${escapeMarkdown(query)}\` — no library is wired up yet.`,
-      allowedMentions: { parse: [] },
-    });
-  },
+        if (albums.count === 0 || albums.releases.length < 1) {
+            await interaction.reply({
+                content: "Error no albums found for query: " + query,
+                allowedMentions: { parse: [] },
+            });
+        } else {
+            const album: IReleaseMatch = albums.releases[0]!;
+
+            await interaction.reply({
+                components: [await buildMessageForRelease(album)],
+                allowedMentions: { parse: [] },
+                flags: MessageFlags.IsComponentsV2,
+            });
+        }
+
+
+
+    },
 };
+
+
+async function buildMessageForRelease(release: IReleaseMatch ,): Promise<SectionBuilder> {
+    const cover = await fetchCoverArt(release.id) ?? "";
+
+    return new SectionBuilder()
+        .addTextDisplayComponents((textDisplay) =>
+            textDisplay.setContent(
+                'This text is inside a Text Display component! You can use **any __markdown__** available inside this component too.',
+            ),
+        )
+        .setThumbnailAccessory(
+            (thumbnail) => thumbnail.setDescription('alt text displaying on the image').setURL(cover), // Supports arbitrary URLs such as 'https://i.imgur.com/AfFp7pu.png' as well.
+        );
+
+}
