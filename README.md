@@ -29,9 +29,26 @@ sorbet (LAN)
 
 `*.int.kuipr.de` resolves to `192.168.0.85` via dnsmasq wildcard — LAN only, not routed through eclair.
 
-## Module structure
+## Repository layout
 
-All `.nix` files under `modules/` are auto-imported by `import-tree`. Files prefixed `_` are skipped (imported manually by their parent module).
+```
+hosts/<host>/      per-machine configuration (sorbet, eclair)
+modules/flake/     flake-parts plumbing: deploy nodes, systems, checks
+services/          third-party services you configure
+pkgs/              third-party software you package
+apps/              (planned) source for daemons you write, colocated
+                   with their _package.nix and _module.nix
+secrets/           sops-encrypted, kept central on purpose
+docs/              (planned) runbooks and decision records
+```
+
+All `.nix` files under `hosts/`, `modules/` and `services/` are auto-imported
+by `import-tree` as flake-parts modules. Any path containing `/_` is skipped —
+that is how a directory keeps helper files next to its module without them
+being evaluated as flake-parts modules.
+
+`pkgs/` is deliberately outside the import-tree roots: its files are a
+derivation and a NixOS module, imported by hand from `services/unifi.nix`.
 
 Service modules contribute to the flake via:
 
@@ -55,6 +72,7 @@ Secrets are encrypted with [sops-nix](https://github.com/Mic92/sops-nix) using a
 | `secrets/sorbet/rclone`         | rclone Google Drive config                     |
 | `secrets/sorbet/beets`          | beets config                                   |
 | `secrets/eclair/tailscale`      | eclair tailscale auth key                      |
+| `secrets/sorbet/homelab-bot.env` | homelab-bot — Discord token, app ID, guild ID |
 | `secrets/shared/deploy-webhook` | Discord deploy notifications                   |
 
 Both hosts share a single age key listed in `.sops.yaml`.
@@ -140,6 +158,21 @@ ssh root@eclair cscli decisions delete --ip <ip>
 3. Deploy sorbet (caddy picks up new vhost) then eclair (haproxy regenerates SNI ACLs).
 
 No other changes needed — SNI routing is derived automatically from `caddyVirtualHosts`.
+
+## Formatting and checks
+
+```bash
+nix fmt .        # formats every language in the tree
+nix flake check  # treefmt + deadnix + statix
+```
+
+`nix fmt` is treefmt, configured once in `modules/flake/treefmt.nix`. It
+currently drives alejandra (Nix) and shfmt (shell); adding Go, Rust or
+prettier is one line there and nothing anywhere else. Formatting is also a
+flake check, so CI fails on an unformatted tree.
+
+deadnix and statix stay separate checks on purpose — they inspect, they do
+not rewrite.
 
 ## Updating flake inputs
 
