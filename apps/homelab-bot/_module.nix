@@ -9,8 +9,9 @@
 #      add a bot, copy the token and the application ID.
 #   2. sops secrets/sorbet/homelab-bot.env   -- replace the placeholders.
 #   3. Set `enabled = true` below.
-#   4. Deploy sorbet, then register the slash commands once:
-#        systemctl start homelab-bot-register
+#   4. Deploy sorbet. The bot registers its commands with Discord on startup,
+#      so there is nothing else to run. homelab-bot-register stays available
+#      for pushing a command change without restarting the bot.
 #
 # It ships disabled on purpose: until the secret holds a real token the bot
 # cannot log in, and a running unit would just restart-loop.

@@ -2,6 +2,7 @@ import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 
 import { byName } from "./commands/index.ts";
 import { config } from "./config.ts";
+import { explainSyncFailure, syncCommands } from "./register.ts";
 
 // Guilds is the only intent a slash-command bot needs. Adding MessageContent
 // or GuildMembers later makes the bot privileged and requires approval from
@@ -10,9 +11,25 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, (ready) => {
   console.log(`Logged in as ${ready.user.tag} (${ready.user.id})`);
-  console.log(
-    `Serving ${byName.size} command(s): ${[...byName.keys()].join(", ")}`,
-  );
+  const names = [...byName.keys()].map((name) => `/${name}`).join(", ");
+
+  void (async () => {
+    try {
+      const result = await syncCommands(ready.rest);
+      console.log(
+        result === "updated"
+          ? `Registered with Discord: ${names}`
+          : `Already registered with Discord: ${names}`,
+      );
+    } catch (error) {
+      // Never fatal. A bot that cannot update its command list is still a
+      // working bot for whatever is already registered, and the deployed unit
+      // restarting in a loop would be a worse outcome than a stale /ping.
+      console.error(
+        `Could not register commands. ${explainSyncFailure(error)}`,
+      );
+    }
+  })();
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

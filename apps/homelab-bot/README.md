@@ -32,18 +32,27 @@ as flake-parts modules.
    both `wantedBy` and the secret's `restartUnits`, which have to agree:
    sops-nix restarts listed units when a secret changes, and `systemctl
    restart` starts an inactive unit regardless of `wantedBy`.
-4. Deploy, then register the commands once:
+4. Deploy:
    ```bash
    just deploy sorbet
-   ssh root@sorbet systemctl start homelab-bot-register
    ```
+   The bot registers its commands with Discord on startup, so there is nothing
+   else to run.
 
 ## Adding a command
 
 Two lines. Write `src/commands/<name>.ts` exporting `data` and `execute`, then
 import it into the `commands` array in `src/commands/index.ts`. Rebuild, deploy,
-and run `homelab-bot-register` again — Discord only learns about a command when
-you push the definitions.
+Restart the bot and it registers the new set itself.
+
+Registration reads before it writes: it fetches the current commands and only
+writes when they differ from this build. That is what makes it safe to do on
+every startup, including the restart `npm run dev` performs on each save — the
+common case costs one cheap read and no write.
+
+`homelab-bot-register` (or `npm run dev:register`) does the same thing as a
+one-shot, for pushing a change without restarting the bot and for seeing the
+result as a real exit status.
 
 ## Working on it
 

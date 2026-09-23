@@ -1,32 +1,32 @@
 /**
- * Pushes the command definitions to Discord.
+ * Registers this build's commands with Discord, as a one-shot.
  *
- * This is a separate entry point, not part of bot startup: registering is a
- * write against Discord's API that is rate limited and only needs to happen
- * when the command list actually changes. Run it by hand after adding or
- * changing a command:
- *
- *   systemctl start homelab-bot-register
+ * The bot also does this on startup. This entry point stays because it is
+ * useful on its own: `systemctl start homelab-bot-register` on a host, or
+ * `npm run dev:register`, to push a change without restarting the bot and to
+ * see the result as a real exit status.
  */
-import { REST, Routes } from "discord.js";
+import { REST } from "discord.js";
 
 import { commands } from "./commands/index.ts";
 import { config } from "./config.ts";
+import { explainSyncFailure, syncCommands } from "./register.ts";
 
-const body = commands.map((command) => command.data.toJSON());
 const rest = new REST().setToken(config.token);
-
-const route =
+const names = commands.map((command) => `/${command.data.name}`).join(", ");
+const where =
   config.guildId === null
-    ? Routes.applicationCommands(config.applicationId)
-    : Routes.applicationGuildCommands(config.applicationId, config.guildId);
+    ? "globally (may take up to an hour to appear)"
+    : `to guild ${config.guildId}`;
 
-await rest.put(route, { body });
-
-console.log(
-  `Registered ${body.length} command(s) ${
-    config.guildId === null
-      ? "globally (may take up to an hour)"
-      : `to guild ${config.guildId}`
-  }: ${commands.map((c) => `/${c.data.name}`).join(", ")}`,
-);
+try {
+  const result = await syncCommands(rest);
+  console.log(
+    result === "updated"
+      ? `Registered ${commands.length} command(s) ${where}: ${names}`
+      : `Already up to date ${where}: ${names}`,
+  );
+} catch (error) {
+  console.error(explainSyncFailure(error));
+  process.exit(1);
+}
