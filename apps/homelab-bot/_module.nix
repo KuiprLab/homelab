@@ -31,7 +31,7 @@
   # does not protect it. Listing the unit while it was meant to stay down is
   # what put the placeholder token into a 30s restart loop against Discord's
   # login endpoint on the first deploy. One flag, so they cannot drift apart.
-  enabled = false;
+  enabled = true;
 
   # Both units run the same code, read the same secret and get the same
   # confinement -- only the entry point differs.
