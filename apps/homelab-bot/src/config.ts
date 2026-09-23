@@ -8,9 +8,9 @@ function required(name: string): string {
   const value = process.env[name];
   if (value === undefined || value === "") {
     throw new Error(
-      `Missing required environment variable ${name}. ` +
-        `On sorbet this comes from secrets/sorbet/homelab-bot.env -- ` +
-        `edit it with: sops secrets/sorbet/homelab-bot.env`,
+      `Missing required environment variable ${name}.\n` +
+        `  dev:  .env at the repo root, or apps/homelab-bot/.env\n` +
+        `  host: sops secrets/sorbet/homelab-bot.env`,
     );
   }
   return value;

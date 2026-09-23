@@ -73,13 +73,18 @@ involved, so what you edit is what runs.
 
 ### Credentials for `npm run dev`
 
-`dev` reads `apps/homelab-bot/.env` if it exists (gitignored):
+`dev` reads two files if they exist, repo root first and `apps/homelab-bot/.env`
+second, so an app-local file overrides a shared one. Both are gitignored:
 
 ```
 DISCORD_TOKEN=...
 DISCORD_APPLICATION_ID=...
 DISCORD_GUILD_ID=...
 ```
+
+A 1Password Environments `.env` works here. That is a named pipe rather than a
+regular file, so the plaintext never touches disk, and 1Password re-serves it on
+every open — `--watch` restarts read it again fine.
 
 **Use a second Discord application for this, not the deployed bot's token.**
 Two instances on one token both receive the same interaction, so `/ping` gets
