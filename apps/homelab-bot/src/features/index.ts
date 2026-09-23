@@ -10,6 +10,7 @@ import {
   type Feature,
 } from "../feature.ts";
 import { diagnostics } from "./diagnostics/index.ts";
+import { music } from "./music/index.ts";
 
 /**
  * Every feature the bot ships, listed explicitly rather than discovered by
@@ -18,7 +19,7 @@ import { diagnostics } from "./diagnostics/index.ts";
  *
  * Adding a feature is two lines -- import it, add it here.
  */
-export const features: readonly Feature[] = [diagnostics];
+export const features: readonly Feature[] = [diagnostics, music];
 
 interface Registered {
   readonly command: Command;
