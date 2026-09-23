@@ -62,7 +62,7 @@ async function buildMessageForRelease(release: IReleaseMatch,): Promise<Containe
             ),
         )
         .setThumbnailAccessory(
-            (thumbnail) => thumbnail.setDescription('alt text displaying on the image').setURL(cover), // Supports arbitrary URLs such as 'https://i.imgur.com/AfFp7pu.png' as well.
+            (thumbnail) => thumbnail.setDescription('alt text displaying on the image').setURL(cover),
         );
 
 
