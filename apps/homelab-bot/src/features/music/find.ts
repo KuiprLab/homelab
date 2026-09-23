@@ -1,4 +1,4 @@
-import { MessageFlags, SectionBuilder, TextDisplayBuilder } from "discord.js";
+import { ButtonBuilder, ButtonStyle, Colors, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder, ThumbnailBuilder } from "discord.js";
 import type { Subcommand } from "../../feature.ts";
 import { fetchCoverArt, mbApi } from "./musicbrainz.ts";
 import type { IRecordingMatch, IReleaseList, IReleaseMatch } from "musicbrainz-api";
@@ -48,17 +48,29 @@ export const find: Subcommand = {
 };
 
 
-async function buildMessageForRelease(release: IReleaseMatch ,): Promise<SectionBuilder> {
+async function buildMessageForRelease(release: IReleaseMatch,): Promise<ContainerBuilder> {
     const cover = await fetchCoverArt(release.id) ?? "";
+    const artistCredit = release["artist-credit"]?.map((ac) => ac.name).join(", ") ?? "Unknown";
 
-    return new SectionBuilder()
+
+    const section1 = new SectionBuilder()
         .addTextDisplayComponents((textDisplay) =>
             textDisplay.setContent(
-                'This text is inside a Text Display component! You can use **any __markdown__** available inside this component too.',
+                `## ${release.title} by ${artistCredit}\n` +
+                `Released: ${release.date ?? "Unknown"}\n` +
+                `Track Count: ${release["track-count"] ?? "Unknown"}\n`
             ),
         )
         .setThumbnailAccessory(
             (thumbnail) => thumbnail.setDescription('alt text displaying on the image').setURL(cover), // Supports arbitrary URLs such as 'https://i.imgur.com/AfFp7pu.png' as well.
         );
 
+
+
+    return new ContainerBuilder()
+        .setAccentColor(0x0099ff)
+        .addSectionComponents(section1)
+        .addActionRowComponents((actionRow) =>
+            actionRow.setComponents(new ButtonBuilder().setCustomId('exampleSelect').setLabel('Download').setStyle(ButtonStyle.Primary)),
+        )
 }
