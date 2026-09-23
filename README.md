@@ -158,6 +158,21 @@ ssh root@eclair cscli decisions delete --ip <ip>
 
 No other changes needed — SNI routing is derived automatically from `caddyVirtualHosts`.
 
+## Formatting and checks
+
+```bash
+nix fmt .        # formats every language in the tree
+nix flake check  # treefmt + deadnix + statix
+```
+
+`nix fmt` is treefmt, configured once in `modules/flake/treefmt.nix`. It
+currently drives alejandra (Nix) and shfmt (shell); adding Go, Rust or
+prettier is one line there and nothing anywhere else. Formatting is also a
+flake check, so CI fails on an unformatted tree.
+
+deadnix and statix stay separate checks on purpose — they inspect, they do
+not rewrite.
+
 ## Updating flake inputs
 
 ```bash

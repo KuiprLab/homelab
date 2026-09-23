@@ -30,7 +30,7 @@ VERSION=$(echo "$FIRMWARE_JSON" | jq -r '._embedded.firmware[0].version')
 DOWNLOAD_URL=$(echo "$FIRMWARE_JSON" | jq -r '._embedded.firmware[0]._links.data.href')
 SHA256_HEX=$(echo "$FIRMWARE_JSON" | jq -r '._embedded.firmware[0].sha256_checksum')
 
-if [[ -z "$VERSION" || "$VERSION" == "null" ]]; then
+if [[ -z $VERSION || $VERSION == "null" ]]; then
   echo "ERROR: Could not parse version from API response." >&2
   echo "Response was: $FIRMWARE_JSON" >&2
   exit 1
@@ -44,7 +44,7 @@ echo "Download URL   : $DOWNLOAD_URL"
 
 # Check if already up to date
 CURRENT_VERSION=$(perl -ne 'print $1 if /version \? "([^"]+)"/' "$DEFAULT_NIX")
-if [[ "$VERSION" == "$CURRENT_VERSION" ]]; then
+if [[ $VERSION == "$CURRENT_VERSION" ]]; then
   echo "Already at latest version $VERSION — nothing to do."
   exit 0
 fi
@@ -76,14 +76,14 @@ else
 fi
 
 IMAGE_TAR=$(find . -type f -name image.tar | head -n1)
-if [[ -z "$IMAGE_TAR" ]]; then
+if [[ -z $IMAGE_TAR ]]; then
   echo "ERROR: Could not find image.tar in extracted installer." >&2
   exit 1
 fi
 
 IMAGE_TAG=$(tar -xOf "$IMAGE_TAR" manifest.json | jq -r '.[0].RepoTags[0]')
 
-if [[ -z "$IMAGE_TAG" || "$IMAGE_TAG" == "null" ]]; then
+if [[ -z $IMAGE_TAG || $IMAGE_TAG == "null" ]]; then
   echo "ERROR: Could not extract RepoTags from manifest.json." >&2
   exit 1
 fi

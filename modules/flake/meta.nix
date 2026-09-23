@@ -9,16 +9,9 @@ _: {
 
   # Make nixpkgs available per-system
   perSystem = {pkgs, ...}: {
-    # Default formatter
-    formatter = pkgs.alejandra;
-
-    # Checks for CI
+    # `formatter` and `checks.treefmt` come from modules/flake/treefmt.nix.
+    # Everything below is linting, which inspects but never rewrites.
     checks = {
-      formatting = pkgs.runCommand "check-formatting" {} ''
-        ${pkgs.alejandra}/bin/alejandra --check ${../../.} || exit 1
-        touch $out
-      '';
-
       deadcode = pkgs.runCommand "check-deadcode" {} ''
         ${pkgs.deadnix}/bin/deadnix --fail ${../../.} || exit 1
         touch $out

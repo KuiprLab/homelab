@@ -17,21 +17,21 @@ INBOX="/home/daniel/.beets/inbox"
 
 BEET_ARGS=()
 
-if [[ "${1:-}" == "--single" ]]; then
-    BEET_ARGS+=("--single")
-    shift
+if [[ ${1:-} == "--single" ]]; then
+  BEET_ARGS+=("--single")
+  shift
 fi
 
 if [[ $# -ne 1 ]]; then
-    echo "usage: $0 [--single] <local music file or folder>" >&2
-    exit 1
+  echo "usage: $0 [--single] <local music file or folder>" >&2
+  exit 1
 fi
 
 SRC="$1"
 
-if [[ ! -e "$SRC" ]]; then
-    echo "error: '$SRC' does not exist" >&2
-    exit 1
+if [[ ! -e $SRC ]]; then
+  echo "error: '$SRC' does not exist" >&2
+  exit 1
 fi
 
 rsync -a --partial "$SRC" "${HOST}:${INBOX}/"
