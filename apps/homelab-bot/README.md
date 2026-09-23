@@ -63,34 +63,69 @@ as flake-parts modules.
 ## Adding a feature
 
 Create `src/features/<name>/index.ts` exporting a `Feature`, then import it
-into the `features` array in `src/features/index.ts`:
+into the `features` array in `src/features/index.ts`.
+
+A command is declared, not built. The framework turns one declaration into
+both the schema Discord receives and the routing table the bot dispatches on,
+so the two cannot disagree:
 
 ```ts
-import type { Feature } from "../../feature.ts";
+import type { Command } from "../../feature.ts";
 
-import * as play from "./play.ts";
-
-export const music: Feature = {
+export const music: Command = {
   name: "music",
-  commands: [play],
-  // Optional. Runs once after connect, for anything that is not a slash
-  // command: event listeners, timers, voice connections.
-  setup(client) {
-    client.on("voiceStateUpdate", () => {});
-  },
+  description: "Music controls",
+
+  // /music play <query>, /music stop
+  subcommands: [
+    {
+      name: "play",
+      description: "Play a track",
+      options: (b) =>
+        b.addStringOption((o) =>
+          o.setName("query").setDescription("Track or URL").setRequired(true),
+        ),
+      execute: async (interaction) => { /* ... */ },
+    },
+    { name: "stop", description: "Stop playback", execute: async () => {} },
+  ],
+
+  // /music queue add, /music queue clear
+  groups: [
+    {
+      name: "queue",
+      description: "Queue management",
+      subcommands: [
+        { name: "add", description: "Add to queue", execute: async () => {} },
+        { name: "clear", description: "Clear it", execute: async () => {} },
+      ],
+    },
+  ],
 };
 ```
 
-A command is a module exporting `data` (a `SlashCommandBuilder`) and
-`execute`. See `src/features/diagnostics/ping.ts`.
+A command with no subcommands takes an `execute` (and optionally `options`)
+directly — see `src/features/diagnostics/ping.ts`.
 
-Two guarantees worth knowing:
+Discord nests exactly this deep: command → group → subcommand. There is no
+third level.
 
-- Slash command names are global to the application, so two features cannot
-  both define `/play`. That fails at startup naming both features, rather than
-  Discord silently keeping whichever was sent last.
-- A feature whose `setup` throws is logged and skipped. It does not take the
-  bot down — a broken `music` still leaves `/ping` answering.
+Features can also take an optional `setup(client)`, run once after connect,
+for anything that is not a slash command: event listeners, timers, voice
+connections.
+
+### What fails at startup rather than in production
+
+- **Two features defining the same command name.** Names are global to the
+  application, so Discord would keep whichever was sent last.
+- **A command with both `execute` and subcommands.** Discord never invokes a
+  parent on its own, so that `execute` could not run.
+- **A command with neither.**
+- **Both `options` and subcommands**, or more than 25 subcommands — Discord
+  rejects these, so they are caught before they are sent.
+
+A feature whose `setup` throws is logged and skipped, not fatal: a broken
+`music` still leaves `/ping` answering.
 
 Restart the bot and it registers the new command set itself.
 

@@ -1,6 +1,6 @@
 import { DiscordAPIError, type REST, Routes } from "discord.js";
 
-import { commands } from "./features/index.ts";
+import { definitions } from "./features/index.ts";
 import { config } from "./config.ts";
 
 /**
@@ -58,9 +58,7 @@ export type SyncResult = "unchanged" | "updated";
  * keystroke-ish. A GET is cheap and the common case is "nothing changed".
  */
 export async function syncCommands(rest: REST): Promise<SyncResult> {
-  const desired = commands.map(
-    (command) => command.data.toJSON() as Record<string, unknown>,
-  );
+  const desired = definitions as unknown as Record<string, unknown>[];
   const route = commandRoute();
 
   const existing = (await rest.get(route)) as Record<string, unknown>[];

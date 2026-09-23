@@ -8,12 +8,14 @@
  */
 import { REST } from "discord.js";
 
-import { commands } from "./features/index.ts";
+import { definitions, routeNames } from "./features/index.ts";
 import { config } from "./config.ts";
 import { explainSyncFailure, syncCommands } from "./register.ts";
 
 const rest = new REST().setToken(config.token);
-const names = commands.map((command) => `/${command.data.name}`).join(", ");
+const names = routeNames()
+  .map((route) => `/${route}`)
+  .join(", ");
 const where =
   config.guildId === null
     ? "globally (may take up to an hour to appear)"
@@ -23,7 +25,7 @@ try {
   const result = await syncCommands(rest);
   console.log(
     result === "updated"
-      ? `Registered ${commands.length} command(s) ${where}: ${names}`
+      ? `Registered ${definitions.length} command(s) ${where}: ${names}`
       : `Already up to date ${where}: ${names}`,
   );
 } catch (error) {

@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 
-import { byName, features } from "./features/index.ts";
+import { features, resolve, routeNames } from "./features/index.ts";
 import { config } from "./config.ts";
 import { explainSyncFailure, syncCommands } from "./register.ts";
 
@@ -11,7 +11,9 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, (ready) => {
   console.log(`Logged in as ${ready.user.tag} (${ready.user.id})`);
-  const names = [...byName.keys()].map((name) => `/${name}`).join(", ");
+  const names = routeNames()
+    .map((route) => `/${route}`)
+    .join(", ");
   console.log(
     `Features: ${features.map((feature) => feature.name).join(", ")}`,
   );
@@ -47,17 +49,25 @@ client.once(Events.ClientReady, (ready) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  const command = byName.get(interaction.commandName);
-  if (command === undefined) {
-    // Discord still has a command registered that this build no longer ships.
-    console.warn(`Ignoring unknown command /${interaction.commandName}`);
+  // A command with subcommands is never invoked on its own, so the handler is
+  // identified by the whole path, not just the command name.
+  const group = interaction.options.getSubcommandGroup(false);
+  const subcommand = interaction.options.getSubcommand(false);
+  const path = [interaction.commandName, group, subcommand]
+    .filter((part) => part !== null)
+    .join(" ");
+
+  const execute = resolve(interaction.commandName, group, subcommand);
+  if (execute === undefined) {
+    // Discord still advertises a command this build no longer answers.
+    console.warn(`Ignoring unknown command /${path}`);
     return;
   }
 
   try {
-    await command.execute(interaction);
+    await execute(interaction);
   } catch (error) {
-    console.error(`/${interaction.commandName} failed:`, error);
+    console.error(`/${path} failed:`, error);
 
     // Discord closes the interaction after three seconds, so a failure that
     // arrives late has to go out as a follow-up instead of a reply.
