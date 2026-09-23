@@ -12,6 +12,27 @@ systemd on sorbet.
 | `_module.nix` | How it is run on a host. |
 | `src/` | The bot itself. |
 
+Inside `src/`, code is divided by **feature** — what it is for — not by what
+kind of thing it is:
+
+```
+src/
+├── feature.ts              the Feature and Command contracts
+├── features/
+│   ├── index.ts            the feature list; everything else is reached from here
+│   └── diagnostics/        one feature
+│       ├── index.ts        declares the feature
+│       └── ping.ts         one of its commands
+├── config.ts               environment
+├── register.ts             syncing commands with Discord
+└── index.ts                client bootstrap
+```
+
+A feature owns everything it needs. Adding `music/` or `management/` means
+adding a directory and one line in `features/index.ts` — never editing a
+shared commands file, a shared handler switch, and a shared registration list
+for the same change. Removing one means deleting the directory.
+
 The `_` prefix is load-bearing: import-tree skips any path containing `/_`, so
 these are imported deliberately from `flake-module.nix` rather than evaluated
 as flake-parts modules.
@@ -39,11 +60,39 @@ as flake-parts modules.
    The bot registers its commands with Discord on startup, so there is nothing
    else to run.
 
-## Adding a command
+## Adding a feature
 
-Two lines. Write `src/commands/<name>.ts` exporting `data` and `execute`, then
-import it into the `commands` array in `src/commands/index.ts`. Rebuild, deploy,
-Restart the bot and it registers the new set itself.
+Create `src/features/<name>/index.ts` exporting a `Feature`, then import it
+into the `features` array in `src/features/index.ts`:
+
+```ts
+import type { Feature } from "../../feature.ts";
+
+import * as play from "./play.ts";
+
+export const music: Feature = {
+  name: "music",
+  commands: [play],
+  // Optional. Runs once after connect, for anything that is not a slash
+  // command: event listeners, timers, voice connections.
+  setup(client) {
+    client.on("voiceStateUpdate", () => {});
+  },
+};
+```
+
+A command is a module exporting `data` (a `SlashCommandBuilder`) and
+`execute`. See `src/features/diagnostics/ping.ts`.
+
+Two guarantees worth knowing:
+
+- Slash command names are global to the application, so two features cannot
+  both define `/play`. That fails at startup naming both features, rather than
+  Discord silently keeping whichever was sent last.
+- A feature whose `setup` throws is logged and skipped. It does not take the
+  bot down — a broken `music` still leaves `/ping` answering.
+
+Restart the bot and it registers the new command set itself.
 
 Registration reads before it writes: it fetches the current commands and only
 writes when they differ from this build. That is what makes it safe to do on

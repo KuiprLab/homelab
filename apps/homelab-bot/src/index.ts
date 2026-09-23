@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 
-import { byName } from "./commands/index.ts";
+import { byName, features } from "./features/index.ts";
 import { config } from "./config.ts";
 import { explainSyncFailure, syncCommands } from "./register.ts";
 
@@ -12,6 +12,18 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.once(Events.ClientReady, (ready) => {
   console.log(`Logged in as ${ready.user.tag} (${ready.user.id})`);
   const names = [...byName.keys()].map((name) => `/${name}`).join(", ");
+  console.log(
+    `Features: ${features.map((feature) => feature.name).join(", ")}`,
+  );
+
+  // A feature that fails to start should not take the bot down with it --
+  // a broken music feature still leaves /ping answering.
+  for (const feature of features) {
+    if (feature.setup === undefined) continue;
+    void Promise.resolve(feature.setup(ready)).catch((error: unknown) => {
+      console.error(`Feature "${feature.name}" failed to start:`, error);
+    });
+  }
 
   void (async () => {
     try {

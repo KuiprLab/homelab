@@ -1,6 +1,6 @@
 import { DiscordAPIError, type REST, Routes } from "discord.js";
 
-import { commands } from "./commands/index.ts";
+import { commands } from "./features/index.ts";
 import { config } from "./config.ts";
 
 /**
