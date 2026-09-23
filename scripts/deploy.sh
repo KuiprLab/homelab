@@ -15,8 +15,18 @@ else
     echo "Deploying $HOST..."
     if [ -n "$HOST" ]; then
       echo "Deploying configuration: $HOST"
-      git add . || true
-      git commit -m "chore: automatic commit before deployment" || true
+      # Nix flakes only read git-tracked files, so an uncommitted change would
+      # be silently absent from the closure we are about to activate. Refuse
+      # rather than auto-commit: history is how we bisect and revert the lab.
+      if [ -n "$(git status --porcelain)" ]; then
+        echo "error: working tree is dirty -- refusing to deploy." >&2
+        echo "Flakes ignore uncommitted files, so this deploy would not contain your changes." >&2
+        echo >&2
+        git status --short >&2
+        echo >&2
+        echo "Commit (with a real message) and re-run: just deploy $HOST" >&2
+        exit 1
+      fi
       nix run nixpkgs#deploy-rs -- -s .#"$HOST"
     else
       echo "No configuration selected."
