@@ -12,3 +12,7 @@ result-*
 
 # Agent session transcripts
 session-*.md
+
+# Node apps
+node_modules/
+dist/
