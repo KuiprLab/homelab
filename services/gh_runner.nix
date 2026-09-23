@@ -49,6 +49,12 @@
 
           OLD=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' | sort -t- -k2 -n | tail -1)
 
+          # Nix caches github: flake resolution for tarball-ttl (1h default), so
+          # a deploy triggered within an hour of the previous one re-resolves to
+          # the OLD rev and silently redeploys the previous commit. Refresh the
+          # cache entry first -- both commands below resolve the same URL.
+          nix flake metadata --refresh "github:KuiprLab/sorbet.nix" > /dev/null 2>&1 || true
+
           EXIT=0
           nixos-rebuild switch --flake "github:KuiprLab/sorbet.nix#sorbet" > /tmp/deploy.log 2>&1 || EXIT=$?
 

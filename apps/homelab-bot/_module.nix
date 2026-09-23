@@ -8,12 +8,12 @@
 #   1. Create an application at https://discord.com/developers/applications,
 #      add a bot, copy the token and the application ID.
 #   2. sops secrets/sorbet/homelab-bot.env   -- replace the placeholders.
-#   3. Deploy sorbet, then register the slash commands once:
+#   3. Set `enabled = true` below.
+#   4. Deploy sorbet, then register the slash commands once:
 #        systemctl start homelab-bot-register
-#   4. Set wantedBy below to ["multi-user.target"] so it starts on boot.
 #
-# It ships with wantedBy = [] on purpose: until the secret holds a real token
-# the bot cannot log in, and an enabled unit would just restart-loop.
+# It ships disabled on purpose: until the secret holds a real token the bot
+# cannot log in, and a running unit would just restart-loop.
 {
   config,
   lib,
@@ -21,6 +21,17 @@
   ...
 }: let
   homelab-bot = pkgs.callPackage ./_package.nix {};
+
+  # The single switch for this service. Flip to true once the Discord token in
+  # secrets/sorbet/homelab-bot.env is real.
+  #
+  # This gates wantedBy AND the secret's restartUnits together, because the two
+  # have to agree. sops-nix restarts every unit listed in restartUnits when the
+  # secret changes, and `systemctl restart` STARTS an inactive unit -- wantedBy
+  # does not protect it. Listing the unit while it was meant to stay down is
+  # what put the placeholder token into a 30s restart loop against Discord's
+  # login endpoint on the first deploy. One flag, so they cannot drift apart.
+  enabled = false;
 
   # Both units run the same code, read the same secret and get the same
   # confinement -- only the entry point differs.
@@ -65,10 +76,9 @@ in {
     format = "dotenv";
     key = "";
 
-    # Without this, filling in the real token and deploying leaves the running
-    # bot on the old environment -- it keeps failing to log in after you fixed
-    # the thing that was broken.
-    restartUnits = ["homelab-bot.service"];
+    # Once enabled, editing the token and deploying restarts the bot so it
+    # actually picks the new value up. Empty while disabled -- see `enabled`.
+    restartUnits = lib.optionals enabled ["homelab-bot.service"];
   };
 
   systemd.services = {
@@ -76,8 +86,7 @@ in {
       description = "Discord bot for the homelab";
       documentation = ["https://github.com/KuiprLab/sorbet.nix"];
 
-      # Flip to ["multi-user.target"] once the token is real -- see header.
-      wantedBy = [];
+      wantedBy = lib.optionals enabled ["multi-user.target"];
 
       after = ["network-online.target"];
       wants = ["network-online.target"];

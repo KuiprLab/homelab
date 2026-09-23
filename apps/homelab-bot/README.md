@@ -27,8 +27,11 @@ as flake-parts modules.
    `DISCORD_GUILD_ID` is optional. Set it and commands register to that one
    server instantly; leave it blank and they register globally, which Discord
    can take an hour to propagate.
-3. Set `wantedBy = ["multi-user.target"]` in `_module.nix`. It ships as `[]` so
-   a placeholder token cannot leave a unit restart-looping on the lab.
+3. Set `enabled = true` in `_module.nix`. It ships `false` so a placeholder
+   token cannot leave a unit restart-looping on the lab. That one flag gates
+   both `wantedBy` and the secret's `restartUnits`, which have to agree:
+   sops-nix restarts listed units when a secret changes, and `systemctl
+   restart` starts an inactive unit regardless of `wantedBy`.
 4. Deploy, then register the commands once:
    ```bash
    just deploy sorbet
