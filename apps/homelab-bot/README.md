@@ -73,8 +73,8 @@ involved, so what you edit is what runs.
 
 ### Credentials for `npm run dev`
 
-`dev` reads two files if they exist, repo root first and `apps/homelab-bot/.env`
-second, so an app-local file overrides a shared one. Both are gitignored:
+`dev-env.sh` sources two files if they exist — repo root first, then
+`apps/homelab-bot/.env`, so a per-app file wins. Both are gitignored:
 
 ```
 DISCORD_TOKEN=...
@@ -82,9 +82,18 @@ DISCORD_APPLICATION_ID=...
 DISCORD_GUILD_ID=...
 ```
 
-A 1Password Environments `.env` works here. That is a named pipe rather than a
-regular file, so the plaintext never touches disk, and 1Password re-serves it on
-every open — `--watch` restarts read it again fine.
+A 1Password Environments `.env` works unmodified: it is a named pipe, so the
+plaintext never touches disk.
+
+**Why a shell script instead of node's `--env-file`.** Node watches whatever it
+is handed there, and a 1Password `.env` is re-served on every read, so `--watch`
+sees a change the moment the process starts and restart-loops — 29 restarts in
+8 seconds when measured. `--watch-path` does not help; the env file is watched
+regardless of it. Sourcing the file means node is never told a file was
+involved, and `--watch` goes back to reacting only to source edits.
+
+`dev-env.sh` is dev-only. It is not in `_package.nix`'s fileset, so it never
+enters the build.
 
 **Use a second Discord application for this, not the deployed bot's token.**
 Two instances on one token both receive the same interaction, so `/ping` gets

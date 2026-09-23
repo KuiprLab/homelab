@@ -8,8 +8,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=../../.env --env-file-if-exists=.env src/index.ts",
-    "dev:register": "node --env-file-if-exists=../../.env --env-file-if-exists=.env src/register-commands.ts",
+    "dev": "sh -c '. ./dev-env.sh; exec node --watch src/index.ts'",
+    "dev:register": "sh -c '. ./dev-env.sh; exec node src/register-commands.ts'",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
