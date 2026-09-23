@@ -173,7 +173,13 @@ involved, so what you edit is what runs.
 DISCORD_TOKEN=...
 DISCORD_APPLICATION_ID=...
 DISCORD_GUILD_ID=...
+SLSKD_URL=...
+SLSKD_API_KEY=...
 ```
+
+The two `SLSKD_` lines are optional — without them the bot starts fine and
+only the commands that talk to slskd fail. See [slskd](#slskd) for what to put
+in them.
 
 A 1Password Environments `.env` works unmodified: it is a named pipe, so the
 plaintext never touches disk.
@@ -209,3 +215,29 @@ in `tsconfig.json` turns them into `.js` on emit, which is what the built
 Dependencies are pinned by `package-lock.json` and nothing else. `importNpmLock`
 derives every hash from that file, so bumping a dependency is `npm install` plus
 committing the lockfile — there is no `npmDepsHash` to re-pin.
+
+## slskd
+
+The music feature searches Soulseek and queues downloads through slskd's HTTP
+API (`src/features/music/slskd.ts`), authenticating with an API key in
+`X-API-Key`.
+
+```
+SLSKD_URL=http://127.0.0.1:5030
+SLSKD_API_KEY=<a key from web.authentication.api_keys>
+```
+
+The key comes from `sops secrets/sorbet/slskd.yml`; add the pair to
+`sops secrets/sorbet/homelab-bot.env` so the unit sees them.
+
+**Use the container's address, not `slskd.int.kuipr.de`.** That vhost is gated
+by authelia, which answers an API-key request with its login page — a 200 full
+of HTML, not a 401, so nothing about the failure looks like auth. The client
+checks the content type and says so, but the fix is the URL. slskd shares
+gluetun's network namespace and gluetun publishes 5030 on the host, so the bot
+reaches it on loopback and skips caddy entirely.
+
+Searching is asynchronous over there: creating a search returns nothing and
+responses arrive over the following seconds. `search()` polls until slskd
+settles, which takes longer than Discord's three-second interaction window —
+`deferReply()` first.

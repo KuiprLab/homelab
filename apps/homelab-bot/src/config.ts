@@ -31,4 +31,17 @@ export const config = {
    * propagate. Keep it set for a single-server lab bot.
    */
   guildId: optional("DISCORD_GUILD_ID"),
+
+  /**
+   * slskd, for the music feature's Soulseek side. Optional, and optional on
+   * purpose: a missing key should cost the one command that needs it, not the
+   * bot's startup.
+   *
+   * SLSKD_URL wants the container's own address -- http://127.0.0.1:5030 --
+   * rather than slskd.int.kuipr.de, which is behind authelia and answers an
+   * API-key request with its login page. SLSKD_API_KEY is one of the keys
+   * under web.authentication.api_keys in secrets/sorbet/slskd.yml.
+   */
+  slskdUrl: optional("SLSKD_URL"),
+  slskdApiKey: optional("SLSKD_API_KEY"),
 } as const;
