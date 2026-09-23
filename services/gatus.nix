@@ -284,7 +284,7 @@
         ...
       }: {
         sops.secrets."gatus/discord_webhook" = {
-          sopsFile = ../../secrets/sorbet/gatus;
+          sopsFile = ../secrets/sorbet/gatus;
           format = "binary";
           key = "";
           owner = "root";
@@ -359,7 +359,7 @@
           # Same webhook bytes as sorbet — copy the encrypted file from
           # secrets/sorbet/gatus into secrets/eclair/gatus (single age
           # recipient handles both hosts).
-          sopsFile = ../../secrets/eclair/gatus;
+          sopsFile = ../secrets/eclair/gatus;
           format = "binary";
           key = "";
           owner = "root";

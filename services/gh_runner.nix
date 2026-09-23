@@ -9,13 +9,13 @@
   }: {
     sops.secrets = {
       "gh_runner" = {
-        sopsFile = ../../secrets/sorbet/github-runner;
+        sopsFile = ../secrets/sorbet/github-runner;
         format = "binary";
         key = "";
       };
 
       "deploy_webhook" = {
-        sopsFile = ../../secrets/shared/deploy-webhook;
+        sopsFile = ../secrets/shared/deploy-webhook;
         format = "binary";
         key = "";
         owner = "root";
@@ -24,7 +24,7 @@
       # Dedicated ed25519 key for deploying eclair from CI. Pubkey lives in
       # modules/hosts/eclair/configuration.nix.
       "eclair-deploy-key" = {
-        sopsFile = ../../secrets/sorbet/eclair-deploy-key;
+        sopsFile = ../secrets/sorbet/eclair-deploy-key;
         format = "binary";
         key = "";
         owner = "root";

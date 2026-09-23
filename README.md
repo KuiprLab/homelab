@@ -29,9 +29,26 @@ sorbet (LAN)
 
 `*.int.kuipr.de` resolves to `192.168.0.85` via dnsmasq wildcard — LAN only, not routed through eclair.
 
-## Module structure
+## Repository layout
 
-All `.nix` files under `modules/` are auto-imported by `import-tree`. Files prefixed `_` are skipped (imported manually by their parent module).
+```
+hosts/<host>/      per-machine configuration (sorbet, eclair)
+modules/flake/     flake-parts plumbing: deploy nodes, systems, checks
+services/          third-party services you configure
+pkgs/              third-party software you package
+apps/              (planned) source for daemons you write, colocated
+                   with their _package.nix and _module.nix
+secrets/           sops-encrypted, kept central on purpose
+docs/              (planned) runbooks and decision records
+```
+
+All `.nix` files under `hosts/`, `modules/` and `services/` are auto-imported
+by `import-tree` as flake-parts modules. Any path containing `/_` is skipped —
+that is how a directory keeps helper files next to its module without them
+being evaluated as flake-parts modules.
+
+`pkgs/` is deliberately outside the import-tree roots: its files are a
+derivation and a NixOS module, imported by hand from `services/unifi.nix`.
 
 Service modules contribute to the flake via:
 

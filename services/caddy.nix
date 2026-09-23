@@ -164,7 +164,7 @@
         networking.firewall.allowedTCPPorts = [80 443 3001];
 
         sops.secrets."caddy/bunny_api_key" = {
-          sopsFile = ../../secrets/sorbet/caddy;
+          sopsFile = ../secrets/sorbet/caddy;
           format = "binary";
           key = "";
           owner = "caddy";

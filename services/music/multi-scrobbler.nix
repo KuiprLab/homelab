@@ -27,7 +27,7 @@ _: {
 
     nixosModules.multi-scrobbler = {config, ...}: {
       sops.secrets."multi-scrobbler/config" = {
-        sopsFile = ../../../secrets/sorbet/multi-scrobbler;
+        sopsFile = ../../secrets/sorbet/multi-scrobbler;
         format = "binary";
         key = "";
         owner = "root";

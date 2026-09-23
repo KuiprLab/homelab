@@ -15,7 +15,7 @@ _: {
 
     nixosModules.slskd = {config, ...}: {
       sops.secrets."slskd" = {
-        sopsFile = ../../../secrets/sorbet/slskd.yml;
+        sopsFile = ../../secrets/sorbet/slskd.yml;
         format = "yaml";
         key = "";
         uid = 1000;

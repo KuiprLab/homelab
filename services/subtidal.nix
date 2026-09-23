@@ -12,7 +12,7 @@ _: {
 
     eclairNixosModules.subtidal = {config, ...}: {
       sops.secrets."subtidal" = {
-        sopsFile = ../../secrets/eclair/subtidal.toml;
+        sopsFile = ../secrets/eclair/subtidal.toml;
         format = "binary";
         key = "";
         mode = "0444";

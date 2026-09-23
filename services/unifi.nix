@@ -30,11 +30,11 @@ _: {
     };
 
     nixosModules.unifi = _: {
-      imports = [../../pkgs/unifi-os-server-image/module.nix];
+      imports = [../pkgs/unifi-os-server-image/module.nix];
 
       # services.unifi-os-server = {
       #   enable = true;
-      #   package = pkgs.callPackage ../../pkgs/unifi-os-server-image {
+      #   package = pkgs.callPackage ../pkgs/unifi-os-server-image {
       #     sha256 = "sha256-2xdlbyItNx2l+W7RBOM1A74WynVYF/EmQJtn2ACbFBk=";
       #   };
       #   systemIp = "192.168.0.85";

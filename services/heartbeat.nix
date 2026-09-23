@@ -63,8 +63,8 @@ _: let
   };
 in {
   flake.nixosModules.heartbeat =
-    mkHeartbeatModule {sopsFile = ../../secrets/sorbet/healthchecks;};
+    mkHeartbeatModule {sopsFile = ../secrets/sorbet/healthchecks;};
 
   flake.eclairNixosModules.heartbeat =
-    mkHeartbeatModule {sopsFile = ../../secrets/eclair/healthchecks;};
+    mkHeartbeatModule {sopsFile = ../secrets/eclair/healthchecks;};
 }

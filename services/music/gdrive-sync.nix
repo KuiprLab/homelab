@@ -6,7 +6,7 @@ _: {
     ...
   }: {
     sops.secrets."rclone/config" = {
-      sopsFile = ../../../secrets/sorbet/rclone;
+      sopsFile = ../../secrets/sorbet/rclone;
       format = "binary";
       key = "";
       owner = "navidrome";

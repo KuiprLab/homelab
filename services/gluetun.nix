@@ -3,7 +3,7 @@ _: {
     nixosModules.gluetun = {lib, ...}: {
       sops.secrets = {
         "gluetun.env" = {
-          sopsFile = ../../secrets/sorbet/gluetun.env;
+          sopsFile = ../secrets/sorbet/gluetun.env;
           format = "dotenv";
           key = "";
           restartUnits = ["podman-gluetun.service"];

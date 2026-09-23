@@ -22,7 +22,7 @@ _: {
     # ];
   in {
     sops.secrets."navidrome/env" = {
-      sopsFile = ../../../secrets/sorbet/navidrome.env;
+      sopsFile = ../../secrets/sorbet/navidrome.env;
       format = "dotenv";
       key = "";
     };

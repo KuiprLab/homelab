@@ -3,7 +3,7 @@
 _: {
   flake.eclairNixosModules.eclairTailscale = {config, ...}: {
     sops.secrets."tailscale/authkey" = {
-      sopsFile = ../../../secrets/eclair/tailscale;
+      sopsFile = ../../secrets/eclair/tailscale;
       format = "binary";
       key = "";
       owner = "root";

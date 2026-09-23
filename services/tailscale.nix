@@ -1,7 +1,7 @@
 _: {
   flake.nixosModules.tailscale = {config, ...}: {
     sops.secrets."tailscale/authkey" = {
-      sopsFile = ../../secrets/sorbet/tailscale;
+      sopsFile = ../secrets/sorbet/tailscale;
       format = "binary";
       key = "";
       owner = "root";

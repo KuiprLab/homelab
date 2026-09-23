@@ -92,7 +92,7 @@ _: {
       # Same encrypted env file gatus uses (DISCORD_WEBHOOK_URL=...); systemd
       # reads EnvironmentFile as root before dropping to daniel.
       sops.secrets."beets/discord_webhook" = {
-        sopsFile = ../../../secrets/sorbet/gatus;
+        sopsFile = ../../secrets/sorbet/gatus;
         format = "binary";
         key = "";
         owner = "root";
@@ -139,7 +139,7 @@ _: {
       };
 
       sops.secrets."beets/acoustid_key" = {
-        sopsFile = ../../../secrets/sorbet/beets;
+        sopsFile = ../../secrets/sorbet/beets;
         format = "binary";
         key = "";
         owner = "daniel";

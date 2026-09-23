@@ -32,7 +32,7 @@ _: {
     nixosModules.koito = {config, ...}: {
       sops.secrets = {
         "last-fm-presence" = {
-          sopsFile = ../../../secrets/sorbet/last-fm-presence.env;
+          sopsFile = ../../secrets/sorbet/last-fm-presence.env;
           format = "dotenv";
           key = "";
         };

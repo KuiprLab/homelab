@@ -31,5 +31,18 @@
     nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";
   };
 
-  outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);
+  # Dendritic: every .nix file under these roots is a flake-parts module that
+  # contributes its own outputs. Paths containing /_ are skipped -- that is how
+  # a directory keeps helper files (_package.nix, _module.nix) next to its
+  # module without them being evaluated as flake-parts modules.
+  #
+  # ./pkgs is deliberately absent: its files are a derivation and a NixOS
+  # module, imported by hand from services/unifi.nix.
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake {inherit inputs;}
+    (inputs.import-tree [
+      ./hosts
+      ./modules
+      ./services
+    ]);
 }
