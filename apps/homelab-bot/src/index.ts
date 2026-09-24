@@ -1,100 +1,14 @@
-import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 
-import { features, resolve, routeNames } from "./features/index.ts";
 import { config } from "./config.ts";
-import { explainSyncFailure, syncCommands } from "./register.ts";
+import { registerEvents } from "./events/index.ts";
 
 // Guilds is the only intent a slash-command bot needs. Adding MessageContent
 // or GuildMembers later makes the bot privileged and requires approval from
 // Discord once it is in more than 100 servers.
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once(Events.ClientReady, (ready) => {
-  console.log(`Logged in as ${ready.user.tag} (${ready.user.id})`);
-  const names = routeNames()
-    .map((route) => `/${route}`)
-    .join(", ");
-  console.log(
-    `Features: ${features.map((feature) => feature.name).join(", ")}`,
-  );
-
-  // A feature that fails to start should not take the bot down with it --
-  // a broken music feature still leaves /ping answering.
-  for (const feature of features) {
-    if (feature.setup === undefined) continue;
-    void Promise.resolve(feature.setup(ready)).catch((error: unknown) => {
-      console.error(`Feature "${feature.name}" failed to start:`, error);
-    });
-  }
-
-  void (async () => {
-    try {
-      const result = await syncCommands(ready.rest);
-      console.log(
-        result === "updated"
-          ? `Registered with Discord: ${names}`
-          : `Already registered with Discord: ${names}`,
-      );
-    } catch (error) {
-      // Never fatal. A bot that cannot update its command list is still a
-      // working bot for whatever is already registered, and the deployed unit
-      // restarting in a loop would be a worse outcome than a stale /ping.
-      console.error(
-        `Could not register commands. ${explainSyncFailure(error)}`,
-      );
-    }
-  })();
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  // A command with subcommands is never invoked on its own, so the handler is
-  // identified by the whole path, not just the command name.
-  const group = interaction.options.getSubcommandGroup(false);
-  const subcommand = interaction.options.getSubcommand(false);
-  const path = [interaction.commandName, group, subcommand]
-    .filter((part) => part !== null)
-    .join(" ");
-
-  const execute = resolve(interaction.commandName, group, subcommand);
-  if (execute === undefined) {
-    // Discord still advertises a command this build no longer answers.
-    console.warn(`Ignoring unknown command /${path}`);
-    return;
-  }
-
-  try {
-    await execute(interaction);
-  } catch (error) {
-    console.error(`/${path} failed:`, error);
-
-    // Discord closes the interaction after three seconds, so a failure that
-    // arrives late has to go out as a follow-up instead of a reply.
-    const body = {
-      content:
-        "That command failed. The details are in `journalctl -u homelab-bot`.",
-      flags: MessageFlags.Ephemeral,
-    } as const;
-
-    try {
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(body);
-      } else {
-        await interaction.reply(body);
-      }
-    } catch (replyError) {
-      console.error(
-        "Could not report the failure back to Discord:",
-        replyError,
-      );
-    }
-  }
-});
-
-client.on(Events.Error, (error) => {
-  console.error("Gateway error:", error);
-});
+registerEvents(client);
 
 // systemd sends SIGTERM on stop and restart. Closing the gateway connection
 // makes Discord mark the bot offline immediately instead of waiting for the
