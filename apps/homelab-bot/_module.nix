@@ -23,6 +23,10 @@
 }: let
   homelab-bot = pkgs.callPackage ./_package.nix {};
 
+  # Shared with the slskd -> beets import unit, which only ever reads it; see
+  # services/music/beets.nix and src/features/music/hints.ts.
+  hintsDir = "/var/lib/beets-hints";
+
   # The single switch for this service. Flip to true once the Discord token in
   # secrets/sorbet/homelab-bot.env is real.
   #
@@ -82,6 +86,10 @@ in {
     restartUnits = lib.optionals enabled ["homelab-bot.service"];
   };
 
+  # 2775: setgid, so a hint the bot writes is group-owned by users and daniel
+  # can read it, and group-writable, so either side can clean up.
+  systemd.tmpfiles.rules = ["d ${hintsDir} 2775 daniel users - -"];
+
   systemd.services = {
     homelab-bot = {
       description = "Discord bot for the homelab";
@@ -92,11 +100,27 @@ in {
       after = ["network-online.target"];
       wants = ["network-online.target"];
 
+      # The release a download was queued for, dropped here for the slskd ->
+      # beets import unit to read (services/music/beets.nix). Unit-level, not
+      # in the secret: it is a path, not a credential.
+      environment.BEETS_HINTS_DIR = hintsDir;
+
       serviceConfig =
         common
         // {
           ExecStart = lib.getExe homelab-bot;
           Restart = "on-failure";
+
+          # ProtectSystem=strict makes the filesystem read-only, so the one
+          # directory the bot writes has to be named explicitly.
+          #
+          # Deliberately NOT StateDirectory: with DynamicUser that lands in
+          # /var/lib/private, which is 0700 root-only, and daniel -- who runs
+          # the import unit -- could not read a hint out of it. A setgid
+          # directory owned by daniel:users plus membership in that group
+          # gives both sides access without pinning the bot to a fixed uid.
+          ReadWritePaths = [hintsDir];
+          SupplementaryGroups = ["users"];
 
           # Discord rate-limits login attempts, so back off rather than
           # hammering the gateway when the token is wrong.

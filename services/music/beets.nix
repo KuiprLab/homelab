@@ -17,6 +17,11 @@ _: {
       eventsDir = "/var/lib/slskd/events";
       failedDir = "/var/lib/slskd/events-failed";
       reviewDir = "/home/daniel/music-inbox/slskd-review";
+      # homelab-bot drops one JSON file per queued download here, naming the
+      # MusicBrainz release the user actually picked. The directory is created
+      # by apps/homelab-bot/_module.nix (setgid daniel:users); this unit only
+      # reads, and the bot prunes its own stale files.
+      hintsDir = "/var/lib/beets-hints";
       # Container path of the downloads dir (see slskd.nix volumes) → host path
       containerDownloads = "/app/downloads";
       hostDownloads = "/home/daniel/slskd-downloads";
@@ -27,6 +32,23 @@ _: {
         import:
           quiet: yes
           quiet_fallback: skip
+      '';
+      # Used only when a hint named the release (see hintsDir). The album's
+      # identity is then the one the user picked in Discord rather than
+      # beets' own guess, so the threshold only has to absorb tagging noise:
+      # a Soulseek rip routinely differs from the canonical release by
+      # capitalisation, a curly apostrophe or a bonus track, which together
+      # score well past the 0.10 a guessed match has to clear.
+      #
+      # The looser number is deliberately NOT in the home-manager settings:
+      # it would then apply to interactive imports and to unattended ones
+      # where beets has no idea what the album is.
+      hintedImportConfig = pkgs.writeText "beets-hinted-import.yaml" ''
+        import:
+          quiet: yes
+          quiet_fallback: skip
+        match:
+          strong_rec_thresh: 0.25
       '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
@@ -60,8 +82,27 @@ _: {
               notify "directory \`$dir\` missing, event parked in \`${failedDir}\`"
               continue
             fi
+            # The bot knew the release id at click time; without it beets has to
+            # re-derive the release from a folder like
+            # "1992 - Tomb of the Mutilated {2002 RE RM Bonus ...} [FLAC]", which
+            # scores far enough off the original release that quiet_fallback=skip
+            # parks the album in review. --search-id gives beets the answer.
+            search=()
+            beet_config=${autoImportConfig}
+            dirname=$(basename "$dir")
+            for hint in "${hintsDir}"/*.json; do
+              [[ $(jq -r '.directory // empty' "$hint" 2>/dev/null) == "$dirname" ]] || continue
+              mbid=$(jq -r '.releaseId // empty' "$hint" 2>/dev/null)
+              if [[ -n "$mbid" ]]; then
+                echo "hint: $dirname is release $mbid"
+                search=(--search-id "$mbid")
+                beet_config=${hintedImportConfig}
+              fi
+              break
+            done
+
             echo "importing $dir"
-            if ! beet -c "${autoImportConfig}" import "$dir"; then
+            if ! beet -c "$beet_config" import "''${search[@]}" "$dir"; then
               echo "beet import failed for $dir" >&2
               mv "$event" "${failedDir}/"
               notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"

@@ -6,11 +6,12 @@ import {
   find,
   pickReleaseModal,
 } from "./find.ts";
+import { status } from "./status.ts";
 
 const command: Command = {
   name: "music",
   description: "Music library commands",
-  subcommands: [find],
+  subcommands: [find, status],
 };
 
 export const music: Feature = {

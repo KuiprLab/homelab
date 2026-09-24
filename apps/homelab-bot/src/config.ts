@@ -44,4 +44,15 @@ export const config = {
    */
   slskdUrl: optional("SLSKD_URL"),
   slskdApiKey: optional("SLSKD_API_KEY"),
+
+  /**
+   * Where to drop beets import hints -- the MusicBrainz release a download was
+   * queued for, which the slskd -> beets import unit picks up so it does not
+   * have to guess the release from a Soulseek folder name. See
+   * features/music/hints.ts and services/music/beets.nix.
+   *
+   * Optional: with it unset the bot simply queues downloads and beets keeps
+   * matching on its own, which is what it did before.
+   */
+  beetsHintsDir: optional("BEETS_HINTS_DIR"),
 } as const;

@@ -13,6 +13,10 @@
  * several seconds. `search()` hides that behind a single await by polling --
  * which takes far longer than Discord's three-second interaction window, so a
  * command calling it has to `deferReply()` first.
+ *
+ * Everything lives on `SlskdClient`: construct one with an explicit base URL
+ * and API key, or `SlskdClient.fromConfig()` to take them from the
+ * environment. Nothing here runs at import time.
  */
 
 import { randomUUID } from "node:crypto";
@@ -23,6 +27,16 @@ import { config } from "../../config.ts";
 const API_PREFIX = "/api/v0";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long `enqueueFirstAccepted()` watches a freshly queued transfer before
+ * deciding the peer took it. A refusal does not come back with the enqueue --
+ * the files appear queued first and flip to "Completed, Rejected" a moment
+ * later -- so this has to outlast that flip. Short enough that walking a few
+ * peers stays inside one deferred interaction.
+ */
+const DEFAULT_VERIFY_MS = 10_000;
+const VERIFY_POLL_MS = 1_000;
 
 /** How long `search()` waits for slskd to stop collecting responses. */
 const DEFAULT_SEARCH_WAIT_MS = 20_000;
@@ -175,6 +189,26 @@ export interface SlskdDownloadRequest {
   readonly size: number;
 }
 
+/** One peer's offer of the same content, for `enqueueFirstAccepted`. */
+export interface SlskdCandidate {
+  readonly username: string;
+  readonly files: readonly SlskdDownloadRequest[];
+}
+
+/** Why one peer did not take the download. */
+export interface SlskdRejection {
+  readonly username: string;
+  readonly reason: string;
+}
+
+export interface SlskdEnqueueResult {
+  /** The peer that took it. */
+  readonly username: string;
+  readonly fileCount: number;
+  /** Peers tried and passed over first, in the order they were tried. */
+  readonly rejected: readonly SlskdRejection[];
+}
+
 export interface SlskdApplicationState {
   readonly version: string;
   readonly server: {
@@ -193,21 +227,71 @@ export interface SlskdClientOptions {
   readonly timeoutMs?: number;
 }
 
-/**
- * slskd reports a finished search as a completion plus a reason, so the state
- * is a comma-joined pair rather than a single word.
- */
-export function isSearchComplete(state: string): boolean {
-  return state.startsWith("Completed");
-}
-
 export class SlskdClient {
+  /** True when both SLSKD_URL and SLSKD_API_KEY are set. */
+  static isConfigured(): boolean {
+    return config.slskdUrl !== null && config.slskdApiKey !== null;
+  }
+
+  /**
+   * Build a client from SLSKD_URL and SLSKD_API_KEY.
+   *
+   * Deliberately not a module-level `new SlskdClient(...)` like musicbrainz.ts:
+   * slskd's settings are optional, and constructing at import time would make
+   * an unconfigured lab fail to import the whole music feature rather than fail
+   * the one command that needs slskd. Call this where slskd is actually used,
+   * and keep the instance for as long as that use lasts.
+   */
+  static fromConfig(overrides: Partial<SlskdClientOptions> = {}): SlskdClient {
+    const baseUrl = overrides.baseUrl ?? config.slskdUrl;
+    const apiKey = overrides.apiKey ?? config.slskdApiKey;
+
+    if (baseUrl === null || apiKey === null) {
+      throw new SlskdError(
+        "slskd is not configured. Set SLSKD_URL and SLSKD_API_KEY.\n" +
+          "  dev:  apps/homelab-bot/.env, or .env at the repo root\n" +
+          "  host: sops secrets/sorbet/homelab-bot.env",
+      );
+    }
+
+    return new SlskdClient({ ...overrides, baseUrl, apiKey });
+  }
+
+  /**
+   * slskd reports a finished search as a completion plus a reason, so the
+   * state is a comma-joined pair rather than a single word.
+   */
+  static isSearchComplete(state: string): boolean {
+    return state.startsWith("Completed");
+  }
+
+  /** True once a transfer has stopped moving, whatever the outcome. */
+  static isTransferComplete(state: string): boolean {
+    return state.startsWith("Completed");
+  }
+
+  /**
+   * A transfer that has actually started moving bytes. A peer can still
+   * refuse one that is merely queued, so this is the first point at which a
+   * transfer counts as genuinely accepted.
+   */
+  static isTransferUnderway(transfer: SlskdTransfer): boolean {
+    return transfer.state === "InProgress" || transfer.bytesTransferred > 0;
+  }
+
+  /** Stopped, and not because it finished: errored, cancelled, rejected. */
+  static isTransferFailed(state: string): boolean {
+    return (
+      SlskdClient.isTransferComplete(state) && state !== "Completed, Succeeded"
+    );
+  }
+
   readonly #baseUrl: string;
   readonly #apiKey: string;
   readonly #timeoutMs: number;
 
   constructor(options: SlskdClientOptions) {
-    this.#baseUrl = normalizeBaseUrl(options.baseUrl);
+    this.#baseUrl = SlskdClient.#normalizeBaseUrl(options.baseUrl);
     this.#apiKey = options.apiKey;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
@@ -263,15 +347,18 @@ export class SlskdClient {
     let search = created;
 
     try {
-      while (!isSearchComplete(search.state) && Date.now() < deadline) {
-        await delay(SEARCH_POLL_MS);
+      while (
+        !SlskdClient.isSearchComplete(search.state) &&
+        Date.now() < deadline
+      ) {
+        await SlskdClient.#delay(SEARCH_POLL_MS);
         search = await this.getSearch(created.id);
       }
 
       return {
         search,
         responses: await this.searchResponses(created.id),
-        timedOut: !isSearchComplete(search.state),
+        timedOut: !SlskdClient.isSearchComplete(search.state),
       };
     } finally {
       if (!keep) {
@@ -299,6 +386,148 @@ export class SlskdClient {
       `/transfers/downloads/${encodeURIComponent(username)}`,
       files,
     );
+  }
+
+  /**
+   * Queue from the first peer that actually takes the files, trying the
+   * candidates in order.
+   *
+   * `enqueue` returning is not acceptance: slskd forwards the request and the
+   * peer decides, so a refusal surfaces afterwards as a transfer that errors
+   * or that slskd never lists at all. This watches each attempt for
+   * `verifyMs` and moves to the next peer when it fails, cleaning up the dead
+   * entries so they do not show up later as failed downloads.
+   *
+   * A transfer still merely *queued* when the window runs out counts as
+   * accepted: sitting in a peer's queue is the normal path, and waiting it
+   * out would take far longer than any interaction lives. It cannot be
+   * accepted on sight, though -- a refused transfer is queued for a moment
+   * first, so an immediate answer would call every peer a success.
+   *
+   * Throws when every candidate refused; the message lists what each said.
+   */
+  async enqueueFirstAccepted(
+    candidates: readonly SlskdCandidate[],
+    options: { verifyMs?: number } = {},
+  ): Promise<SlskdEnqueueResult> {
+    const { verifyMs = DEFAULT_VERIFY_MS } = options;
+    const rejected: SlskdRejection[] = [];
+
+    for (const candidate of candidates) {
+      if (candidate.files.length === 0) continue;
+
+      try {
+        await this.enqueue(candidate.username, candidate.files);
+      } catch (error) {
+        // A non-2xx here is slskd itself refusing -- an offline peer, most
+        // often. Same outcome as a rejection, so treat it as one.
+        if (!(error instanceof SlskdError)) throw error;
+        rejected.push({ username: candidate.username, reason: error.message });
+        continue;
+      }
+
+      const failure = await this.#verifyAccepted(candidate, verifyMs);
+      if (failure === undefined) {
+        return {
+          username: candidate.username,
+          fileCount: candidate.files.length,
+          rejected,
+        };
+      }
+
+      rejected.push({ username: candidate.username, reason: failure });
+      await this.#discardFailed(candidate);
+    }
+
+    throw new SlskdError(
+      rejected.length === 0
+        ? "No peer was offered the download: every candidate had no files."
+        : `No peer accepted the download. ` +
+          rejected
+            .map(({ username, reason }) => `${username}: ${reason}`)
+            .join("; "),
+    );
+  }
+
+  /**
+   * Watch a just-queued transfer. Returns undefined once it looks accepted,
+   * or the reason it did not.
+   */
+  async #verifyAccepted(
+    candidate: SlskdCandidate,
+    verifyMs: number,
+  ): Promise<string | undefined> {
+    const wanted = new Set(candidate.files.map((file) => file.filename));
+    const deadline = Date.now() + verifyMs;
+    let everListed = false;
+
+    for (;;) {
+      const mine = (await this.#transfersFor(candidate.username)).filter(
+        (transfer) => wanted.has(transfer.filename),
+      );
+      everListed ||= mine.length > 0;
+
+      const failed = mine.filter((transfer) =>
+        SlskdClient.isTransferFailed(transfer.state),
+      );
+
+      // Every file refused: settled, and the next peer can be tried at once.
+      if (mine.length > 0 && failed.length === mine.length) {
+        const first = failed[0];
+        return first?.exception ?? first?.state ?? "the peer refused it";
+      }
+
+      // Bytes are moving, or already moved. Nothing a refusal can undo, so
+      // this is the one state worth accepting before the window is out.
+      if (mine.some(SlskdClient.isTransferUnderway)) return undefined;
+
+      if (Date.now() >= deadline) {
+        // Still queued with no refusal in sight: a real queue, so take it.
+        if (mine.length > failed.length) return undefined;
+        return everListed
+          ? "every file was refused"
+          : "slskd never listed the transfer";
+      }
+
+      await SlskdClient.#delay(VERIFY_POLL_MS);
+    }
+  }
+
+  /**
+   * Drop a failed attempt's entries so the next peer's transfer is the only
+   * one a status view reports. Best effort: losing the cleanup is untidy, not
+   * wrong, and must not sink an enqueue that is about to be retried.
+   */
+  async #discardFailed(candidate: SlskdCandidate): Promise<void> {
+    const wanted = new Set(candidate.files.map((file) => file.filename));
+
+    for (const transfer of await this.#transfersFor(candidate.username)) {
+      if (!wanted.has(transfer.filename)) continue;
+      if (!SlskdClient.isTransferFailed(transfer.state)) continue;
+
+      await this.cancelDownload(candidate.username, transfer.id, true).catch(
+        (error: unknown) => {
+          console.warn(
+            `Could not remove failed slskd transfer ${transfer.id}:`,
+            error,
+          );
+        },
+      );
+    }
+  }
+
+  /**
+   * One peer's transfers, flattened out of slskd's directory grouping. A peer
+   * with nothing queued is a 404 over there, which is an empty list here.
+   */
+  async #transfersFor(username: string): Promise<readonly SlskdTransfer[]> {
+    try {
+      const user = await this.downloadsFor(username);
+      return user.directories.flatMap((directory) => directory.files);
+    } catch (error) {
+      if (error instanceof SlskdError && error.status === 404) return [];
+      throw error;
+    }
   }
 
   /** Every download slskd knows about, grouped by peer. */
@@ -379,77 +608,46 @@ export class SlskdClient {
       const text = await response.text().catch(() => "");
       throw new SlskdError(
         `${method} ${path} failed: ${response.status} ${response.statusText}` +
-          hint(response.status) +
-          (text === "" ? "" : ` -- ${truncate(text)}`),
+          SlskdClient.#hint(response.status) +
+          (text === "" ? "" : ` -- ${SlskdClient.#truncate(text)}`),
         { status: response.status, body: text },
       );
     }
 
     return response;
   }
-}
 
-let client: SlskdClient | undefined;
-
-/** True when both SLSKD_URL and SLSKD_API_KEY are set. */
-export function isSlskdConfigured(): boolean {
-  return config.slskdUrl !== null && config.slskdApiKey !== null;
-}
-
-/**
- * The shared client, built on first use.
- *
- * Deliberately not a module-level `new SlskdClient(...)` like musicbrainz.ts:
- * slskd's settings are optional, and constructing at import time would make
- * an unconfigured lab fail to import the whole music feature rather than fail
- * the one command that needs slskd.
- */
-export function slskd(): SlskdClient {
-  if (client !== undefined) return client;
-
-  const { slskdUrl, slskdApiKey } = config;
-  if (slskdUrl === null || slskdApiKey === null) {
-    throw new SlskdError(
-      "slskd is not configured. Set SLSKD_URL and SLSKD_API_KEY.\n" +
-        "  dev:  apps/homelab-bot/.env, or .env at the repo root\n" +
-        "  host: sops secrets/sorbet/homelab-bot.env",
-    );
+  /**
+   * Accepts "127.0.0.1:5030", "http://127.0.0.1:5030" or a trailing slash.
+   * A bare host gets http://, because the address that works from the lab host
+   * is the container's, and that one has no TLS in front of it.
+   */
+  static #normalizeBaseUrl(value: string): string {
+    const trimmed = value.trim();
+    const withScheme = /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `http://${trimmed}`;
+    return withScheme.replace(/\/+$/, "");
   }
 
-  client = new SlskdClient({ baseUrl: slskdUrl, apiKey: slskdApiKey });
-  return client;
-}
-
-/**
- * Accepts "127.0.0.1:5030", "http://127.0.0.1:5030" or a trailing slash.
- * A bare host gets http://, because the address that works from the lab host
- * is the container's, and that one has no TLS in front of it.
- */
-function normalizeBaseUrl(value: string): string {
-  const trimmed = value.trim();
-  const withScheme = /^https?:\/\//i.test(trimmed)
-    ? trimmed
-    : `http://${trimmed}`;
-  return withScheme.replace(/\/+$/, "");
-}
-
-function hint(status: number): string {
-  switch (status) {
-    case 401:
-    case 403:
-      return " (the API key was rejected -- check SLSKD_API_KEY against web.authentication.api_keys in slskd.yml)";
-    case 404:
-      return " (no such route -- check SLSKD_URL points at slskd's root, not a path under it)";
-    default:
-      return "";
+  static #hint(status: number): string {
+    switch (status) {
+      case 401:
+      case 403:
+        return " (the API key was rejected -- check SLSKD_API_KEY against web.authentication.api_keys in slskd.yml)";
+      case 404:
+        return " (no such route -- check SLSKD_URL points at slskd's root, not a path under it)";
+      default:
+        return "";
+    }
   }
-}
 
-function truncate(text: string, limit = 200): string {
-  const oneLine = text.replace(/\s+/g, " ").trim();
-  return oneLine.length > limit ? `${oneLine.slice(0, limit)}...` : oneLine;
-}
+  static #truncate(text: string, limit = 200): string {
+    const oneLine = text.replace(/\s+/g, " ").trim();
+    return oneLine.length > limit ? `${oneLine.slice(0, limit)}...` : oneLine;
+  }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  static #delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 }
