@@ -1,6 +1,6 @@
 import { Events } from "discord.js";
 
-import { features, routeNames } from "../features/index.ts";
+import { componentIds, features, routeNames } from "../features/index.ts";
 import { explainSyncFailure, syncCommands } from "../register.ts";
 import type { Event } from "./event.ts";
 
@@ -14,6 +14,9 @@ export const clientReady: Event<typeof Events.ClientReady> = {
     console.log(
       `Features: ${features.map((feature) => feature.name).join(", ")}`,
     );
+    const { buttons, modals } = componentIds();
+    if (buttons.length > 0) console.log(`Buttons: ${buttons.join(", ")}`);
+    if (modals.length > 0) console.log(`Modals: ${modals.join(", ")}`);
 
     // A feature that fails to start should not take the bot down with it --
     // a broken music feature still leaves /ping answering.
