@@ -15,12 +15,7 @@ import type { Subcommand } from "../../feature.ts";
 import { rememberImportHint, remoteDirectoryOf } from "./hints.ts";
 import { fetchCoverArt, mbApi } from "./musicbrainz.ts";
 import { recallSearch, rememberSearch } from "./searches.ts";
-import {
-  SlskdClient,
-  SlskdError,
-  type SlskdFile,
-  type SlskdSearchResponse,
-} from "./slskd.ts";
+import { SlskdClient, SlskdError, type SlskdFile } from "./slskd.ts";
 
 /** How many releases a search offers to pick between. */
 const SEARCH_LIMIT = 5;
@@ -227,6 +222,20 @@ export const downloadButton = defineButton({
 });
 
 /**
+ * One peer's offer of this release: the files from a single directory of
+ * theirs, not everything they answered with.
+ */
+interface PeerAlbum {
+  readonly username: string;
+  readonly hasFreeUploadSlot: boolean;
+  readonly uploadSpeed: number;
+  readonly queueLength: number;
+  /** The peer's full directory path, kept for the log line. */
+  readonly directory: string;
+  readonly files: readonly SlskdFile[];
+}
+
+/**
  * Peers offering this release as FLAC, best first. "Best" is a free upload
  * slot before raw speed: a fast peer behind a long queue starts later than a
  * slow one that starts now.
@@ -234,7 +243,7 @@ export const downloadButton = defineButton({
 async function findFlac(
   slskd: SlskdClient,
   release: IRelease,
-): Promise<{ peers: readonly SlskdSearchResponse[]; timedOut: boolean }> {
+): Promise<{ peers: readonly PeerAlbum[]; timedOut: boolean }> {
   // "flac" in the search text only filters on the peer's own path naming, so
   // it narrows the network traffic without being trustworthy; isFlac below is
   // what actually decides.
@@ -247,8 +256,10 @@ async function findFlac(
   );
 
   const peers = responses
-    .map((peer) => ({ ...peer, files: peer.files.filter(isFlac) }))
-    .filter((peer) => peer.files.length > 0)
+    .flatMap((peer) => {
+      const album = bestDirectory(peer.files.filter(isFlac), release);
+      return album === undefined ? [] : [{ ...peer, ...album }];
+    })
     .sort(
       (a, b) =>
         Number(b.hasFreeUploadSlot) - Number(a.hasFreeUploadSlot) ||
@@ -256,6 +267,74 @@ async function findFlac(
     );
 
   return { peers, timedOut };
+}
+
+/**
+ * Pick the one directory of a peer's that actually holds this release.
+ *
+ * A search response is everything in that peer's library matching the query,
+ * spread across their whole collection -- a hit on a soundtrack compilation,
+ * another on a box set, the album itself, and the band's other albums whose
+ * tags mention the artist. Queueing the lot downloads a discography when one
+ * album was asked for.
+ *
+ * The directory whose name contains the album title wins; among equals, the
+ * one whose file count is closest to the release's track count.
+ */
+function bestDirectory(
+  files: readonly SlskdFile[],
+  release: IRelease,
+): { directory: string; files: readonly SlskdFile[] } | undefined {
+  const groups = new Map<string, SlskdFile[]>();
+  for (const file of files) {
+    const directory = directoryOf(file.filename);
+    const group = groups.get(directory);
+    if (group === undefined) groups.set(directory, [file]);
+    else group.push(file);
+  }
+
+  const wanted = normalise(release.title);
+  const tracks = trackCount(release);
+
+  let best: { directory: string; files: SlskdFile[]; score: number } | undefined;
+  for (const [directory, group] of groups) {
+    // Named after the album beats any amount of file-count agreement: a
+    // compilation holding one track of it is still the wrong directory.
+    //
+    // Only the last segment counts. Matching the whole path would score
+    // "...\\Rage Against the Machine\\1996 - Evil Empire" as a hit for the
+    // self-titled album, on the strength of the artist folder above it.
+    const leaf = directory.split(/[\\/]/).pop() ?? directory;
+    const named = normalise(leaf).includes(wanted) ? 1000 : 0;
+    const closeness =
+      tracks === undefined ? group.length : -Math.abs(group.length - tracks);
+    const score = named + closeness;
+
+    if (best === undefined || score > best.score) {
+      best = { directory, files: group, score };
+    }
+  }
+
+  return best === undefined
+    ? undefined
+    : { directory: best.directory, files: best.files };
+}
+
+/** Everything up to the last separator. Peers send Windows-style paths. */
+function directoryOf(filename: string): string {
+  const separator = Math.max(
+    filename.lastIndexOf("\\"),
+    filename.lastIndexOf("/"),
+  );
+  return separator === -1 ? "" : filename.slice(0, separator);
+}
+
+/**
+ * For comparing a peer's folder name against an album title: case, spacing
+ * and punctuation all vary ("Evil Empire", "evil_empire", "Evil-Empire").
+ */
+function normalise(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 /**
@@ -269,7 +348,7 @@ function isFlac(file: SlskdFile): boolean {
   );
 }
 
-function describe(peer: SlskdSearchResponse): string {
+function describe(peer: PeerAlbum): string {
   const mb = (peer.uploadSpeed / 1_000_000).toFixed(1);
   const slot = peer.hasFreeUploadSlot
     ? "a free slot"

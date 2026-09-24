@@ -75,7 +75,7 @@ _: {
       '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
-        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl];
+        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
         text = ''
           # DISCORD_WEBHOOK_URL comes from the unit's EnvironmentFile
           notify() {
@@ -127,8 +127,13 @@ _: {
             done
 
             echo "importing $dir"
-            if ! beet -c "${autoImportConfig}" import "$dir"; then
+            # Tee'd, not just logged: quiet mode still prints the match it
+            # applied, and that is the only place the album beets settled on
+            # is named. The journal keeps getting it either way.
+            log=$(mktemp)
+            if ! beet -c "${autoImportConfig}" import "$dir" 2>&1 | tee "$log"; then
               echo "beet import failed for $dir" >&2
+              rm -f "$log"
               mv "$event" "${failedDir}/"
               notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
               continue
@@ -142,6 +147,7 @@ _: {
             if has_audio "$dir" && [[ -n "$artist" && -n "$title" ]] &&
               beet ls -a "albumartist:$artist" "album:$title" | grep -q .; then
               echo "$dirname is already in the library"
+              rm -f "$log"
               mv "$dir" "${reviewDir}/"
               rm -f "$event"
               notify "ℹ️ \`$rel\` is already in the library — the new copy is in \`${reviewDir}\`"
@@ -156,8 +162,9 @@ _: {
             # place, never the first thing tried.
             if [[ -n "$mbid" ]] && has_audio "$dir"; then
               echo "no match for $dirname, retrying with release $mbid"
-              if ! beet -c "${hintedImportConfig}" import --search-id "$mbid" "$dir"; then
+              if ! beet -c "${hintedImportConfig}" import --search-id "$mbid" "$dir" 2>&1 | tee -a "$log"; then
                 echo "hinted beet import failed for $dir" >&2
+                rm -f "$log"
                 mv "$event" "${failedDir}/"
                 notify "❌ hinted beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
                 continue
@@ -170,7 +177,19 @@ _: {
               notify "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import"
             else
               rm -rf "$dir"
+              # beets prints "Match (100.0%):" and then the album it chose;
+              # the codes are stripped because it colours its output even
+              # when nothing is attached to read it.
+              # || true: grep exits 1 when an import printed no match
+              # line at all, and that must not take the unit down with set -e.
+              matched=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -A1 -m1 "Match (" | tail -1 | sed 's/^ *//;s/ *$//' || true)
+              if [[ -n "$matched" ]]; then
+                notify "✅ imported \`$rel\` as **$matched**"
+              else
+                notify "✅ imported \`$rel\`"
+              fi
             fi
+            rm -f "$log"
             rm -f "$event"
           done
         '';
