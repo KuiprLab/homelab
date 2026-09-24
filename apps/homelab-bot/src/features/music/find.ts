@@ -68,6 +68,12 @@ export const find: Subcommand = {
       ),
 
   execute: async (interaction) => {
+    // A MusicBrainz search and then a cover-art lookup stand between here and
+    // the reply, and Discord discards the token after three seconds -- the
+    // cover-art archive alone has been seen taking fourteen. Claim the
+    // interaction first; everything below answers with editReply.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const album = interaction.options.getString("album", true).trim();
     const artist = interaction.options.getString("artist")?.trim();
     const wanted = describeQuery(album, artist);
@@ -78,7 +84,7 @@ export const find: Subcommand = {
     });
 
     if (results.count === 0 || results.releases.length < 1) {
-      await interaction.reply({
+      await interaction.editReply({
         content: `No releases found for **${wanted}**.`,
         allowedMentions: { parse: [] },
       });
@@ -94,11 +100,10 @@ export const find: Subcommand = {
         ? rememberSearch(wanted, results.releases)
         : undefined;
 
-    await interaction.reply({
+    await interaction.editReply({
       components: [await buildMessageForRelease(release, key)],
       allowedMentions: { parse: [] },
       flags: MessageFlags.IsComponentsV2,
-      ephemeral: true,
     });
   },
 };
