@@ -47,50 +47,98 @@ export const find: Subcommand = {
   description: "Search the music library",
 
   options: (builder) =>
-    builder.addStringOption((option) =>
-      option
-        .setName("query")
-        .setDescription("Artist, album or track to look for")
-        .setRequired(true)
-        // Discord enforces these itself, so a junk query is rejected in the
-        // client before it ever reaches us.
-        .setMinLength(2)
-        .setMaxLength(100),
-    ),
+    builder
+      .addStringOption((option) =>
+        option
+          .setName("album")
+          .setDescription("Album or release title")
+          .setRequired(true)
+          // Discord enforces these itself, so a junk query is rejected in the
+          // client before it ever reaches us.
+          .setMinLength(2)
+          .setMaxLength(100),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("artist")
+          .setDescription("Narrows the search, and sorts out a shared title")
+          .setRequired(false)
+          .setMinLength(2)
+          .setMaxLength(100),
+      ),
 
   execute: async (interaction) => {
-    const query = interaction.options.getString("query", true).trim();
+    const album = interaction.options.getString("album", true).trim();
+    const artist = interaction.options.getString("artist")?.trim();
+    const wanted = describeQuery(album, artist);
 
-    const albums: IReleaseList = await mbApi.search("release", {
-      query: query,
+    const results: IReleaseList = await mbApi.search("release", {
+      query: releaseQuery(album, artist),
       limit: SEARCH_LIMIT,
     });
 
-    if (albums.count === 0 || albums.releases.length < 1) {
+    if (results.count === 0 || results.releases.length < 1) {
       await interaction.reply({
-        content: "Error no albums found for query: " + query,
+        content: `No releases found for **${wanted}**.`,
         allowedMentions: { parse: [] },
       });
       return;
     }
 
-    const album: IReleaseMatch = albums.releases[0]!;
+    const release: IReleaseMatch = results.releases[0]!;
 
     // A picker is only worth offering -- and only worth remembering the
     // search for -- when there is something else to pick.
     const key =
-      albums.releases.length > 1
-        ? rememberSearch(query, albums.releases)
+      results.releases.length > 1
+        ? rememberSearch(wanted, results.releases)
         : undefined;
 
     await interaction.reply({
-      components: [await buildMessageForRelease(album, key)],
+      components: [await buildMessageForRelease(release, key)],
       allowedMentions: { parse: [] },
       flags: MessageFlags.IsComponentsV2,
       ephemeral: true,
     });
   },
 };
+
+/**
+ * A fielded MusicBrainz query rather than one free-text blob.
+ *
+ * Searching "release" for "Cannibal Corpse Tomb of the Mutilated" scores every
+ * word against every field, so an artist name matches album titles and back
+ * again. Naming the fields means the artist narrows the search instead of
+ * widening it, which is the whole reason the two are separate options.
+ */
+function releaseQuery(album: string, artist?: string): string {
+  const terms = [`release:"${escapeLucene(album)}"`];
+  if (artist !== undefined && artist !== "") {
+    terms.push(`artist:"${escapeLucene(artist)}"`);
+  }
+  return terms.join(" AND ");
+}
+
+/**
+ * Inside a quoted phrase only the quote and the backslash are structural --
+ * the rest of Lucene's special characters are literal there. Without this a
+ * title like 'Symphonies of Sickness "Remastered"' ends the phrase early and
+ * MusicBrainz answers with a syntax error.
+ */
+function escapeLucene(value: string): string {
+  return value.replace(/["\\]/g, (character) => `\\${character}`);
+}
+
+/**
+ * What the user asked for. Plain text on purpose: it is stored with the search
+ * and rendered into the picker's modal, which shows markdown literally rather
+ * than formatting it.
+ */
+function describeQuery(album: string, artist?: string): string {
+  return artist === undefined || artist === ""
+    ? album
+    : `${album} by ${artist}`;
+}
 
 export const downloadButton = defineButton({
   feature: "music",

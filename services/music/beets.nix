@@ -33,22 +33,29 @@ _: {
           quiet: yes
           quiet_fallback: skip
       '';
-      # Used only when a hint named the release (see hintsDir). The album's
-      # identity is then the one the user picked in Discord rather than
-      # beets' own guess, so the threshold only has to absorb tagging noise:
-      # a Soulseek rip routinely differs from the canonical release by
-      # capitalisation, a curly apostrophe or a bonus track, which together
-      # score well past the 0.10 a guessed match has to clear.
+      # Second-pass config: used only after a plain import found no match
+      # AND the bot left a hint naming the release. Forcing --search-id makes
+      # beets score the files against a release they may not be from, so two
+      # defaults have to give:
       #
-      # The looser number is deliberately NOT in the home-manager settings:
-      # it would then apply to interactive imports and to unattended ones
-      # where beets has no idea what the album is.
+      #   album_id (weight 5.0, the heaviest there is) penalises the file's
+      #   own mb_albumid for differing from the forced one -- which is the
+      #   whole point of forcing it. Measured on a Candlemass rip: 0.21 of
+      #   the 0.21 remaining distance was this one penalty.
+      #
+      #   strong_rec_thresh absorbs what is left, since a rip beets could
+      #   not place on its own is by definition an imperfect match.
+      #
+      # Neither belongs in the home-manager settings: they would then apply
+      # to interactive imports and to unattended ones where beets is guessing.
       hintedImportConfig = pkgs.writeText "beets-hinted-import.yaml" ''
         import:
           quiet: yes
           quiet_fallback: skip
         match:
           strong_rec_thresh: 0.25
+          distance_weights:
+            album_id: 0.0
       '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
@@ -60,6 +67,12 @@ _: {
             jq -n --arg c "🎵 slskd → beets: $1" '{content: $c}' \
               | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
               || echo "discord notification failed" >&2
+          }
+
+          # import.move=true empties a directory it fully imported, so
+          # leftover audio means beets skipped the album.
+          has_audio() {
+            find "$1" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .
           }
 
           mkdir -p "${reviewDir}" "${failedDir}"
@@ -82,34 +95,41 @@ _: {
               notify "directory \`$dir\` missing, event parked in \`${failedDir}\`"
               continue
             fi
-            # The bot knew the release id at click time; without it beets has to
-            # re-derive the release from a folder like
-            # "1992 - Tomb of the Mutilated {2002 RE RM Bonus ...} [FLAC]", which
-            # scores far enough off the original release that quiet_fallback=skip
-            # parks the album in review. --search-id gives beets the answer.
-            search=()
-            beet_config=${autoImportConfig}
+            # What the bot said this album is, if it said anything. Looked
+            # up now, used only if the plain import below comes up empty.
+            mbid=""
             dirname=$(basename "$dir")
             for hint in "${hintsDir}"/*.json; do
               [[ $(jq -r '.directory // empty' "$hint" 2>/dev/null) == "$dirname" ]] || continue
               mbid=$(jq -r '.releaseId // empty' "$hint" 2>/dev/null)
-              if [[ -n "$mbid" ]]; then
-                echo "hint: $dirname is release $mbid"
-                search=(--search-id "$mbid")
-                beet_config=${hintedImportConfig}
-              fi
+              [[ -n "$mbid" ]] && echo "hint: $dirname is release $mbid"
               break
             done
 
             echo "importing $dir"
-            if ! beet -c "$beet_config" import "''${search[@]}" "$dir"; then
+            if ! beet -c "${autoImportConfig}" import "$dir"; then
               echo "beet import failed for $dir" >&2
               mv "$event" "${failedDir}/"
               notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
               continue
             fi
-            # import.move=true empties the dir on success; leftovers were skipped
-            if find "$dir" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .; then
+
+            # Only now is the hint worth anything. A rip carrying its own
+            # tags matches its own release at distance ~0, and forcing the
+            # release picked in Discord would score it against a different
+            # pressing and lose -- measured at 0.31 against 0.00 on the same
+            # files. So the hint is a lifeline for what beets could not
+            # place, never the first thing tried.
+            if [[ -n "$mbid" ]] && has_audio "$dir"; then
+              echo "no match for $dirname, retrying with release $mbid"
+              if ! beet -c "${hintedImportConfig}" import --search-id "$mbid" "$dir"; then
+                echo "hinted beet import failed for $dir" >&2
+                mv "$event" "${failedDir}/"
+                notify "❌ hinted beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
+                continue
+              fi
+            fi
+            if has_audio "$dir"; then
               echo "unmatched, moving $dir to ${reviewDir}"
               mv "$dir" "${reviewDir}/"
               notify "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import"
@@ -265,7 +285,14 @@ _: {
             musicbrainz = {
               user = "Frostplexx";
               pass = "\${MUSICBRAINZ_PASSWORD}";
-              data_source_mismatch_penalty = 0.8;
+              # 0, not 0.8: this penalty exists to hold the *other* metadata
+              # sources below MusicBrainz, and beets weights it at 2.0 by
+              # default (match.distance_weights.source). Set on MusicBrainz
+              # itself it taxed every candidate from the source we prefer --
+              # which is what put "data source" in the penalty list of an
+              # otherwise clean match, and kept clean rips above
+              # strong_rec_thresh no matter how small the real differences.
+              data_source_mismatch_penalty = 0.0;
             };
 
             spotify = {
