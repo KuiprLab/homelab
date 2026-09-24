@@ -32,6 +32,14 @@ _: {
         import:
           quiet: yes
           quiet_fallback: skip
+          # skip, not the home-manager default of merge: merging is right
+          # when YOU are adding the missing half of an album, and wrong for
+          # an unattended re-download, where it fuses the new copy into the
+          # existing one and leaves a 12-track album that matches no 6-track
+          # release. Observed on a second download of Epicus Doomicus
+          # Metallicus: pass 1 matched it at 100%, the merge then scored
+          # 79.4% and parked it in review.
+          duplicate_action: skip
       '';
       # Second-pass config: used only after a plain import found no match
       # AND the bot left a hint naming the release. Forcing --search-id makes
@@ -52,6 +60,14 @@ _: {
         import:
           quiet: yes
           quiet_fallback: skip
+          # skip, not the home-manager default of merge: merging is right
+          # when YOU are adding the missing half of an album, and wrong for
+          # an unattended re-download, where it fuses the new copy into the
+          # existing one and leaves a 12-track album that matches no 6-track
+          # release. Observed on a second download of Epicus Doomicus
+          # Metallicus: pass 1 matched it at 100%, the merge then scored
+          # 79.4% and parked it in review.
+          duplicate_action: skip
         match:
           strong_rec_thresh: 0.25
           distance_weights:
@@ -98,10 +114,14 @@ _: {
             # What the bot said this album is, if it said anything. Looked
             # up now, used only if the plain import below comes up empty.
             mbid=""
+            artist=""
+            title=""
             dirname=$(basename "$dir")
             for hint in "${hintsDir}"/*.json; do
               [[ $(jq -r '.directory // empty' "$hint" 2>/dev/null) == "$dirname" ]] || continue
               mbid=$(jq -r '.releaseId // empty' "$hint" 2>/dev/null)
+              artist=$(jq -r '.artist // empty' "$hint" 2>/dev/null)
+              title=$(jq -r '.title // empty' "$hint" 2>/dev/null)
               [[ -n "$mbid" ]] && echo "hint: $dirname is release $mbid"
               break
             done
@@ -111,6 +131,20 @@ _: {
               echo "beet import failed for $dir" >&2
               mv "$event" "${failedDir}/"
               notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
+              continue
+            fi
+
+            # Already in the library: not a matching problem, and the hint
+            # cannot help. beets logs its duplicate handling at debug level, so
+            # the library is asked directly instead of parsing the output --
+            # using what the bot recorded, since the folder name is the peer's
+            # and says nothing reliable about artist or album.
+            if has_audio "$dir" && [[ -n "$artist" && -n "$title" ]] &&
+              beet ls -a "albumartist:$artist" "album:$title" | grep -q .; then
+              echo "$dirname is already in the library"
+              mv "$dir" "${reviewDir}/"
+              rm -f "$event"
+              notify "ℹ️ \`$rel\` is already in the library — the new copy is in \`${reviewDir}\`"
               continue
             fi
 
@@ -129,6 +163,7 @@ _: {
                 continue
               fi
             fi
+
             if has_audio "$dir"; then
               echo "unmatched, moving $dir to ${reviewDir}"
               mv "$dir" "${reviewDir}/"
