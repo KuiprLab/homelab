@@ -6,6 +6,8 @@ import {
   type SlashCommandSubcommandBuilder,
 } from "discord.js";
 
+import type { Button, Modal } from "./component.ts";
+
 export type Execute = (
   interaction: ChatInputCommandInteraction,
 ) => Promise<void>;
@@ -51,6 +53,10 @@ export interface Command {
 export interface Feature {
   readonly name: string;
   readonly commands?: readonly Command[];
+  /** Buttons this feature both renders and answers; see defineButton. */
+  readonly buttons?: readonly Button[];
+  /** Modals it shows and answers on submit; see defineModal. */
+  readonly modals?: readonly Modal[];
   readonly setup?: (client: Client<true>) => void | Promise<void>;
 }
 
