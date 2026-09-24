@@ -18,11 +18,16 @@ kind of thing it is:
 ```
 src/
 ├── feature.ts              the Feature and Command contracts
+├── component.ts            the Button and Modal contracts
 ├── features/
 │   ├── index.ts            the feature list; everything else is reached from here
-│   └── diagnostics/        one feature
-│       ├── index.ts        declares the feature
-│       └── ping.ts         one of its commands
+│   ├── diagnostics/        one feature
+│   │   ├── index.ts        declares the feature
+│   │   └── ping.ts         one of its commands
+│   └── music/              another, with a command, buttons and a modal
+├── events/
+│   ├── index.ts            the event list, wired onto the client
+│   └── interactionCreate.ts  dispatches commands, buttons and modal submits
 ├── config.ts               environment
 ├── register.ts             syncing commands with Discord
 └── index.ts                client bootstrap
@@ -109,6 +114,42 @@ directly — see `src/features/diagnostics/ping.ts`.
 
 Discord nests exactly this deep: command → group → subcommand. There is no
 third level.
+
+## Buttons and modals
+
+A feature declares these the same way, with `defineButton` and `defineModal`,
+and lists them on the `Feature`. One declaration produces both the builder
+that renders it and the handler that answers it, so the `customId` is written
+in exactly one place:
+
+```ts
+import { defineButton } from "../../component.ts";
+
+export const downloadButton = defineButton({
+  feature: "music", // must match the feature that registers it
+  name: "download",
+  execute: async (interaction, releaseId) => { /* ... */ },
+});
+
+// at the render site — the customId is spelled nowhere
+downloadButton.build(release.id).setLabel("Download").setStyle(ButtonStyle.Primary);
+```
+
+The `customId` is `<feature>:<name>:<data>`, so dispatch is an exact map
+lookup on the first two segments and the data may contain `:` freely. Ids are
+global to the application, like command names; a duplicate, or a component
+registered by a feature other than the one it names, throws at startup.
+
+`data` rides on the message rather than in memory, so a click still resolves
+after a restart. It is capped, though: Discord allows 100 characters for the
+whole `customId`, and `build` throws if the payload overflows it. When the
+subject does not fit — the release picker needs five MusicBrainz ids — keep it
+server-side and put a key in the `customId`, as `music/searches.ts` does.
+
+Two Discord constraints worth knowing before designing a flow: a modal must be
+the *first* response to an interaction and cannot be deferred, so everything it
+renders has to be in hand already; and only a modal opened from a message
+component can edit that message on submit (`isFromMessage()`).
 
 Features can also take an optional `setup(client)`, run once after connect,
 for anything that is not a slash command: event listeners, timers, voice
