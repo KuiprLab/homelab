@@ -1,12 +1,12 @@
 import {
-    ButtonStyle,
-    ContainerBuilder,
-    LabelBuilder,
-    MessageFlags,
-    SectionBuilder,
-    StringSelectMenuBuilder,
-    StringSelectMenuOptionBuilder,
-    type ButtonBuilder,
+  ButtonStyle,
+  ContainerBuilder,
+  LabelBuilder,
+  MessageFlags,
+  SectionBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  type ButtonBuilder,
 } from "discord.js";
 import type { IRelease, IReleaseList, IReleaseMatch } from "musicbrainz-api";
 
@@ -16,10 +16,10 @@ import { rememberImportHint, remoteDirectoryOf } from "./hints.ts";
 import { fetchCoverArt, mbApi } from "./musicbrainz.ts";
 import { recallSearch, rememberSearch } from "./searches.ts";
 import {
-    SlskdClient,
-    SlskdError,
-    type SlskdFile,
-    type SlskdSearchResponse,
+  SlskdClient,
+  SlskdError,
+  type SlskdFile,
+  type SlskdSearchResponse,
 } from "./slskd.ts";
 
 /** How many releases a search offers to pick between. */
@@ -40,137 +40,137 @@ const MAX_ENQUEUE_ATTEMPTS = 3;
 
 /** Shown when the table no longer holds the search a click refers to. */
 const EXPIRED =
-    "That search has expired. Run `/music find` again to pick from fresh results.";
+  "That search has expired. Run `/music find` again to pick from fresh results.";
 
 export const find: Subcommand = {
-    name: "find",
-    description: "Search the music library",
+  name: "find",
+  description: "Search the music library",
 
-    options: (builder) =>
-        builder.addStringOption((option) =>
-            option
-                .setName("query")
-                .setDescription("Artist, album or track to look for")
-                .setRequired(true)
-                // Discord enforces these itself, so a junk query is rejected in the
-                // client before it ever reaches us.
-                .setMinLength(2)
-                .setMaxLength(100),
-        ),
+  options: (builder) =>
+    builder.addStringOption((option) =>
+      option
+        .setName("query")
+        .setDescription("Artist, album or track to look for")
+        .setRequired(true)
+        // Discord enforces these itself, so a junk query is rejected in the
+        // client before it ever reaches us.
+        .setMinLength(2)
+        .setMaxLength(100),
+    ),
 
-    execute: async (interaction) => {
-        const query = interaction.options.getString("query", true).trim();
+  execute: async (interaction) => {
+    const query = interaction.options.getString("query", true).trim();
 
-        const albums: IReleaseList = await mbApi.search("release", {
-            query: query,
-            limit: SEARCH_LIMIT,
-        });
+    const albums: IReleaseList = await mbApi.search("release", {
+      query: query,
+      limit: SEARCH_LIMIT,
+    });
 
-        if (albums.count === 0 || albums.releases.length < 1) {
-            await interaction.reply({
-                content: "Error no albums found for query: " + query,
-                allowedMentions: { parse: [] },
-            });
-            return;
-        }
+    if (albums.count === 0 || albums.releases.length < 1) {
+      await interaction.reply({
+        content: "Error no albums found for query: " + query,
+        allowedMentions: { parse: [] },
+      });
+      return;
+    }
 
-        const album: IReleaseMatch = albums.releases[0]!;
+    const album: IReleaseMatch = albums.releases[0]!;
 
-        // A picker is only worth offering -- and only worth remembering the
-        // search for -- when there is something else to pick.
-        const key =
-            albums.releases.length > 1
-                ? rememberSearch(query, albums.releases)
-                : undefined;
+    // A picker is only worth offering -- and only worth remembering the
+    // search for -- when there is something else to pick.
+    const key =
+      albums.releases.length > 1
+        ? rememberSearch(query, albums.releases)
+        : undefined;
 
-        await interaction.reply({
-            components: [await buildMessageForRelease(album, key)],
-            allowedMentions: { parse: [] },
-            flags: MessageFlags.IsComponentsV2,
-            ephemeral: true,
-        });
-    },
+    await interaction.reply({
+      components: [await buildMessageForRelease(album, key)],
+      allowedMentions: { parse: [] },
+      flags: MessageFlags.IsComponentsV2,
+      ephemeral: true,
+    });
+  },
 };
 
 export const downloadButton = defineButton({
-    feature: "music",
-    name: "download",
+  feature: "music",
+  name: "download",
 
-    execute: async (interaction, releaseId) => {
-        // A MusicBrainz lookup and then a Soulseek search follow, and the search
-        // alone runs for tens of seconds, so claim the interaction first: Discord
-        // discards the token after three seconds and a reply that arrives late
-        // fails with "Unknown interaction".
-        await interaction.deferReply();
+  execute: async (interaction, releaseId) => {
+    // A MusicBrainz lookup and then a Soulseek search follow, and the search
+    // alone runs for tens of seconds, so claim the interaction first: Discord
+    // discards the token after three seconds and a reply that arrives late
+    // fails with "Unknown interaction".
+    await interaction.deferReply();
 
-        // artist-credits and media: a lookup does not carry what a search result
-        // carries by default, but these two fill in artist and track count.
-        const release = await mbApi.lookup("release", releaseId, [
-            "artist-credits",
-            "media",
-        ]);
+    // artist-credits and media: a lookup does not carry what a search result
+    // carries by default, but these two fill in artist and track count.
+    const release = await mbApi.lookup("release", releaseId, [
+      "artist-credits",
+      "media",
+    ]);
 
-        try {
-            const slskd = SlskdClient.fromConfig();
-            const { peers, timedOut } = await findFlac(slskd, release);
+    try {
+      const slskd = SlskdClient.fromConfig();
+      const { peers, timedOut } = await findFlac(slskd, release);
 
-            if (peers.length === 0) {
-                await interaction.editReply({
-                    content:
-                        `No FLAC found on Soulseek for **${release.title}** by ` +
-                        `${artistOf(release)}.` +
-                        (timedOut ? " The search was still running when it gave up." : ""),
-                    allowedMentions: { parse: [] },
-                });
-                return;
-            }
+      if (peers.length === 0) {
+        await interaction.editReply({
+          content:
+            `No FLAC found on Soulseek for **${release.title}** by ` +
+            `${artistOf(release)}.` +
+            (timedOut ? " The search was still running when it gave up." : ""),
+          allowedMentions: { parse: [] },
+        });
+        return;
+      }
 
-            // Files go over verbatim -- the peer matches on its own filename and
-            // size, and a normalised path is refused by the peer rather than by
-            // slskd, so it would fail silently as a transfer that never starts.
-            const queued = await slskd.enqueueFirstAccepted(
-                peers.slice(0, MAX_ENQUEUE_ATTEMPTS).map((peer) => ({
-                    username: peer.username,
-                    files: peer.files.map(({ filename, size }) => ({ filename, size })),
-                })),
-            );
+      // Files go over verbatim -- the peer matches on its own filename and
+      // size, and a normalised path is refused by the peer rather than by
+      // slskd, so it would fail silently as a transfer that never starts.
+      const queued = await slskd.enqueueFirstAccepted(
+        peers.slice(0, MAX_ENQUEUE_ATTEMPTS).map((peer) => ({
+          username: peer.username,
+          files: peer.files.map(({ filename, size }) => ({ filename, size })),
+        })),
+      );
 
-            const from = peers.find((peer) => peer.username === queued.username);
+      const from = peers.find((peer) => peer.username === queued.username);
 
-            // Tell the import side which release this is meant to be, before
-            // the download finishes and beets has only the folder name to go
-            // on. Keyed by the peer directory slskd will name the download
-            // after; see hints.ts.
-            const directory = remoteDirectoryOf(from?.files[0]?.filename ?? "");
-            if (directory !== undefined) {
-                await rememberImportHint({
-                    directory,
-                    releaseId: release.id,
-                    title: release.title,
-                    artist: artistOf(release),
-                });
-            }
+      // Tell the import side which release this is meant to be, before
+      // the download finishes and beets has only the folder name to go
+      // on. Keyed by the peer directory slskd will name the download
+      // after; see hints.ts.
+      const directory = remoteDirectoryOf(from?.files[0]?.filename ?? "");
+      if (directory !== undefined) {
+        await rememberImportHint({
+          directory,
+          releaseId: release.id,
+          title: release.title,
+          artist: artistOf(release),
+        });
+      }
 
-            // Accepted, which is not the same as downloading: the files now sit
-            // in the peer's queue. /music status follows them from here.
-            await interaction.editReply({
-                content:
-                    `Queued ${queued.fileCount} FLAC files for **${release.title}** ` +
-                    `by ${artistOf(release)} from ${from === undefined ? queued.username : describe(from)}` +
-                    (queued.rejected.length > 0
-                        ? `\n${queued.rejected.length} earlier ` +
-                          `${queued.rejected.length === 1 ? "peer" : "peers"} turned it down.`
-                        : ""),
-                allowedMentions: { parse: [] },
-            });
-        } catch (error) {
-            if (!(error instanceof SlskdError)) throw error;
-            await interaction.editReply({
-                content: `Soulseek is unavailable: ${error.message}`,
-                allowedMentions: { parse: [] },
-            });
-        }
-    },
+      // Accepted, which is not the same as downloading: the files now sit
+      // in the peer's queue. /music status follows them from here.
+      await interaction.editReply({
+        content:
+          `Queued ${queued.fileCount} FLAC files for **${release.title}** ` +
+          `by ${artistOf(release)} from ${from === undefined ? queued.username : describe(from)}` +
+          (queued.rejected.length > 0
+            ? `\n${queued.rejected.length} earlier ` +
+              `${queued.rejected.length === 1 ? "peer" : "peers"} turned it down.`
+            : ""),
+        allowedMentions: { parse: [] },
+      });
+    } catch (error) {
+      if (!(error instanceof SlskdError)) throw error;
+      await interaction.editReply({
+        content: `Soulseek is unavailable: ${error.message}`,
+        allowedMentions: { parse: [] },
+      });
+    }
+  },
 });
 
 /**
@@ -179,30 +179,30 @@ export const downloadButton = defineButton({
  * slow one that starts now.
  */
 async function findFlac(
-    slskd: SlskdClient,
-    release: IRelease,
+  slskd: SlskdClient,
+  release: IRelease,
 ): Promise<{ peers: readonly SlskdSearchResponse[]; timedOut: boolean }> {
-    // "flac" in the search text only filters on the peer's own path naming, so
-    // it narrows the network traffic without being trustworthy; isFlac below is
-    // what actually decides.
-    const { responses, timedOut } = await slskd.search(
-        `${artistOf(release)} ${release.title} flac`,
-        {
-            responseLimit: SLSKD_RESPONSE_LIMIT,
-            minimumResponseFileCount: trackCount(release) ?? 1,
-        },
+  // "flac" in the search text only filters on the peer's own path naming, so
+  // it narrows the network traffic without being trustworthy; isFlac below is
+  // what actually decides.
+  const { responses, timedOut } = await slskd.search(
+    `${artistOf(release)} ${release.title} flac`,
+    {
+      responseLimit: SLSKD_RESPONSE_LIMIT,
+      minimumResponseFileCount: trackCount(release) ?? 1,
+    },
+  );
+
+  const peers = responses
+    .map((peer) => ({ ...peer, files: peer.files.filter(isFlac) }))
+    .filter((peer) => peer.files.length > 0)
+    .sort(
+      (a, b) =>
+        Number(b.hasFreeUploadSlot) - Number(a.hasFreeUploadSlot) ||
+        b.uploadSpeed - a.uploadSpeed,
     );
 
-    const peers = responses
-        .map((peer) => ({ ...peer, files: peer.files.filter(isFlac) }))
-        .filter((peer) => peer.files.length > 0)
-        .sort(
-            (a, b) =>
-                Number(b.hasFreeUploadSlot) - Number(a.hasFreeUploadSlot) ||
-                b.uploadSpeed - a.uploadSpeed,
-        );
-
-    return { peers, timedOut };
+  return { peers, timedOut };
 }
 
 /**
@@ -210,16 +210,18 @@ async function findFlac(
  * the fallback -- it and size are the only fields reliably present.
  */
 function isFlac(file: SlskdFile): boolean {
-    return (
-        file.extension?.toLowerCase().replace(/^\./, "") === "flac" ||
-        file.filename.toLowerCase().endsWith(".flac")
-    );
+  return (
+    file.extension?.toLowerCase().replace(/^\./, "") === "flac" ||
+    file.filename.toLowerCase().endsWith(".flac")
+  );
 }
 
 function describe(peer: SlskdSearchResponse): string {
-    const mb = (peer.uploadSpeed / 1_000_000).toFixed(1);
-    const slot = peer.hasFreeUploadSlot ? "a free slot" : `queue ${peer.queueLength}`;
-    return `**${peer.username}** (${mb} MB/s, ${slot})`;
+  const mb = (peer.uploadSpeed / 1_000_000).toFixed(1);
+  const slot = peer.hasFreeUploadSlot
+    ? "a free slot"
+    : `queue ${peer.queueLength}`;
+  return `**${peer.username}** (${mb} MB/s, ${slot})`;
 }
 
 /** The select inside the picker modal. Scoped to the modal, not routed. */
@@ -232,46 +234,46 @@ const RELEASE_SELECT = "release";
  * choice again.
  */
 export const pickReleaseModal = defineModal({
-    feature: "music",
-    name: "pick",
+  feature: "music",
+  name: "pick",
 
-    execute: async (interaction, key) => {
-        const [releaseId] =
-            interaction.fields.getStringSelectValues(RELEASE_SELECT);
+  execute: async (interaction, key) => {
+    const [releaseId] =
+      interaction.fields.getStringSelectValues(RELEASE_SELECT);
 
-        // The picker is rendered from the stored search, so the pick is resolved
-        // against it too: no second MusicBrainz call, and an id that is not one
-        // of the offered releases cannot get through.
-        const release = recallSearch(key)?.releases.find(
-            (candidate) => candidate.id === releaseId,
-        );
+    // The picker is rendered from the stored search, so the pick is resolved
+    // against it too: no second MusicBrainz call, and an id that is not one
+    // of the offered releases cannot get through.
+    const release = recallSearch(key)?.releases.find(
+      (candidate) => candidate.id === releaseId,
+    );
 
-        if (release === undefined) {
-            await interaction.reply({
-                content: EXPIRED,
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
+    if (release === undefined) {
+      await interaction.reply({
+        content: EXPIRED,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
-        if (!interaction.isFromMessage()) {
-            // Only a modal opened from a message component can edit that message.
-            await interaction.reply({
-                components: [await buildMessageForRelease(release, key)],
-                allowedMentions: { parse: [] },
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-            });
-            return;
-        }
+    if (!interaction.isFromMessage()) {
+      // Only a modal opened from a message component can edit that message.
+      await interaction.reply({
+        components: [await buildMessageForRelease(release, key)],
+        allowedMentions: { parse: [] },
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
-        // Cover art is a network round trip, so claim the interaction first.
-        await interaction.deferUpdate();
-        await interaction.editReply({
-            components: [await buildMessageForRelease(release, key)],
-            allowedMentions: { parse: [] },
-            flags: MessageFlags.IsComponentsV2,
-        });
-    },
+    // Cover art is a network round trip, so claim the interaction first.
+    await interaction.deferUpdate();
+    await interaction.editReply({
+      components: [await buildMessageForRelease(release, key)],
+      allowedMentions: { parse: [] },
+      flags: MessageFlags.IsComponentsV2,
+    });
+  },
 });
 
 /**
@@ -279,64 +281,64 @@ export const pickReleaseModal = defineModal({
  * the modal can offer the *other* results; see pickerData.
  */
 export const chooseReleaseButton = defineButton({
-    feature: "music",
-    name: "choose",
+  feature: "music",
+  name: "choose",
 
-    execute: async (interaction, data) => {
-        const { key, currentId } = readPickerData(data);
-        const search = recallSearch(key);
+  execute: async (interaction, data) => {
+    const { key, currentId } = readPickerData(data);
+    const search = recallSearch(key);
 
-        if (search === undefined) {
-            await interaction.reply({
-                content: EXPIRED,
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
+    if (search === undefined) {
+      await interaction.reply({
+        content: EXPIRED,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
-        const others = search.releases.filter(
-            (release) => release.id !== currentId,
-        );
+    const others = search.releases.filter(
+      (release) => release.id !== currentId,
+    );
 
-        if (others.length === 0) {
-            await interaction.reply({
-                content: `That search only turned up this one release.`,
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
+    if (others.length === 0) {
+      await interaction.reply({
+        content: `That search only turned up this one release.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
-        // showModal has to be the first response -- Discord does not allow
-        // deferring a modal -- so everything it renders comes from the stored
-        // search rather than from a fresh MusicBrainz call.
-        await interaction.showModal(
-            pickReleaseModal
-                .build(key)
-                .setTitle("Choose a release")
-                .addLabelComponents(
-                    new LabelBuilder()
-                        .setLabel("Other matches")
-                        .setDescription(clamp(`Results for "${search.query}"`, 100))
-                        .setStringSelectMenuComponent(
-                            new StringSelectMenuBuilder()
-                                .setCustomId(RELEASE_SELECT)
-                                .setPlaceholder("Pick a release")
-                                .addOptions(others.slice(0, MAX_SELECT_OPTIONS).map(toOption)),
-                        ),
-                ),
-        );
-    },
+    // showModal has to be the first response -- Discord does not allow
+    // deferring a modal -- so everything it renders comes from the stored
+    // search rather than from a fresh MusicBrainz call.
+    await interaction.showModal(
+      pickReleaseModal
+        .build(key)
+        .setTitle("Choose a release")
+        .addLabelComponents(
+          new LabelBuilder()
+            .setLabel("Other matches")
+            .setDescription(clamp(`Results for "${search.query}"`, 100))
+            .setStringSelectMenuComponent(
+              new StringSelectMenuBuilder()
+                .setCustomId(RELEASE_SELECT)
+                .setPlaceholder("Pick a release")
+                .addOptions(others.slice(0, MAX_SELECT_OPTIONS).map(toOption)),
+            ),
+        ),
+    );
+  },
 });
 
 function toOption(release: IReleaseMatch): StringSelectMenuOptionBuilder {
-    const detail = [artistOf(release), release.date, countryOf(release)]
-        .filter((part) => part !== undefined && part !== "")
-        .join(" · ");
+  const detail = [artistOf(release), release.date, countryOf(release)]
+    .filter((part) => part !== undefined && part !== "")
+    .join(" · ");
 
-    return new StringSelectMenuOptionBuilder()
-        .setLabel(clamp(release.title, 100))
-        .setDescription(clamp(detail, 100))
-        .setValue(release.id);
+  return new StringSelectMenuOptionBuilder()
+    .setLabel(clamp(release.title, 100))
+    .setDescription(clamp(detail, 100))
+    .setValue(release.id);
 }
 
 /**
@@ -345,87 +347,87 @@ function toOption(release: IReleaseMatch): StringSelectMenuOptionBuilder {
  * contain ":", so the two pack together without escaping.
  */
 function pickerData(key: string, currentId: string): string {
-    return `${key}:${currentId}`;
+  return `${key}:${currentId}`;
 }
 
 function readPickerData(data: string): { key: string; currentId: string } {
-    const separator = data.indexOf(":");
-    if (separator === -1) return { key: data, currentId: "" };
-    return {
-        key: data.slice(0, separator),
-        currentId: data.slice(separator + 1),
-    };
+  const separator = data.indexOf(":");
+  if (separator === -1) return { key: data, currentId: "" };
+  return {
+    key: data.slice(0, separator),
+    currentId: data.slice(separator + 1),
+  };
 }
 
 async function buildMessageForRelease(
-    release: IRelease,
-    searchKey?: string,
+  release: IRelease,
+  searchKey?: string,
 ): Promise<ContainerBuilder> {
-    const cover = await fetchCoverArt(release.id);
+  const cover = await fetchCoverArt(release.id);
 
-    const summary =
-        `## ${release.title} by ${artistOf(release)}\n` +
-        `Released: ${release.date ?? "Unknown"}\n` +
-        `Track Count: ${trackCount(release) ?? "Unknown"}\n`;
+  const summary =
+    `## ${release.title} by ${artistOf(release)}\n` +
+    `Released: ${release.date ?? "Unknown"}\n` +
+    `Track Count: ${trackCount(release) ?? "Unknown"}\n`;
 
-    const container = new ContainerBuilder().setAccentColor(0x0099ff);
+  const container = new ContainerBuilder().setAccentColor(0x0099ff);
 
-    if (cover === undefined) {
-        // A Section exists to hang an accessory off, and with no cover art there
-        // is nothing to hang: a thumbnail with an empty URL is rejected by
-        // Discord outright, taking the whole reply with it.
-        container.addTextDisplayComponents((textDisplay) =>
-            textDisplay.setContent(summary),
-        );
-    } else {
-        container.addSectionComponents(
-            new SectionBuilder()
-                .addTextDisplayComponents((textDisplay) =>
-                    textDisplay.setContent(summary),
-                )
-                .setThumbnailAccessory((thumbnail) =>
-                    thumbnail
-                        .setDescription(clamp(`Cover art for ${release.title}`, 1024))
-                        .setURL(cover),
-                ),
-        );
-    }
-
-    return container.addActionRowComponents((actionRow) =>
-        actionRow.setComponents(buttonsFor(release, searchKey)),
+  if (cover === undefined) {
+    // A Section exists to hang an accessory off, and with no cover art there
+    // is nothing to hang: a thumbnail with an empty URL is rejected by
+    // Discord outright, taking the whole reply with it.
+    container.addTextDisplayComponents((textDisplay) =>
+      textDisplay.setContent(summary),
     );
+  } else {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents((textDisplay) =>
+          textDisplay.setContent(summary),
+        )
+        .setThumbnailAccessory((thumbnail) =>
+          thumbnail
+            .setDescription(clamp(`Cover art for ${release.title}`, 1024))
+            .setURL(cover),
+        ),
+    );
+  }
+
+  return container.addActionRowComponents((actionRow) =>
+    actionRow.setComponents(buttonsFor(release, searchKey)),
+  );
 }
 
 /** The picker only appears on a card that came from a remembered search. */
 function buttonsFor(release: IRelease, searchKey?: string): ButtonBuilder[] {
-    const buttons = [
-        downloadButton
-            .build(release.id)
-            .setLabel("Download")
-            .setStyle(ButtonStyle.Primary),
-    ];
+  const buttons = [
+    downloadButton
+      .build(release.id)
+      .setLabel("Download")
+      .setStyle(ButtonStyle.Primary),
+  ];
 
-    if (searchKey !== undefined) {
-        buttons.push(
-            chooseReleaseButton
-                .build(pickerData(searchKey, release.id))
-                .setLabel("Other releases")
-                .setStyle(ButtonStyle.Secondary),
-        );
-    }
+  if (searchKey !== undefined) {
+    buttons.push(
+      chooseReleaseButton
+        .build(pickerData(searchKey, release.id))
+        .setLabel("Other releases")
+        .setStyle(ButtonStyle.Secondary),
+    );
+  }
 
-    return buttons;
+  return buttons;
 }
 
 function artistOf(release: IRelease): string {
-    return (
-        release["artist-credit"]?.map((credit) => credit.name).join(", ") ??
-        "Unknown"
-    );
+  return (
+    release["artist-credit"]?.map((credit) => credit.name).join(", ") ??
+    "Unknown"
+  );
 }
 
 function countryOf(release: IRelease): string | undefined {
-    return release.country ?? undefined;
+  return release.country ?? undefined;
 }
 
 /**
@@ -433,13 +435,13 @@ function countryOf(release: IRelease): string | undefined {
  * exposes one per medium, so total the media when it is missing.
  */
 function trackCount(release: IRelease): number | undefined {
-    if (release["track-count"] !== undefined) return release["track-count"];
-    const total =
-        release.media?.reduce((sum, medium) => sum + medium["track-count"], 0) ?? 0;
-    return total > 0 ? total : undefined;
+  if (release["track-count"] !== undefined) return release["track-count"];
+  const total =
+    release.media?.reduce((sum, medium) => sum + medium["track-count"], 0) ?? 0;
+  return total > 0 ? total : undefined;
 }
 
 /** Discord rejects an over-long label or description outright. */
 function clamp(text: string, limit: number): string {
-    return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
+  return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }

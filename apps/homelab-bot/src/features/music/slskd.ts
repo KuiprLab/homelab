@@ -443,9 +443,9 @@ export class SlskdClient {
       rejected.length === 0
         ? "No peer was offered the download: every candidate had no files."
         : `No peer accepted the download. ` +
-          rejected
-            .map(({ username, reason }) => `${username}: ${reason}`)
-            .join("; "),
+            rejected
+              .map(({ username, reason }) => `${username}: ${reason}`)
+              .join("; "),
     );
   }
 
