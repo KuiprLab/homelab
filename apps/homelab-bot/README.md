@@ -18,11 +18,16 @@ kind of thing it is:
 ```
 src/
 ├── feature.ts              the Feature and Command contracts
+├── component.ts            the Button and Modal contracts
 ├── features/
 │   ├── index.ts            the feature list; everything else is reached from here
-│   └── diagnostics/        one feature
-│       ├── index.ts        declares the feature
-│       └── ping.ts         one of its commands
+│   ├── diagnostics/        one feature
+│   │   ├── index.ts        declares the feature
+│   │   └── ping.ts         one of its commands
+│   └── music/              another, with a command, buttons and a modal
+├── events/
+│   ├── index.ts            the event list, wired onto the client
+│   └── interactionCreate.ts  dispatches commands, buttons and modal submits
 ├── config.ts               environment
 ├── register.ts             syncing commands with Discord
 └── index.ts                client bootstrap
@@ -110,6 +115,42 @@ directly — see `src/features/diagnostics/ping.ts`.
 Discord nests exactly this deep: command → group → subcommand. There is no
 third level.
 
+## Buttons and modals
+
+A feature declares these the same way, with `defineButton` and `defineModal`,
+and lists them on the `Feature`. One declaration produces both the builder
+that renders it and the handler that answers it, so the `customId` is written
+in exactly one place:
+
+```ts
+import { defineButton } from "../../component.ts";
+
+export const downloadButton = defineButton({
+  feature: "music", // must match the feature that registers it
+  name: "download",
+  execute: async (interaction, releaseId) => { /* ... */ },
+});
+
+// at the render site — the customId is spelled nowhere
+downloadButton.build(release.id).setLabel("Download").setStyle(ButtonStyle.Primary);
+```
+
+The `customId` is `<feature>:<name>:<data>`, so dispatch is an exact map
+lookup on the first two segments and the data may contain `:` freely. Ids are
+global to the application, like command names; a duplicate, or a component
+registered by a feature other than the one it names, throws at startup.
+
+`data` rides on the message rather than in memory, so a click still resolves
+after a restart. It is capped, though: Discord allows 100 characters for the
+whole `customId`, and `build` throws if the payload overflows it. When the
+subject does not fit — the release picker needs five MusicBrainz ids — keep it
+server-side and put a key in the `customId`, as `music/searches.ts` does.
+
+Two Discord constraints worth knowing before designing a flow: a modal must be
+the *first* response to an interaction and cannot be deferred, so everything it
+renders has to be in hand already; and only a modal opened from a message
+component can edit that message on submit (`isFromMessage()`).
+
 Features can also take an optional `setup(client)`, run once after connect,
 for anything that is not a slash command: event listeners, timers, voice
 connections.
@@ -173,7 +214,13 @@ involved, so what you edit is what runs.
 DISCORD_TOKEN=...
 DISCORD_APPLICATION_ID=...
 DISCORD_GUILD_ID=...
+SLSKD_URL=...
+SLSKD_API_KEY=...
 ```
+
+The two `SLSKD_` lines are optional — without them the bot starts fine and
+only the commands that talk to slskd fail. See [slskd](#slskd) for what to put
+in them.
 
 A 1Password Environments `.env` works unmodified: it is a named pipe, so the
 plaintext never touches disk.
@@ -209,3 +256,29 @@ in `tsconfig.json` turns them into `.js` on emit, which is what the built
 Dependencies are pinned by `package-lock.json` and nothing else. `importNpmLock`
 derives every hash from that file, so bumping a dependency is `npm install` plus
 committing the lockfile — there is no `npmDepsHash` to re-pin.
+
+## slskd
+
+The music feature searches Soulseek and queues downloads through slskd's HTTP
+API (`src/features/music/slskd.ts`), authenticating with an API key in
+`X-API-Key`.
+
+```
+SLSKD_URL=http://127.0.0.1:5030
+SLSKD_API_KEY=<a key from web.authentication.api_keys>
+```
+
+The key comes from `sops secrets/sorbet/slskd.yml`; add the pair to
+`sops secrets/sorbet/homelab-bot.env` so the unit sees them.
+
+**Use the container's address, not `slskd.int.kuipr.de`.** That vhost is gated
+by authelia, which answers an API-key request with its login page — a 200 full
+of HTML, not a 401, so nothing about the failure looks like auth. The client
+checks the content type and says so, but the fix is the URL. slskd shares
+gluetun's network namespace and gluetun publishes 5030 on the host, so the bot
+reaches it on loopback and skips caddy entirely.
+
+Searching is asynchronous over there: creating a search returns nothing and
+responses arrive over the following seconds. `search()` polls until slskd
+settles, which takes longer than Discord's three-second interaction window —
+`deferReply()` first.

@@ -17,6 +17,11 @@ _: {
       eventsDir = "/var/lib/slskd/events";
       failedDir = "/var/lib/slskd/events-failed";
       reviewDir = "/home/daniel/music-inbox/slskd-review";
+      # homelab-bot drops one JSON file per queued download here, naming the
+      # MusicBrainz release the user actually picked. The directory is created
+      # by apps/homelab-bot/_module.nix (setgid daniel:users); this unit only
+      # reads, and the bot prunes its own stale files.
+      hintsDir = "/var/lib/beets-hints";
       # Container path of the downloads dir (see slskd.nix volumes) → host path
       containerDownloads = "/app/downloads";
       hostDownloads = "/home/daniel/slskd-downloads";
@@ -27,10 +32,50 @@ _: {
         import:
           quiet: yes
           quiet_fallback: skip
+          # skip, not the home-manager default of merge: merging is right
+          # when YOU are adding the missing half of an album, and wrong for
+          # an unattended re-download, where it fuses the new copy into the
+          # existing one and leaves a 12-track album that matches no 6-track
+          # release. Observed on a second download of Epicus Doomicus
+          # Metallicus: pass 1 matched it at 100%, the merge then scored
+          # 79.4% and parked it in review.
+          duplicate_action: skip
+      '';
+      # Second-pass config: used only after a plain import found no match
+      # AND the bot left a hint naming the release. Forcing --search-id makes
+      # beets score the files against a release they may not be from, so two
+      # defaults have to give:
+      #
+      #   album_id (weight 5.0, the heaviest there is) penalises the file's
+      #   own mb_albumid for differing from the forced one -- which is the
+      #   whole point of forcing it. Measured on a Candlemass rip: 0.21 of
+      #   the 0.21 remaining distance was this one penalty.
+      #
+      #   strong_rec_thresh absorbs what is left, since a rip beets could
+      #   not place on its own is by definition an imperfect match.
+      #
+      # Neither belongs in the home-manager settings: they would then apply
+      # to interactive imports and to unattended ones where beets is guessing.
+      hintedImportConfig = pkgs.writeText "beets-hinted-import.yaml" ''
+        import:
+          quiet: yes
+          quiet_fallback: skip
+          # skip, not the home-manager default of merge: merging is right
+          # when YOU are adding the missing half of an album, and wrong for
+          # an unattended re-download, where it fuses the new copy into the
+          # existing one and leaves a 12-track album that matches no 6-track
+          # release. Observed on a second download of Epicus Doomicus
+          # Metallicus: pass 1 matched it at 100%, the merge then scored
+          # 79.4% and parked it in review.
+          duplicate_action: skip
+        match:
+          strong_rec_thresh: 0.25
+          distance_weights:
+            album_id: 0.0
       '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
-        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl];
+        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
         text = ''
           # DISCORD_WEBHOOK_URL comes from the unit's EnvironmentFile
           notify() {
@@ -38,6 +83,12 @@ _: {
             jq -n --arg c "🎵 slskd → beets: $1" '{content: $c}' \
               | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
               || echo "discord notification failed" >&2
+          }
+
+          # import.move=true empties a directory it fully imported, so
+          # leftover audio means beets skipped the album.
+          has_audio() {
+            find "$1" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .
           }
 
           mkdir -p "${reviewDir}" "${failedDir}"
@@ -60,21 +111,85 @@ _: {
               notify "directory \`$dir\` missing, event parked in \`${failedDir}\`"
               continue
             fi
+            # What the bot said this album is, if it said anything. Looked
+            # up now, used only if the plain import below comes up empty.
+            mbid=""
+            artist=""
+            title=""
+            dirname=$(basename "$dir")
+            for hint in "${hintsDir}"/*.json; do
+              [[ $(jq -r '.directory // empty' "$hint" 2>/dev/null) == "$dirname" ]] || continue
+              mbid=$(jq -r '.releaseId // empty' "$hint" 2>/dev/null)
+              artist=$(jq -r '.artist // empty' "$hint" 2>/dev/null)
+              title=$(jq -r '.title // empty' "$hint" 2>/dev/null)
+              [[ -n "$mbid" ]] && echo "hint: $dirname is release $mbid"
+              break
+            done
+
             echo "importing $dir"
-            if ! beet -c "${autoImportConfig}" import "$dir"; then
+            # Tee'd, not just logged: quiet mode still prints the match it
+            # applied, and that is the only place the album beets settled on
+            # is named. The journal keeps getting it either way.
+            log=$(mktemp)
+            if ! beet -c "${autoImportConfig}" import "$dir" 2>&1 | tee "$log"; then
               echo "beet import failed for $dir" >&2
+              rm -f "$log"
               mv "$event" "${failedDir}/"
               notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
               continue
             fi
-            # import.move=true empties the dir on success; leftovers were skipped
-            if find "$dir" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .; then
+
+            # Already in the library: not a matching problem, and the hint
+            # cannot help. beets logs its duplicate handling at debug level, so
+            # the library is asked directly instead of parsing the output --
+            # using what the bot recorded, since the folder name is the peer's
+            # and says nothing reliable about artist or album.
+            if has_audio "$dir" && [[ -n "$artist" && -n "$title" ]] &&
+              beet ls -a "albumartist:$artist" "album:$title" | grep -q .; then
+              echo "$dirname is already in the library"
+              rm -f "$log"
+              mv "$dir" "${reviewDir}/"
+              rm -f "$event"
+              notify "ℹ️ \`$rel\` is already in the library — the new copy is in \`${reviewDir}\`"
+              continue
+            fi
+
+            # Only now is the hint worth anything. A rip carrying its own
+            # tags matches its own release at distance ~0, and forcing the
+            # release picked in Discord would score it against a different
+            # pressing and lose -- measured at 0.31 against 0.00 on the same
+            # files. So the hint is a lifeline for what beets could not
+            # place, never the first thing tried.
+            if [[ -n "$mbid" ]] && has_audio "$dir"; then
+              echo "no match for $dirname, retrying with release $mbid"
+              if ! beet -c "${hintedImportConfig}" import --search-id "$mbid" "$dir" 2>&1 | tee -a "$log"; then
+                echo "hinted beet import failed for $dir" >&2
+                rm -f "$log"
+                mv "$event" "${failedDir}/"
+                notify "❌ hinted beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
+                continue
+              fi
+            fi
+
+            if has_audio "$dir"; then
               echo "unmatched, moving $dir to ${reviewDir}"
               mv "$dir" "${reviewDir}/"
               notify "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import"
             else
               rm -rf "$dir"
+              # beets prints "Match (100.0%):" and then the album it chose;
+              # the codes are stripped because it colours its output even
+              # when nothing is attached to read it.
+              # || true: grep exits 1 when an import printed no match
+              # line at all, and that must not take the unit down with set -e.
+              matched=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -A1 -m1 "Match (" | tail -1 | sed 's/^ *//;s/ *$//' || true)
+              if [[ -n "$matched" ]]; then
+                notify "✅ imported \`$rel\` as **$matched**"
+              else
+                notify "✅ imported \`$rel\`"
+              fi
             fi
+            rm -f "$log"
             rm -f "$event"
           done
         '';
@@ -224,7 +339,14 @@ _: {
             musicbrainz = {
               user = "Frostplexx";
               pass = "\${MUSICBRAINZ_PASSWORD}";
-              data_source_mismatch_penalty = 0.8;
+              # 0, not 0.8: this penalty exists to hold the *other* metadata
+              # sources below MusicBrainz, and beets weights it at 2.0 by
+              # default (match.distance_weights.source). Set on MusicBrainz
+              # itself it taxed every candidate from the source we prefer --
+              # which is what put "data source" in the penalty list of an
+              # otherwise clean match, and kept clean rips above
+              # strong_rec_thresh no matter how small the real differences.
+              data_source_mismatch_penalty = 0.0;
             };
 
             spotify = {
