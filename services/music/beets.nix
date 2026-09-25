@@ -83,6 +83,73 @@ _: {
           quiet_fallback: skip
           duplicate_action: merge
       '';
+      # Where /music retag leaves its requests; the directory is created by
+      # the bot's module, which is the only writer besides this unit.
+      retagDir = "/var/lib/beets-retag";
+
+      # Retagging forces a release the user picked in Discord, so album_id --
+      # beets' heaviest penalty at weight 5.0 -- has to stop fighting it: the
+      # whole point is that the id currently on the files is wrong. Without
+      # this an album stays anchored to its existing tag whatever is chosen,
+      # which is exactly why retagging by hand was needed in the first place.
+      retagImportConfig = pkgs.writeText "beets-retag-import.yaml" ''
+        import:
+          quiet: yes
+          quiet_fallback: skip
+        match:
+          strong_rec_thresh: 0.5
+          distance_weights:
+            album_id: 0.0
+      '';
+
+      retagScript = pkgs.writeShellApplication {
+        name = "beets-retag";
+        runtimeInputs = [beets pkgs.jq pkgs.coreutils pkgs.curl pkgs.gnugrep];
+        text = ''
+          notify() {
+            [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || return 0
+            jq -n --arg c "🏷️ beets retag: $1" '{content: $c}' \
+              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
+              || echo "discord notification failed" >&2
+          }
+
+          shopt -s nullglob
+          for request in "${retagDir}"/*.json; do
+            album=$(jq -r '.albumId // empty' "$request" 2>/dev/null)
+            mbid=$(jq -r '.releaseId // empty' "$request" 2>/dev/null)
+            label=$(jq -r '.label // empty' "$request" 2>/dev/null)
+            [[ -n "$label" ]] || label="album $album"
+
+            if [[ -z "$album" || -z "$mbid" ]]; then
+              echo "request $request: no album id or release id, dropping" >&2
+              rm -f "$request"
+              notify "❌ a retag request was malformed and has been dropped"
+              continue
+            fi
+
+            echo "retagging album $album against release $mbid"
+            if ! beet -c "${retagImportConfig}" import -L --search-id "$mbid" "id:$album"; then
+              echo "retag of album $album failed" >&2
+              rm -f "$request"
+              notify "❌ retag of $label **failed** — see \`journalctl -u beets-retag\`"
+              continue
+            fi
+
+            # quiet_fallback=skip leaves a weak match alone silently, so
+            # success is not "beet exited 0" -- it is the album actually
+            # carrying the release that was asked for.
+            now=$(beet ls -a "id:$album" -f '$mb_albumid' || true)
+            if [[ "$now" == "$mbid" ]]; then
+              notify "✅ retagged $label"
+            else
+              notify "⚠️ retag of $label did not apply — beets found no confident match for that release"
+            fi
+
+            rm -f "$request"
+          done
+        '';
+      };
+
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
         runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
@@ -241,6 +308,12 @@ _: {
           "d ${reviewDir} 0775 daniel daniel - -"
         ];
 
+        paths.beets-retag = {
+          description = "Watch for retag requests from homelab-bot";
+          wantedBy = ["multi-user.target"];
+          pathConfig.DirectoryNotEmpty = retagDir;
+        };
+
         paths.slskd-beets-import = {
           description = "Watch for slskd download-complete events";
           wantedBy = ["multi-user.target"];
@@ -248,6 +321,18 @@ _: {
         };
 
         services = {
+          beets-retag = {
+            description = "Apply retag requests from homelab-bot";
+            serviceConfig = {
+              Type = "oneshot";
+              User = "daniel";
+              Group = "users";
+              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              ExecStart = "${retagScript}/bin/beets-retag";
+            };
+            environment.HOME = "/home/daniel";
+          };
+
           slskd-beets-import = {
             description = "Import finished slskd downloads into beets";
             unitConfig.OnFailure = ["slskd-beets-import-failed.service"];

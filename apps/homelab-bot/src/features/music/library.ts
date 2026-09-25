@@ -73,6 +73,58 @@ function releaseIdOf(value: unknown): string | undefined {
     : undefined;
 }
 
+/** An album as the library holds it, for /music retag to act on. */
+export interface LibraryAlbum {
+  /** beets own album id. What the retag is keyed on: a name can be ambiguous. */
+  readonly id: number;
+  readonly albumartist: string;
+  readonly album: string;
+  readonly tracks: number;
+  /** Whatever sits in mb_albumid -- not necessarily a MusicBrainz id. */
+  readonly currentId: string;
+  /** "Spotify" when the spotify plugin tagged it, empty when MusicBrainz did. */
+  readonly source: string;
+}
+
+const SEARCH_QUERY = `
+  SELECT a.id AS id, a.albumartist AS albumartist, a.album AS album,
+    a.mb_albumid AS currentId, COUNT(i.id) AS tracks,
+    COALESCE((
+      SELECT f.value FROM album_attributes f
+      WHERE f.entity_id = a.id AND f.key = 'data_source'
+    ), '') AS source
+  FROM albums a
+  JOIN items i ON i.album_id = a.id
+  WHERE a.album LIKE '%' || ? || '%'
+     OR a.albumartist || ' ' || a.album LIKE '%' || ? || '%'
+  GROUP BY a.id
+  ORDER BY a.albumartist, a.album
+  LIMIT ?
+`;
+
+/** Albums whose name or "artist album" contains the text typed. */
+export function findAlbums(
+  text: string,
+  limit: number,
+): readonly LibraryAlbum[] {
+  return query((database) =>
+    database
+      .prepare(SEARCH_QUERY)
+      .all(text, text, limit)
+      .map((row) => {
+        const record = row as Record<string, unknown>;
+        return {
+          id: Number(record["id"] ?? 0),
+          albumartist: String(record["albumartist"] ?? "Unknown"),
+          album: String(record["album"] ?? "Unknown"),
+          tracks: Number(record["tracks"] ?? 0),
+          currentId: String(record["currentId"] ?? ""),
+          source: String(record["source"] ?? ""),
+        };
+      }),
+  );
+}
+
 export class LibraryError extends Error {
   constructor(message: string, options: { cause?: unknown } = {}) {
     super(message, options);
@@ -93,6 +145,31 @@ export function isLibraryConfigured(): boolean {
  * a database that no longer exists.
  */
 export function incompleteAlbums(limit: number): readonly IncompleteAlbum[] {
+  return query((database) =>
+    database
+      .prepare(MISSING_QUERY)
+      .all(limit)
+      .map((row) => {
+        const record = row as Record<string, unknown>;
+        return {
+          albumartist: String(record["albumartist"] ?? "Unknown"),
+          album: String(record["album"] ?? "Unknown"),
+          releaseId: releaseIdOf(record["releaseId"]),
+          have: Number(record["have"] ?? 0),
+          expect: Number(record["expect"] ?? 0),
+          discs: Number(record["discs"] ?? 1),
+          discsPresent: Number(record["discsPresent"] ?? 1),
+        };
+      }),
+  );
+}
+
+/**
+ * Open, read, close. Held open across calls the handle would eventually point
+ * at a database that no longer exists: imports rewrite this file from another
+ * process entirely.
+ */
+function query<T>(read: (database: DatabaseSync) => T): T {
   const path = config.beetsLibrary;
   if (path === null) {
     throw new LibraryError(
@@ -115,21 +192,9 @@ export function incompleteAlbums(limit: number): readonly IncompleteAlbum[] {
   }
 
   try {
-    const rows = database.prepare(MISSING_QUERY).all(limit);
-
-    return rows.map((row) => {
-      const record = row as Record<string, unknown>;
-      return {
-        albumartist: String(record["albumartist"] ?? "Unknown"),
-        album: String(record["album"] ?? "Unknown"),
-        releaseId: releaseIdOf(record["releaseId"]),
-        have: Number(record["have"] ?? 0),
-        expect: Number(record["expect"] ?? 0),
-        discs: Number(record["discs"] ?? 1),
-        discsPresent: Number(record["discsPresent"] ?? 1),
-      };
-    });
+    return read(database);
   } catch (cause) {
+    if (cause instanceof LibraryError) throw cause;
     throw new LibraryError("Could not read the beets library.", { cause });
   } finally {
     database.close();

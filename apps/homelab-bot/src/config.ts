@@ -67,6 +67,13 @@ export const config = {
    */
   beetsLibrary: optional("BEETS_LIBRARY"),
 
+  /**
+   * Where /music retag drops its requests for the importer to apply. The bot
+   * holds the library read-only, so retagging is somebody else's job; see
+   * features/music/retagRequests.ts.
+   */
+  beetsRetagDir: optional("BEETS_RETAG_DIR"),
+
   /** gatus, for /lab status. The container address -- the vhost is behind authelia. */
   gatusUrl: optional("GATUS_URL"),
 } as const;

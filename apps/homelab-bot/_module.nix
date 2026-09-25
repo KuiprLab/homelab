@@ -38,6 +38,11 @@
   beetsLibrarySource = "/home/daniel/.beets/library.db";
   beetsLibrary = "/var/lib/beets-library.db";
 
+  # /music retag drops requests here for the beets-retag unit to apply.
+  # Same shape as the hints directory, and for the same reason: the bot
+  # cannot write to the library, so the side that can does the work.
+  retagDir = "/var/lib/beets-retag";
+
   # gatus's container address for /lab status. Not the vhost: that is behind
   # authelia, which answers an API request with a login page.
   gatusUrl = "http://127.0.0.1:8888";
@@ -103,7 +108,10 @@ in {
 
   # 2775: setgid, so a hint the bot writes is group-owned by users and daniel
   # can read it, and group-writable, so either side can clean up.
-  systemd.tmpfiles.rules = ["d ${hintsDir} 2775 daniel users - -"];
+  systemd.tmpfiles.rules = [
+    "d ${hintsDir} 2775 daniel users - -"
+    "d ${retagDir} 2775 daniel users - -"
+  ];
 
   systemd.services = {
     homelab-bot = {
@@ -121,6 +129,7 @@ in {
       environment = {
         BEETS_HINTS_DIR = hintsDir;
         BEETS_LIBRARY = beetsLibrary;
+        BEETS_RETAG_DIR = retagDir;
         GATUS_URL = gatusUrl;
       };
 
@@ -138,7 +147,7 @@ in {
           # the import unit -- could not read a hint out of it. A setgid
           # directory owned by daniel:users plus membership in that group
           # gives both sides access without pinning the bot to a fixed uid.
-          ReadWritePaths = [hintsDir];
+          ReadWritePaths = [hintsDir retagDir];
 
           # ProtectHome=true leaves /home empty for this unit, so the library
           # is bound back in on its own -- one file, read-only, rather than
