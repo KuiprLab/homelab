@@ -22,13 +22,25 @@ export interface IncompleteAlbum {
   readonly releaseId: string | undefined;
   readonly have: number;
   readonly expect: number;
+  /** Discs the release has, and how many of them the library holds anything from. */
+  readonly discs: number;
+  readonly discsPresent: number;
 }
 
 /**
- * beets stores no album-level track total: tracktotal lives on each item, and
- * on a multi-disc release it counts that disc alone. Summing one total per
- * disc is what turns it into an album total -- taking the maximum instead
- * would call every 2xCD release half missing.
+ * What "missing" means here.
+ *
+ * beets stores no album-level track total. tracktotal lives on each item, and
+ * what it counts depends on per_disc_numbering: with it off -- the default,
+ * and what this library uses -- tracks are numbered straight through a
+ * release and tracktotal is the total for the WHOLE release, repeated on
+ * every item, disc two included. So the album total is MAX(tracktotal), not a
+ * sum over discs: summing reported Minenwerfer's seven tracks across two
+ * discs as 7 of 14.
+ *
+ * disctotal and the number of discs actually present come along so the caller
+ * can tell "four tracks never downloaded" from "this is the first disc of a
+ * two-disc reissue" -- the same arithmetic, very different problems.
  */
 const MISSING_QUERY = `
   SELECT
@@ -36,15 +48,9 @@ const MISSING_QUERY = `
     a.album AS album,
     a.mb_albumid AS releaseId,
     COUNT(i.id) AS have,
-    (
-      SELECT SUM(per_disc.total)
-      FROM (
-        SELECT MAX(d.tracktotal) AS total
-        FROM items d
-        WHERE d.album_id = a.id
-        GROUP BY d.disc
-      ) AS per_disc
-    ) AS expect
+    MAX(i.tracktotal) AS expect,
+    MAX(i.disctotal) AS discs,
+    COUNT(DISTINCT i.disc) AS discsPresent
   FROM albums a
   JOIN items i ON i.album_id = a.id
   GROUP BY a.id
@@ -119,6 +125,8 @@ export function incompleteAlbums(limit: number): readonly IncompleteAlbum[] {
         releaseId: releaseIdOf(record["releaseId"]),
         have: Number(record["have"] ?? 0),
         expect: Number(record["expect"] ?? 0),
+        discs: Number(record["discs"] ?? 1),
+        discsPresent: Number(record["discsPresent"] ?? 1),
       };
     });
   } catch (cause) {

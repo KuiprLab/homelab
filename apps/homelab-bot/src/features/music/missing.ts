@@ -80,7 +80,23 @@ function build(albums: readonly IncompleteAlbum[]): ContainerBuilder {
   for (const album of shown) {
     const line =
       `**${album.album}** — ${album.albumartist}\n` +
-      `${album.have} of ${album.expect} tracks`;
+      `${String(album.have)} of ${String(album.expect)} tracks`;
+
+    // A whole disc absent is not the same problem as tracks that failed to
+    // download, and it usually means the album is tagged to a reissue the
+    // library never had: Storm of the Light's Bane sitting at 8 of 23 was a
+    // 2-CD edition whose bonus disc was never wanted. Say so rather than
+    // offering to "complete" it, which would fetch the bonus disc.
+    if (album.discs > album.discsPresent) {
+      container.addTextDisplayComponents((text) =>
+        text.setContent(
+          `${line} · _disc ${String(album.discsPresent + 1)} of ` +
+            `${String(album.discs)} was never imported — retag if you do ` +
+            `not want that edition_`,
+        ),
+      );
+      continue;
+    }
 
     // Without a MusicBrainz id there is nothing to hand the download flow:
     // it looks a release up by id, not by name.

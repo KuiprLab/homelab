@@ -377,6 +377,21 @@ _: {
             chroma.auto = false;
             acoustid.apikey = "\${ACOUSTID_APIKEY}";
             match = {
+              # Without this, nothing tells beets that a 1995 CD is a better
+              # answer than a 2006 2-CD reissue of the same album -- both
+              # match the tracks, and the reissue often wins on catalogue
+              # metadata. That is how Storm of the Light's Bane ended up
+              # tagged to a 23-track edition whose bonus disc was never
+              # wanted, and then reported as 8 of 23 tracks missing.
+              #
+              # Only affects albums imported from here on: an album already
+              # carrying a release id matches that id at distance ~0, so a
+              # wrong tag anchors itself and has to be reimported by hand.
+              preferred = {
+                media = ["CD" "Digital Media|File"];
+                original_year = true;
+              };
+
               strong_rec_thresh = 0.10;
               max_rec = {
                 missing_tracks = "strong";
