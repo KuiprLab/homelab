@@ -27,9 +27,16 @@
   # services/music/beets.nix and src/features/music/hints.ts.
   hintsDir = "/var/lib/beets-hints";
 
-  # /music missing reads this; the importer owns it. Read-only, and bound in
-  # explicitly because ProtectHome hides /home from this unit entirely.
-  beetsLibrary = "/home/daniel/.beets/library.db";
+  # /music missing reads the beets library; the importer owns it.
+  #
+  # Bound to a path OUTSIDE /home on purpose. ProtectHome=true mounts a tmpfs
+  # over /home, and a bind mount at a path beneath it is liable to end up
+  # underneath that tmpfs rather than punching through -- the unit starts
+  # cleanly and the file simply is not there, which is exactly how this failed
+  # the first time. Binding somewhere /home's tmpfs does not cover sidesteps
+  # the ordering question entirely, and ProtectHome stays strict.
+  beetsLibrarySource = "/home/daniel/.beets/library.db";
+  beetsLibrary = "/var/lib/beets-library.db";
 
   # gatus's container address for /lab status. Not the vhost: that is behind
   # authelia, which answers an API request with a login page.
@@ -136,7 +143,7 @@ in {
           # ProtectHome=true leaves /home empty for this unit, so the library
           # is bound back in on its own -- one file, read-only, rather than
           # relaxing ProtectHome and exposing the whole home directory.
-          BindReadOnlyPaths = [beetsLibrary];
+          BindReadOnlyPaths = ["${beetsLibrarySource}:${beetsLibrary}"];
 
           # Membership in users is what lets the bot read the hints it writes
           # back out, and the library file (0644 daniel:users).

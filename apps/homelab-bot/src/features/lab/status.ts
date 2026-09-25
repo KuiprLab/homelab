@@ -1,13 +1,15 @@
-import { MessageFlags } from "discord.js";
+import {
+  ContainerBuilder,
+  MessageFlags,
+  SeparatorSpacingSize,
+} from "discord.js";
 
 import type { Subcommand } from "../../feature.ts";
 import { checks, GatusError, type Check } from "./gatus.ts";
 
-/**
- * How many healthy checks to name before collapsing the group to a count.
- * Failures are always listed in full -- they are the reason to run this.
- */
-const MAX_HEALTHY_LISTED = 4;
+/** Green while everything passes, red the moment anything does not. */
+const HEALTHY = 0x2ecc71;
+const FAILING = 0xe74c3c;
 
 /**
  * What gatus currently thinks of the lab.
@@ -31,15 +33,10 @@ export const status: Subcommand = {
         return;
       }
 
-      const down = all.filter((check) => !check.up);
-      const header =
-        down.length === 0
-          ? `✅ All ${all.length} checks passing.`
-          : `❌ ${down.length} of ${all.length} checks failing.`;
-
       await interaction.editReply({
-        content: [header, "", ...describeGroups(all)].join("\n"),
+        components: [build(all)],
         allowedMentions: { parse: [] },
+        flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       if (!(error instanceof GatusError)) throw error;
@@ -51,41 +48,76 @@ export const status: Subcommand = {
   },
 };
 
-/** One block per gatus group, failures first within each. */
-function describeGroups(all: readonly Check[]): string[] {
+function build(all: readonly Check[]): ContainerBuilder {
+  const down = all.filter((check) => !check.up);
+
+  const container = new ContainerBuilder().setAccentColor(
+    down.length === 0 ? HEALTHY : FAILING,
+  );
+
+  container.addTextDisplayComponents((text) =>
+    text.setContent(
+      `## Lab status\n` +
+        (down.length === 0
+          ? `All **${String(all.length)}** checks passing.`
+          : `**${String(down.length)}** of ${String(all.length)} checks failing.`),
+    ),
+  );
+
+  // Failures first and on their own, so the thing that is wrong is not
+  // something you have to find inside a list of groups.
+  if (down.length > 0) {
+    container.addSeparatorComponents((separator) =>
+      separator.setSpacing(SeparatorSpacingSize.Small),
+    );
+    container.addTextDisplayComponents((text) =>
+      text.setContent(
+        down
+          .map(
+            (check) =>
+              `🔴 **${check.name}** · ${check.group} · ${ago(check.at)}`,
+          )
+          .join("\n"),
+      ),
+    );
+  }
+
+  for (const [group, members] of byGroup(all)) {
+    container.addSeparatorComponents((separator) =>
+      separator.setSpacing(SeparatorSpacingSize.Small).setDivider(false),
+    );
+    container.addTextDisplayComponents((text) =>
+      text.setContent(
+        `**${group}**\n` +
+          members
+            .map(
+              (check) =>
+                `${check.up ? "🟢" : "🔴"} ${check.name} · ${String(check.responseMs)}ms`,
+            )
+            .join("\n"),
+      ),
+    );
+  }
+
+  return container;
+}
+
+function byGroup(all: readonly Check[]): ReadonlyMap<string, Check[]> {
   const groups = new Map<string, Check[]>();
   for (const check of all) {
     const group = groups.get(check.group);
     if (group === undefined) groups.set(check.group, [check]);
     else group.push(check);
   }
-
-  return [...groups.entries()].flatMap(([name, members]) => {
-    const down = members.filter((check) => !check.up);
-    const up = members.filter((check) => check.up);
-
-    const lines = down.map(
-      (check) => `❌ ${check.name} — last checked ${ago(check.at)}`,
-    );
-
-    // A wall of green is noise; the count is the useful part, unless there
-    // are few enough that naming them costs nothing.
-    if (up.length > MAX_HEALTHY_LISTED) {
-      lines.push(`✅ ${up.length} others passing`);
-    } else {
-      lines.push(
-        ...up.map((check) => `✅ ${check.name} — ${check.responseMs}ms`),
-      );
-    }
-
-    return [`**${name}**`, ...lines, ""];
-  });
+  return groups;
 }
 
 /** gatus probes on its own schedule, so a stale result is worth spotting. */
 function ago(at: Date): string {
   const seconds = Math.round((Date.now() - at.getTime()) / 1000);
-  if (seconds < 90) return `${seconds}s ago`;
+  if (seconds < 90) return `${String(seconds)}s ago`;
   const minutes = Math.round(seconds / 60);
-  return minutes < 90 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+  return minutes < 90
+    ? `${String(minutes)}m ago`
+    : `${String(Math.round(minutes / 60))}h ago`;
 }

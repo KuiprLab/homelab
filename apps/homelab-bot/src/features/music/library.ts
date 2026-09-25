@@ -99,6 +99,10 @@ export function incompleteAlbums(limit: number): readonly IncompleteAlbum[] {
   try {
     database = new DatabaseSync(path, { readOnly: true });
   } catch (cause) {
+    // Logged as well as wrapped: the reply says the library could not be
+    // opened, and only the cause says whether that was permissions, a missing
+    // path, or a file that is not a database.
+    console.warn(`Could not open the beets library at ${path}:`, cause);
     throw new LibraryError(`Could not open the beets library at ${path}.`, {
       cause,
     });
