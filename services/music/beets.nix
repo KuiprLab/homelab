@@ -136,13 +136,14 @@ _: {
             fi
 
             # quiet_fallback=skip leaves a weak match alone silently, so
-            # success is not "beet exited 0" -- it is the album actually
+            # success is not "beet exited 0" -- it is some album actually
             # carrying the release that was asked for.
-            # $mb_albumid is a beets format field, expanded by beets, and
-            # must reach it unexpanded by the shell -- hence single quotes.
-            # shellcheck disable=SC2016
-            now=$(beet ls -a "id:$album" -f '$mb_albumid' || true)
-            if [[ "$now" == "$mbid" ]]; then
+            #
+            # Asked by release rather than by album id: a reimport REPLACES
+            # the album row, so the id in the request no longer exists
+            # afterwards. Checking it reported a successful retag of Chaos
+            # A.D. as a failure -- album 1832 had become 1842.
+            if beet ls -a "mb_albumid:$mbid" | grep -q .; then
               notify "✅ retagged $label"
             else
               notify "⚠️ retag of $label did not apply — beets found no confident match for that release"
