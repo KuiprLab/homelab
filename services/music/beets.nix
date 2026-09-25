@@ -138,6 +138,9 @@ _: {
             # quiet_fallback=skip leaves a weak match alone silently, so
             # success is not "beet exited 0" -- it is the album actually
             # carrying the release that was asked for.
+            # $mb_albumid is a beets format field, expanded by beets, and
+            # must reach it unexpanded by the shell -- hence single quotes.
+            # shellcheck disable=SC2016
             now=$(beet ls -a "id:$album" -f '$mb_albumid' || true)
             if [[ "$now" == "$mbid" ]]; then
               notify "✅ retagged $label"
