@@ -20,7 +20,11 @@ import {
   type LibraryAlbum,
 } from "./library.ts";
 import { mbApi } from "./musicbrainz.ts";
-import { isRetagConfigured, requestRetag, RetagError } from "./retagRequests.ts";
+import {
+  isRetagConfigured,
+  requestRetag,
+  RetagError,
+} from "./retagRequests.ts";
 
 /** Library albums a name may match before the user has to be more specific. */
 const MAX_MATCHES = 5;
@@ -97,7 +101,9 @@ export const retag: Subcommand = {
       matches = findAlbums(text, MAX_MATCHES + 1);
     } catch (error) {
       if (!(error instanceof LibraryError)) throw error;
-      await interaction.editReply(`Could not read the library: ${error.message}`);
+      await interaction.editReply(
+        `Could not read the library: ${error.message}`,
+      );
       return;
     }
 
@@ -160,7 +166,10 @@ export const chooseRetagButton = defineButton({
   execute: async (interaction, key) => {
     const choice = recall(key);
     if (choice === undefined) {
-      await interaction.reply({ content: EXPIRED, flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: EXPIRED,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 
@@ -171,12 +180,16 @@ export const chooseRetagButton = defineButton({
         .addLabelComponents(
           new LabelBuilder()
             .setLabel("MusicBrainz releases")
-            .setDescription(clamp(`${choice.album.album} — ${choice.album.albumartist}`, 100))
+            .setDescription(
+              clamp(`${choice.album.album} — ${choice.album.albumartist}`, 100),
+            )
             .setStringSelectMenuComponent(
               new StringSelectMenuBuilder()
                 .setCustomId(RELEASE_SELECT)
                 .setPlaceholder("Pick the release to tag against")
-                .addOptions(choice.candidates.map((release) => option(release))),
+                .addOptions(
+                  choice.candidates.map((release) => option(release)),
+                ),
             ),
         ),
     );
@@ -191,11 +204,15 @@ export const retagModal = defineModal({
   execute: async (interaction, key) => {
     const choice = recall(key);
     if (choice === undefined) {
-      await interaction.reply({ content: EXPIRED, flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: EXPIRED,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 
-    const [releaseId] = interaction.fields.getStringSelectValues(RELEASE_SELECT);
+    const [releaseId] =
+      interaction.fields.getStringSelectValues(RELEASE_SELECT);
 
     // Resolved against the stored candidates, so an id that was never offered
     // cannot get through.
@@ -203,7 +220,10 @@ export const retagModal = defineModal({
       (candidate) => candidate.id === releaseId,
     );
     if (release === undefined) {
-      await interaction.reply({ content: EXPIRED, flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: EXPIRED,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 
@@ -217,7 +237,9 @@ export const retagModal = defineModal({
       });
     } catch (error) {
       if (!(error instanceof RetagError)) throw error;
-      await interaction.editReply(`Could not queue the retag: ${error.message}`);
+      await interaction.editReply(
+        `Could not queue the retag: ${error.message}`,
+      );
       return;
     }
 
@@ -237,8 +259,7 @@ function card(
   candidates: readonly IReleaseMatch[],
   key: string,
 ): ContainerBuilder {
-  const source =
-    album.source === "" ? "MusicBrainz" : album.source;
+  const source = album.source === "" ? "MusicBrainz" : album.source;
 
   return new ContainerBuilder()
     .setAccentColor(0x9b59b6)
@@ -303,7 +324,10 @@ function describe(release: IReleaseMatch): string {
       ? undefined
       : release.date.slice(0, 4),
     release.country,
-    release.media?.map((medium) => medium.format).filter(Boolean).join("+"),
+    release.media
+      ?.map((medium) => medium.format)
+      .filter(Boolean)
+      .join("+"),
   ]
     .filter((part) => part !== undefined && part !== "")
     .join(" · ");

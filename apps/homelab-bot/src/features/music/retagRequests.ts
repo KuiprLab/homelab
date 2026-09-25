@@ -62,7 +62,11 @@ export async function requestRetag(
     await pruneStale(directory);
     await writeFile(
       join(directory, `${randomUUID()}.json`),
-      JSON.stringify({ ...request, requestedAt: new Date().toISOString() }, null, 2),
+      JSON.stringify(
+        { ...request, requestedAt: new Date().toISOString() },
+        null,
+        2,
+      ),
     );
   } catch (cause) {
     throw new RetagError("Could not write the retag request.", { cause });
