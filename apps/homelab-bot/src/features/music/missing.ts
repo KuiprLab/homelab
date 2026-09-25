@@ -47,7 +47,8 @@ export const missing: Subcommand = {
 
       if (albums.length === 0) {
         await interaction.reply({
-          content: "Nothing is missing. Every album is as complete as its tags claim.",
+          content:
+            "Nothing is missing. Every album is as complete as its tags claim.",
           flags: MessageFlags.Ephemeral,
         });
         return;
