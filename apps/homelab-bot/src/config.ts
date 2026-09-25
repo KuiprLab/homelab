@@ -55,4 +55,18 @@ export const config = {
    * matching on its own, which is what it did before.
    */
   beetsHintsDir: optional("BEETS_HINTS_DIR"),
+
+  /**
+   * beets library database, opened read-only so /music missing can ask what
+   * is incomplete. Optional: without it the command says so and nothing else
+   * in the bot cares.
+   *
+   * Read directly rather than by shelling out to beet: the importer runs as
+   * another user in another unit, and the bot has no business holding a write
+   * handle on that database.
+   */
+  beetsLibrary: optional("BEETS_LIBRARY"),
+
+  /** gatus, for /lab status. The container address -- the vhost is behind authelia. */
+  gatusUrl: optional("GATUS_URL"),
 } as const;

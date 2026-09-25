@@ -11,6 +11,7 @@ import {
   type Feature,
 } from "../feature.ts";
 import { diagnostics } from "./diagnostics/index.ts";
+import { lab } from "./lab/index.ts";
 import { music } from "./music/index.ts";
 
 /**
@@ -20,7 +21,7 @@ import { music } from "./music/index.ts";
  *
  * Adding a feature is two lines -- import it, add it here.
  */
-export const features: readonly Feature[] = [diagnostics, music];
+export const features: readonly Feature[] = [diagnostics, lab, music];
 
 interface Registered {
   readonly command: Command;

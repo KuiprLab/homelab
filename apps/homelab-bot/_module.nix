@@ -27,6 +27,14 @@
   # services/music/beets.nix and src/features/music/hints.ts.
   hintsDir = "/var/lib/beets-hints";
 
+  # /music missing reads this; the importer owns it. Read-only, and bound in
+  # explicitly because ProtectHome hides /home from this unit entirely.
+  beetsLibrary = "/home/daniel/.beets/library.db";
+
+  # gatus's container address for /lab status. Not the vhost: that is behind
+  # authelia, which answers an API request with a login page.
+  gatusUrl = "http://127.0.0.1:8888";
+
   # The single switch for this service. Flip to true once the Discord token in
   # secrets/sorbet/homelab-bot.env is real.
   #
@@ -103,7 +111,11 @@ in {
       # The release a download was queued for, dropped here for the slskd ->
       # beets import unit to read (services/music/beets.nix). Unit-level, not
       # in the secret: it is a path, not a credential.
-      environment.BEETS_HINTS_DIR = hintsDir;
+      environment = {
+        BEETS_HINTS_DIR = hintsDir;
+        BEETS_LIBRARY = beetsLibrary;
+        GATUS_URL = gatusUrl;
+      };
 
       serviceConfig =
         common
@@ -120,6 +132,14 @@ in {
           # directory owned by daniel:users plus membership in that group
           # gives both sides access without pinning the bot to a fixed uid.
           ReadWritePaths = [hintsDir];
+
+          # ProtectHome=true leaves /home empty for this unit, so the library
+          # is bound back in on its own -- one file, read-only, rather than
+          # relaxing ProtectHome and exposing the whole home directory.
+          BindReadOnlyPaths = [beetsLibrary];
+
+          # Membership in users is what lets the bot read the hints it writes
+          # back out, and the library file (0644 daniel:users).
           SupplementaryGroups = ["users"];
 
           # Discord rate-limits login attempts, so back off rather than

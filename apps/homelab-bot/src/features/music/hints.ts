@@ -49,6 +49,13 @@ export interface ImportHint {
   /** For a human reading the file or the import log. */
   readonly title: string;
   readonly artist: string;
+  /**
+   * True when this download is meant to fill gaps in an album the library
+   * already has. The import side needs to know: its default is to skip a
+   * duplicate, and completing an album is the one case where merging the two
+   * copies is the right answer.
+   */
+  readonly complete?: boolean;
   readonly queuedAt: string;
 }
 

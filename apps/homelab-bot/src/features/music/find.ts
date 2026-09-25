@@ -7,6 +7,7 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   type ButtonBuilder,
+  type ButtonInteraction,
 } from "discord.js";
 import type { IRelease, IReleaseList, IReleaseMatch } from "musicbrainz-api";
 
@@ -144,82 +145,103 @@ export const downloadButton = defineButton({
   feature: "music",
   name: "download",
 
-  execute: async (interaction, releaseId) => {
-    // A MusicBrainz lookup and then a Soulseek search follow, and the search
-    // alone runs for tens of seconds, so claim the interaction first: Discord
-    // discards the token after three seconds and a reply that arrives late
-    // fails with "Unknown interaction".
-    await interaction.deferReply();
+  execute: (interaction, releaseId) =>
+    queueRelease(interaction, releaseId, { complete: false }),
+});
 
-    // artist-credits and media: a lookup does not carry what a search result
-    // carries by default, but these two fill in artist and track count.
-    const release = await mbApi.lookup("release", releaseId, [
-      "artist-credits",
-      "media",
-    ]);
+/**
+ * Same queueing, different intent: this one fills in an album the library
+ * already has part of, which the import side has to treat as a merge rather
+ * than as the duplicate it would otherwise skip. See /music missing.
+ */
+export const completeAlbumButton = defineButton({
+  feature: "music",
+  name: "complete",
 
-    try {
-      const slskd = SlskdClient.fromConfig();
-      const { peers, timedOut } = await findFlac(slskd, release);
+  execute: (interaction, releaseId) =>
+    queueRelease(interaction, releaseId, { complete: true }),
+});
 
-      if (peers.length === 0) {
-        await interaction.editReply({
-          content:
-            `No FLAC found on Soulseek for **${release.title}** by ` +
-            `${artistOf(release)}.` +
-            (timedOut ? " The search was still running when it gave up." : ""),
-          allowedMentions: { parse: [] },
-        });
-        return;
-      }
+async function queueRelease(
+  interaction: ButtonInteraction,
+  releaseId: string,
+  { complete }: { complete: boolean },
+): Promise<void> {
+  // A MusicBrainz lookup and then a Soulseek search follow, and the search
+  // alone runs for tens of seconds, so claim the interaction first: Discord
+  // discards the token after three seconds and a reply that arrives late
+  // fails with "Unknown interaction".
+  await interaction.deferReply();
 
-      // Files go over verbatim -- the peer matches on its own filename and
-      // size, and a normalised path is refused by the peer rather than by
-      // slskd, so it would fail silently as a transfer that never starts.
-      const queued = await slskd.enqueueFirstAccepted(
-        peers.slice(0, MAX_ENQUEUE_ATTEMPTS).map((peer) => ({
-          username: peer.username,
-          files: peer.files.map(({ filename, size }) => ({ filename, size })),
-        })),
-      );
+  // artist-credits and media: a lookup does not carry what a search result
+  // carries by default, but these two fill in artist and track count.
+  const release = await mbApi.lookup("release", releaseId, [
+    "artist-credits",
+    "media",
+  ]);
 
-      const from = peers.find((peer) => peer.username === queued.username);
+  try {
+    const slskd = SlskdClient.fromConfig();
+    const { peers, timedOut } = await findFlac(slskd, release);
 
-      // Tell the import side which release this is meant to be, before
-      // the download finishes and beets has only the folder name to go
-      // on. Keyed by the peer directory slskd will name the download
-      // after; see hints.ts.
-      const directory = remoteDirectoryOf(from?.files[0]?.filename ?? "");
-      if (directory !== undefined) {
-        await rememberImportHint({
-          directory,
-          releaseId: release.id,
-          title: release.title,
-          artist: artistOf(release),
-        });
-      }
-
-      // Accepted, which is not the same as downloading: the files now sit
-      // in the peer's queue. /music status follows them from here.
+    if (peers.length === 0) {
       await interaction.editReply({
         content:
-          `Queued ${queued.fileCount} FLAC files for **${release.title}** ` +
-          `by ${artistOf(release)} from ${from === undefined ? queued.username : describe(from)}` +
-          (queued.rejected.length > 0
-            ? `\n${queued.rejected.length} earlier ` +
-              `${queued.rejected.length === 1 ? "peer" : "peers"} turned it down.`
-            : ""),
+          `No FLAC found on Soulseek for **${release.title}** by ` +
+          `${artistOf(release)}.` +
+          (timedOut ? " The search was still running when it gave up." : ""),
         allowedMentions: { parse: [] },
       });
-    } catch (error) {
-      if (!(error instanceof SlskdError)) throw error;
-      await interaction.editReply({
-        content: `Soulseek is unavailable: ${error.message}`,
-        allowedMentions: { parse: [] },
+      return;
+    }
+
+    // Files go over verbatim -- the peer matches on its own filename and
+    // size, and a normalised path is refused by the peer rather than by
+    // slskd, so it would fail silently as a transfer that never starts.
+    const queued = await slskd.enqueueFirstAccepted(
+      peers.slice(0, MAX_ENQUEUE_ATTEMPTS).map((peer) => ({
+        username: peer.username,
+        files: peer.files.map(({ filename, size }) => ({ filename, size })),
+      })),
+    );
+
+    const from = peers.find((peer) => peer.username === queued.username);
+
+    // Tell the import side which release this is meant to be, before the
+    // download finishes and beets has only the folder name to go on. Keyed by
+    // the peer directory slskd will name the download after; see hints.ts.
+    const directory = remoteDirectoryOf(from?.files[0]?.filename ?? "");
+    if (directory !== undefined) {
+      await rememberImportHint({
+        directory,
+        releaseId: release.id,
+        title: release.title,
+        artist: artistOf(release),
+        complete,
       });
     }
-  },
-});
+
+    // Accepted, which is not the same as downloading: the files now sit in
+    // the peer's queue. /music status follows them from here.
+    await interaction.editReply({
+      content:
+        `Queued ${queued.fileCount} FLAC files for **${release.title}** ` +
+        `by ${artistOf(release)} from ` +
+        `${from === undefined ? queued.username : describe(from)}` +
+        (queued.rejected.length > 0
+          ? `\n${queued.rejected.length} earlier ` +
+            `${queued.rejected.length === 1 ? "peer" : "peers"} turned it down.`
+          : ""),
+      allowedMentions: { parse: [] },
+    });
+  } catch (error) {
+    if (!(error instanceof SlskdError)) throw error;
+    await interaction.editReply({
+      content: `Soulseek is unavailable: ${error.message}`,
+      allowedMentions: { parse: [] },
+    });
+  }
+}
 
 /**
  * One peer's offer of this release: the files from a single directory of

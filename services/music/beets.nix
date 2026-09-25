@@ -73,6 +73,16 @@ _: {
           distance_weights:
             album_id: 0.0
       '';
+      # /music missing queues a download meant to fill gaps in an album the
+      # library already has. That is the one case where merging beats skipping
+      # the duplicate: the point is to end up with one complete album rather
+      # than to protect the copy already there.
+      completeImportConfig = pkgs.writeText "beets-complete-import.yaml" ''
+        import:
+          quiet: yes
+          quiet_fallback: skip
+          duplicate_action: merge
+      '';
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
         runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
@@ -116,22 +126,32 @@ _: {
             mbid=""
             artist=""
             title=""
+            complete=""
             dirname=$(basename "$dir")
             for hint in "${hintsDir}"/*.json; do
               [[ $(jq -r '.directory // empty' "$hint" 2>/dev/null) == "$dirname" ]] || continue
               mbid=$(jq -r '.releaseId // empty' "$hint" 2>/dev/null)
               artist=$(jq -r '.artist // empty' "$hint" 2>/dev/null)
               title=$(jq -r '.title // empty' "$hint" 2>/dev/null)
+              complete=$(jq -r 'if .complete then "yes" else empty end' "$hint" 2>/dev/null)
               [[ -n "$mbid" ]] && echo "hint: $dirname is release $mbid"
               break
             done
+
+            # A completion merges into what is already there; everything else
+            # takes the default config, which skips duplicates outright.
+            first_config="${autoImportConfig}"
+            if [[ "$complete" == "yes" ]]; then
+              echo "$dirname is completing an album already in the library"
+              first_config="${completeImportConfig}"
+            fi
 
             echo "importing $dir"
             # Tee'd, not just logged: quiet mode still prints the match it
             # applied, and that is the only place the album beets settled on
             # is named. The journal keeps getting it either way.
             log=$(mktemp)
-            if ! beet -c "${autoImportConfig}" import "$dir" 2>&1 | tee "$log"; then
+            if ! beet -c "$first_config" import "$dir" 2>&1 | tee "$log"; then
               echo "beet import failed for $dir" >&2
               rm -f "$log"
               mv "$event" "${failedDir}/"
@@ -144,7 +164,8 @@ _: {
             # the library is asked directly instead of parsing the output --
             # using what the bot recorded, since the folder name is the peer's
             # and says nothing reliable about artist or album.
-            if has_audio "$dir" && [[ -n "$artist" && -n "$title" ]] &&
+            if [[ "$complete" != "yes" ]] && has_audio "$dir" &&
+              [[ -n "$artist" && -n "$title" ]] &&
               beet ls -a "albumartist:$artist" "album:$title" | grep -q .; then
               echo "$dirname is already in the library"
               rm -f "$log"
