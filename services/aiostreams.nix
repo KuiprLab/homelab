@@ -47,11 +47,22 @@ _: {
     ];
 
     nixosModules.aiostreams = _: {
-      sops.secrets."aiostreams.env" = {
-        sopsFile = ../secrets/sorbet/aiostreams.env;
-        format = "dotenv";
-        key = "";
-        restartUnits = ["podman-aiostreams.service"];
+      sops.secrets = {
+        "aiostreams.env" = {
+          sopsFile = ../secrets/sorbet/aiostreams.env;
+          format = "dotenv";
+          key = "";
+          restartUnits = ["podman-aiostreams.service"];
+        };
+
+        # Kept separate from aiostreams.env so the OIDC client secret can be
+        # rotated without touching SECRET_KEY, which must never change.
+        "aiostreams-oidc.env" = {
+          sopsFile = ../secrets/sorbet/aiostreams-oidc.env;
+          format = "dotenv";
+          key = "";
+          restartUnits = ["podman-aiostreams.service"];
+        };
       };
 
       systemd = {
@@ -117,10 +128,40 @@ _: {
           COMMUNITY_FORMATTERS = "off";
           COMMUNITY_TEMPLATES = "off";
           COMMUNITY_PUBLIC_EXPORT = "false";
+
+          # SSO against authelia. The client is registered under
+          # identity_providers.oidc.clients in secrets/sorbet/authelia/configuration.yml;
+          # authelia holds a pbkdf2 digest of the secret, AIOStreams the
+          # plaintext (aiostreams-oidc.env). Redirect URI is BASE_URL +
+          # /api/v1/auth/oidc/callback and must match authelia exactly.
+          AIOSTREAMS_OIDC_ENABLED = "true";
+          AIOSTREAMS_OIDC_ISSUER = "https://auth.ext.kuipr.de";
+          AIOSTREAMS_OIDC_CLIENT_ID = "aiostreams";
+          # authelia only emits group membership when the scope is requested.
+          AIOSTREAMS_OIDC_SCOPES = "openid profile email groups";
+          # An SSO username that matches an AIOSTREAMS_AUTH user *is* that user
+          # (same permissions) rather than colliding with it. Safe here because
+          # authelia's backend is a file this repo controls — nobody can
+          # self-service a preferred_username into impersonating daniel. Without
+          # this, "daniel" over SSO is refused as oidc_username_conflict.
+          AIOSTREAMS_OIDC_LINK_BY_USERNAME = "true";
+          # No group mapping on purpose: an SSO identity that matches neither a
+          # local user nor a mapped group is refused, which is the deny-by-default
+          # AIOStreams wants. Add AIOSTREAMS_OIDC_GROUP_PERMISSIONS if other
+          # authelia users should ever get in.
+          #
+          # Local login stays enabled: it is the way back in if authelia or this
+          # mapping breaks, and the built-in proxy and usenet engine authenticate
+          # with Basic credentials that an SSO session does not have.
+          AIOSTREAMS_OIDC_ALLOW_LOCAL_LOGIN = "true";
         };
         # SECRET_KEY (config encryption — never regenerate, it would make every
-        # stored config undecryptable) and AIOSTREAMS_AUTH.
-        environmentFiles = ["/run/secrets/aiostreams.env"];
+        # stored config undecryptable), AIOSTREAMS_AUTH, and the OIDC client
+        # secret.
+        environmentFiles = [
+          "/run/secrets/aiostreams.env"
+          "/run/secrets/aiostreams-oidc.env"
+        ];
         labels = {
           "io.containers.autoupdate" = "registry";
         };
