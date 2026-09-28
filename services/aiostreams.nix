@@ -46,7 +46,29 @@ _: {
       }
     ];
 
-    nixosModules.aiostreams = _: {
+    nixosModules.aiostreams = {pkgs, ...}: let
+      # gluetun's DNS-over-TLS resolver refuses any answer containing a private
+      # address (its DNS-rebinding guard, DOT_PRIVATE_ADDRESS). Public DNS for
+      # *.ext.kuipr.de returns both eclair's public IP and 192.168.0.85 for LAN
+      # hairpinning, so the whole answer comes back REFUSED inside the netns and
+      # OIDC discovery fails with a bare "fetch failed".
+      #
+      # Resolve the issuer from a hosts file instead of loosening the guard for
+      # everything else sharing gluetun (slskd included). The issuer URL must
+      # stay byte-identical to what the browser uses — AIOStreams checks the
+      # discovered issuer against the configured one — so only the address is
+      # fixed here, not the name. Caddy on 192.168.0.85 terminates TLS for this
+      # vhost with a real certificate, so SNI and verification still work.
+      #
+      # This replaces podman's generated /etc/hosts, hence the loopback entries;
+      # --add-host cannot be used because podman rejects it for a container
+      # joined to another container's network namespace.
+      hostsFile = pkgs.writeText "aiostreams-hosts" ''
+        127.0.0.1 localhost
+        ::1 localhost ip6-localhost ip6-loopback
+        192.168.0.85 auth.ext.kuipr.de
+      '';
+    in {
       sops.secrets = {
         "aiostreams.env" = {
           sopsFile = ../secrets/sorbet/aiostreams.env;
@@ -80,6 +102,7 @@ _: {
         image = "ghcr.io/viren070/aiostreams:latest";
         volumes = [
           "/var/lib/aiostreams:/app/data"
+          "${hostsFile}:/etc/hosts:ro"
         ];
         environment = {
           TZ = "Europe/Berlin";
