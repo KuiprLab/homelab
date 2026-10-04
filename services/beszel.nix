@@ -84,7 +84,7 @@ _: {
           environment = {
             APP_URL = "https://mon.int.kuipr.de";
             DISABLE_SSH = "true";
-            USER_CREATION=true;
+            USER_CREATION = true;
           };
         };
         agent = {
