@@ -13,10 +13,6 @@ _: {
     systemd.services.ollama = {
       serviceConfig = {
         Restart = "on-failure"; # don't stay dead after an OOM blip
-        # Cap the CPU budget: llama.cpp defaults to ALL cores, which made
-        # suggestions and nightly re-indexes pin the whole box. 200% = 2
-        # cores max, for anything ollama does.
-        CPUQuota = "200%";
         # Embedding-only now: embeddinggemma ~0.8G resident + runtime.
         MemoryMax = "2G";
 
