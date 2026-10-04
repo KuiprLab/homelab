@@ -44,6 +44,7 @@ _: {
           PAPERLESS_TIKA_ENABLED = true; # Whether to enable Tika for processing Office and e-mail files
           PAPERLESS_URL = "https://paperless.int.kuipr.de"; # The URL to use for the Paperless web interface
           PAPERLESS_ENABLE_HTTP_REMOTE_USER = true;
+          PAPERLESS_ENABLE_HTTP_REMOTE_USER_API = true; # SPA's /api calls auth via header too
           PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME = "HTTP_REMOTE_USER";
           PAPERLESS_LOGOUT_REDIRECT_URL = "https://auth.ext.kuipr.de/logout";
         };
