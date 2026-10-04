@@ -7,7 +7,7 @@ _: {
         '';
         name = "Paperless";
         authelia = {
-          enable = true;
+          enable = false;
           # gatus probes this vhost sessionless; /healthz bypasses forward auth.
           bypassPaths = ["/healthz"];
         };
