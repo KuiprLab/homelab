@@ -65,6 +65,8 @@ _: {
               "8081:8080"
               # slskd web UI: loopback only, so caddy + authelia is the sole way in
               "127.0.0.1:5030:5030"
+              # aiostreams: loopback only, caddy publishes it as *.ext.kuipr.de
+              "127.0.0.1:3000:3000"
               "47594/tcp"
               "47594/udp"
             ];
