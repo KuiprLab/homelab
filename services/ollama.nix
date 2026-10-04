@@ -6,19 +6,21 @@ _: {
     services.ollama = {
       enable = true;
       modelsDir = "/media/data/ollama"; # big disk, not the small SSD
-      # Pin a persistent user: the module's default (dynamic user) can't own
-      # modelsDir across tmpfiles runs, and the bind-mount needs a real owner.
+      # Pin a persistent user so modelsDir ownership is stable.
       user = "ollama";
     };
 
-    # Belt and braces: the module creates modelsDir, but /media/data is a
-    # separate mount, so make sure the directory exists with the right owner.
-    systemd.tmpfiles.rules = [
-      "d /media/data/ollama 0750 ollama ollama -"
-    ];
+    systemd.services.ollama = {
+      # Guard the rest of the box: an 8B q4 model is ~6G resident; cap the
+      # service so ollama can never starve the ~10G of other services.
+      serviceConfig.MemoryMax = "10G";
 
-    # Guard the rest of the box: an 8B q4 model is ~6G resident; cap the
-    # service so ollama can never starve the ~10G of other services.
-    systemd.services.ollama.serviceConfig.MemoryMax = "10G";
+      # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
+      # owner of a pre-existing directory, so enforce it as root (+ prefix)
+      # before the server starts; the ollama user exists by then.
+      ExecStartPre = [
+        "+/bin/sh -c 'mkdir -p /media/data/ollama && /run/current-system/sw/bin/chown ollama:ollama /media/data/ollama'"
+      ];
+    };
   };
 }
