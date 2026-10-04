@@ -62,6 +62,12 @@ _: {
           PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins"; # Authelia group that grants superuser on login
           PAPERLESS_DISABLE_REGULAR_LOGIN = true; # hide and block username/password login
           PAPERLESS_REDIRECT_LOGIN_TO_SSO = true; # skip the login page, go straight to Authelia
+          PAPERLESS_AI_ENABLED = true; # AI suggestions + RAG, backed by local ollama (services/ollama.nix)
+          PAPERLESS_AI_LLM_BACKEND = "ollama";
+          PAPERLESS_AI_LLM_ENDPOINT = "http://127.0.0.1:11434";
+          PAPERLESS_AI_LLM_MODEL = "qwen3:8b"; # CPU inference, ~6G RAM while loaded
+          PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
+          PAPERLESS_AI_LLM_EMBEDDING_MODEL = "nomic-embed-text";
         };
       };
     };
