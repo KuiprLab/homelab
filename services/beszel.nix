@@ -15,10 +15,12 @@
 #     auto-register when agents connect; no per-system SSH keys needed.
 #   - agent → hub identity: the agent verifies the hub's WS challenge
 #     signature against KEY. The hub's keypair is pre-generated and shipped
-#     declaratively (the hub loads <dataDir>/id_ed25519 if present, via
-#     LoadCredential + ExecStartPre), so nothing has to be copied out of the
-#     web UI. Without a KEY the 0.18.7 agent binary exits immediately —
-#     loadPublicKeys() is unconditional, even with DISABLE_SSH=true.
+#     declaratively (the hub loads <dataDir>/beszel_data/id_ed25519 if
+#     present — note the relative "beszel_data" default resolves against
+#     the unit's WorkingDirectory — installed via LoadCredential +
+#     ExecStartPre), so nothing has to be copied out of the web UI. Without
+#     a KEY the 0.18.7 agent binary exits immediately — loadPublicKeys()
+#     is unconditional, even with DISABLE_SSH=true.
 #
 # Setup (one-time, after first sorbet deploy):
 #   1. Open https://mon.int.kuipr.de → create the admin user.
@@ -58,13 +60,14 @@ _: {
         # Hand the private key to the (DynamicUser) hub service without
         # weakening the sandbox.
         LoadCredential = ["id_ed25519:${config.sops.secrets."beszel/hub-key".path}"];
-        # The hub generates a keypair only if <dataDir>/id_ed25519 is
-        # missing — install ours (as the service user, which owns the
-        # StateDirectory) before it starts.
+        # The hub generates a keypair only if <dataDir>/beszel_data/
+        # id_ed25519 is missing (PocketBase resolves its relative default
+        # "beszel_data" against WorkingDirectory) — install ours (as the
+        # service user, which owns the StateDirectory) before it starts.
         ExecStartPre = [
           (pkgs.writeShellScript "beszel-hub-install-key" ''
-            install -m 600 "$CREDENTIALS_DIRECTORY/id_ed25519" \
-              "${toString config.services.beszel.hub.dataDir}/id_ed25519"
+            install -Dm 600 "$CREDENTIALS_DIRECTORY/id_ed25519" \
+              "${toString config.services.beszel.hub.dataDir}/beszel_data/id_ed25519"
           '')
         ];
       };
