@@ -6,6 +6,9 @@ _: {
     services.ollama = {
       enable = true;
       modelsDir = "/media/data/ollama"; # big disk, not the small SSD
+      # Pin a persistent user: the module's default (dynamic user) can't own
+      # modelsDir across tmpfiles runs, and the bind-mount needs a real owner.
+      user = "ollama";
     };
 
     # Belt and braces: the module creates modelsDir, but /media/data is a
