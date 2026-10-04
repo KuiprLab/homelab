@@ -121,6 +121,28 @@
         config,
         ...
       }: let
+        # Index page lists vhosts split by hostname suffix: *.int.kuipr.de
+        # (LAN dnsmasq) under "Internal", everything else (*.ext.kuipr.de,
+        # the public VPS) under "External".
+        renderEntry = host: v: let
+          displayName =
+            if v.name != null
+            then v.name
+            else host;
+          hasDomain = v.name != null;
+        in
+          "<li><a href=\"https://${host}\">${displayName}</a>"
+          + (
+            if hasDomain
+            then " <span class='domain'>(${host})</span>"
+            else ""
+          )
+          + "</li>";
+        entryList = hosts:
+          lib.concatStringsSep "\n" (lib.mapAttrsToList renderEntry hosts);
+        internalHosts = lib.filterAttrs (host: _: lib.hasSuffix ".int.kuipr.de" host) virtualHosts;
+        externalHosts = lib.filterAttrs (host: _: !lib.hasSuffix ".int.kuipr.de" host) virtualHosts;
+
         indexDir = pkgs.writeTextDir "index.html" ''
           <!DOCTYPE html>
           <html>
@@ -130,7 +152,8 @@
             <title>sorbet</title>
             <style>
               body { font-family: sans-serif; max-width: 40em; margin: 2em auto; padding: 0 1em; }
-              h1 { font-size: 1.2rem; font-weight: 600; margin-bottom: 1em; }
+              h1 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.4em; }
+              h2 { font-size: 1rem; font-weight: 600; margin: 1.4em 0 0.3em; }
               ul { list-style: none; padding: 0; }
               li { margin: 0.4em 0; }
               a { color: -webkit-link; }
@@ -140,21 +163,13 @@
           </head>
           <body>
             <h1>sorbet</h1>
+            <h2>Internal</h2>
             <ul>
-              ${lib.concatStringsSep "\n" (lib.mapAttrsToList (host: v: let
-              displayName =
-                if v.name != null
-                then v.name
-                else host;
-              hasDomain = v.name != null;
-            in ''
-              <li><a href="https://${host}">${displayName}</a>${
-                if hasDomain
-                then " <span class='domain'>(${host})</span>"
-                else ""
-              }</li>
-            '')
-            virtualHosts)}
+              ${entryList internalHosts}
+            </ul>
+            <h2>External</h2>
+            <ul>
+              ${entryList externalHosts}
             </ul>
             <hr>
           </body>
