@@ -68,10 +68,12 @@ Secrets are encrypted with [sops-nix](https://github.com/Mic92/sops-nix) using a
 | `secrets/sorbet/tailscale`      | sorbet tailscale auth key                      |
 | `secrets/sorbet/homepage`       | Homepage dashboard env vars                    |
 | `secrets/sorbet/gatus`          | Gatus — Discord webhook                        |
+| `secrets/sorbet/beszel-agent`   | Beszel agent — universal WebSocket token       |
 | `secrets/sorbet/github-runner`  | GitHub Actions runner token                    |
 | `secrets/sorbet/rclone`         | rclone Google Drive config                     |
 | `secrets/sorbet/beets`          | beets config                                   |
 | `secrets/eclair/tailscale`      | eclair tailscale auth key                      |
+| `secrets/eclair/beszel-agent`   | Beszel agent — universal WebSocket token       |
 | `secrets/sorbet/homelab-bot.env` | homelab-bot — Discord token, app ID, guild ID |
 | `secrets/shared/deploy-webhook` | Discord deploy notifications                   |
 

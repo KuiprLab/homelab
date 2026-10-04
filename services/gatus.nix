@@ -214,6 +214,22 @@
           alerts = [{type = "discord";}];
         }
 
+        # Beszel hub — direct tailnet probe on the hub's own port, skipping
+        # caddy. If the sorbet-side mon.int.kuipr.de check fails but this
+        # stays up, the hub is fine and caddy is the problem.
+        {
+          name = "beszel hub (tailnet)";
+          group = "sorbet-perspective";
+          url = "http://${sorbetTailscaleIp}:8091/api/health";
+          interval = "60s";
+          client.timeout = "10s";
+          conditions = [
+            "[STATUS] == 200"
+            "[RESPONSE_TIME] < 1500"
+          ];
+          alerts = [{type = "discord";}];
+        }
+
         # haproxy stats — backend up/down + active session count.
         # If be_sorbet shows DOWN, alert before users notice 503s.
         # Stats endpoint is on 127.0.0.1:8404 (see haproxy.nix).
