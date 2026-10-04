@@ -193,6 +193,12 @@
           };
           globalConfig = ''
             acme_dns bunny {env.BUNNY_API_KEY}
+            # DNS-01 propagation checks must hit public resolvers, not the
+            # system ones (resolv.conf -> dnsmasq): dnsmasq hangs on CNAME
+            # queries under its address=/.int.kuipr.de/ wildcard, which
+            # aborts caddy 2.11's mandatory propagation check, and it can't
+            # see the public TXT records anyway.
+            tls_resolvers 1.1.1.1 8.8.8.8
           '';
           virtualHosts =
             lib.mapAttrs (_: v: {extraConfig = siteConfig v;}) virtualHosts
