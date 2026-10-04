@@ -66,7 +66,7 @@ _: {
           # No LLM configured on purpose — 8B-class models pin the CPU for minutes.
           # The ai_suggestions endpoint will error if clicked; that's expected.
           PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
-          PAPERLESS_AI_LLM_EMBEDDING_MODEL = "nomic-embed-text";
+          PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
         };
       };
     };
