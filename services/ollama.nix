@@ -17,9 +17,8 @@ _: {
         # suggestions and nightly re-indexes pin the whole box. 200% = 2
         # cores max, for anything ollama does.
         CPUQuota = "200%";
-        # Both models resident: embeddinggemma ~0.8G + smollm2 ~1.2G (2k ctx)
-        # + runtime. 2G OOM-killed ollama mid-request; 4G fits with headroom.
-        MemoryMax = "4G";
+        # Embedding-only now: embeddinggemma ~0.8G resident + runtime.
+        MemoryMax = "2G";
 
         # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
         # owner of a pre-existing directory, so enforce it as root (+ prefix)
