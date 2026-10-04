@@ -1,8 +1,8 @@
 _: {
   flake.nixosModules.ollama = {
-    # CPU-only inference server backing paperless-ngx AI features
-    # (suggestions + RAG embedding index). No GPU on sorbet; 8B-class
-    # quantized models run at acceptable speeds on CPU.
+    # CPU-only embedding server backing paperless-ngx RAG index
+    # (nomic-embed-text, ~300M resident). No LLM here on purpose —
+    # 8B-class models pin every core for minutes on this box.
     services.ollama = {
       enable = true;
       modelsDir = "/media/data/ollama"; # big disk, not the small SSD
@@ -12,7 +12,8 @@ _: {
 
     systemd.services.ollama = {
       serviceConfig = {
-        MemoryMax = "10G";
+        # Embedding model is tiny; cap generously anyway.
+        MemoryMax = "2G";
 
         # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
         # owner of a pre-existing directory, so enforce it as root (+ prefix)
