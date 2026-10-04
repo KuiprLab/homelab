@@ -67,6 +67,10 @@ _: {
           # The ai_suggestions endpoint will error if clicked; that's expected.
           PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
           PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
+          # Must be a literal IP: paperless' pinned-host transport connects to
+          # the first resolved address, and "localhost" resolves to ::1 while
+          # ollama binds 127.0.0.1 only.
+          PAPERLESS_AI_LLM_EMBEDDING_ENDPOINT = "http://127.0.0.1:11434";
         };
       };
     };
