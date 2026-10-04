@@ -59,6 +59,7 @@ _: {
           PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https";
           PAPERLESS_ACCOUNT_EMAIL_VERIFICATION = "none"; # no mail server
           PAPERLESS_SOCIAL_AUTO_SIGNUP = true; # auto-create account on first login
+          PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins"; # Authelia group that grants superuser on login
           PAPERLESS_DISABLE_REGULAR_LOGIN = true; # hide and block username/password login
           PAPERLESS_REDIRECT_LOGIN_TO_SSO = true; # skip the login page, go straight to Authelia
         };
