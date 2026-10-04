@@ -11,16 +11,16 @@ _: {
     };
 
     systemd.services.ollama = {
-      # Guard the rest of the box: an 8B q4 model is ~6G resident; cap the
-      # service so ollama can never starve the ~10G of other services.
-      serviceConfig.MemoryMax = "10G";
+      serviceConfig = {
+        MemoryMax = "10G";
 
-      # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
-      # owner of a pre-existing directory, so enforce it as root (+ prefix)
-      # before the server starts; the ollama user exists by then.
-      ExecStartPre = [
-        "+/bin/sh -c 'mkdir -p /media/data/ollama && /run/current-system/sw/bin/chown ollama:ollama /media/data/ollama'"
-      ];
+        # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
+        # owner of a pre-existing directory, so enforce it as root (+ prefix)
+        # before the server starts; the ollama user exists by then.
+        ExecStartPre = [
+          "+/bin/sh -c 'mkdir -p /media/data/ollama && /run/current-system/sw/bin/chown ollama:ollama /media/data/ollama'"
+        ];
+      };
     };
   };
 }
