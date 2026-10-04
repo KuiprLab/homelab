@@ -85,6 +85,11 @@ in {
     # Nix settings
     nix = {
       channel.enable = false;
+      gc = {
+        automatic = true;
+        dates = "weekly";
+        options = "--delete-older-than 14d";
+      };
       extraOptions = ''
         experimental-features = nix-command flakes
         warn-dirty = false
