@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-
 set -e
-
 
 AGE_KEY=$(op read "$(nix run nixpkgs#yq -- -r '.onepassworditem' .sops.yaml)")
 

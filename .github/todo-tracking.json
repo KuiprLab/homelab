@@ -1,14 +1,14 @@
 {
   "todos": {
-    "modules/services/music/samba.nix:19:TODO: add `sudo smbpasswd -a daniel` as a post-deploy step": {
+    "services/music/samba.nix:19:TODO: add `sudo smbpasswd -a daniel` as a post-deploy step": {
       "issueNumber": 210,
-      "file": "modules/services/music/samba.nix",
+      "file": "services/music/samba.nix",
       "line": 19,
       "text": "TODO: add `sudo smbpasswd -a daniel` as a post-deploy step"
     },
-    "modules/services/dns-dhcp.nix:59:TODO: Find non-US alternative that isn't Quad9": {
+    "services/dns-dhcp.nix:59:TODO: Find non-US alternative that isn't Quad9": {
       "issueNumber": 334,
-      "file": "modules/services/dns-dhcp.nix",
+      "file": "services/dns-dhcp.nix",
       "line": 59,
       "text": "TODO: Find non-US alternative that isn't Quad9"
     }
