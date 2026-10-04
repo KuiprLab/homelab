@@ -62,9 +62,14 @@ _: {
           PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins"; # Authelia group that grants superuser on login
           PAPERLESS_DISABLE_REGULAR_LOGIN = true; # hide and block username/password login
           PAPERLESS_REDIRECT_LOGIN_TO_SSO = true; # skip the login page, go straight to Authelia
-          PAPERLESS_AI_ENABLED = true; # RAG-only: embedding index via local ollama (services/ollama.nix)
-          # No LLM configured on purpose — 8B-class models pin the CPU for minutes.
-          # The ai_suggestions endpoint will error if clicked; that's expected.
+          PAPERLESS_AI_ENABLED = true; # RAG + AI suggestions via local ollama (services/ollama.nix)
+          # LLM kept tiny on purpose: 8B-class models pin the CPU for minutes on
+          # this box; smollm2:360m is light enough for CPU. Suggestions quality
+          # reflects the size — expect sloppy tags, it's a 360M model.
+          PAPERLESS_AI_LLM_BACKEND = "ollama";
+          # Literal IP, same pinned-transport/::1 reason as the embedding endpoint.
+          PAPERLESS_AI_LLM_ENDPOINT = "http://127.0.0.1:11434";
+          PAPERLESS_AI_LLM_MODEL = "smollm2:360m";
           PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
           PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
           # Must be a literal IP: paperless' pinned-host transport connects to
