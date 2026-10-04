@@ -11,8 +11,8 @@ _: {
     };
 
     systemd.services.ollama = {
-      restart = "on-failure"; # don't stay dead after an OOM blip
       serviceConfig = {
+        Restart = "on-failure"; # don't stay dead after an OOM blip
         # Both models resident: embeddinggemma ~0.8G + smollm2 ~1.2G (2k ctx)
         # + runtime. 2G OOM-killed ollama mid-request; 4G fits with headroom.
         MemoryMax = "4G";
