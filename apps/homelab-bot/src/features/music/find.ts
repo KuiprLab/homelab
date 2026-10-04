@@ -319,8 +319,7 @@ function bestDirectory(
   const tracks = trackCount(release);
 
   let best:
-    | { directory: string; files: SlskdFile[]; score: number }
-    | undefined;
+    { directory: string; files: SlskdFile[]; score: number } | undefined;
   for (const [directory, group] of groups) {
     // Named after the album beats any amount of file-count agreement: a
     // compilation holding one track of it is still the wrong directory.

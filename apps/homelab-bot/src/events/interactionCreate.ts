@@ -93,9 +93,7 @@ async function runModal(interaction: ModalSubmitInteraction): Promise<void> {
  */
 async function reportFailure(
   interaction:
-    | ChatInputCommandInteraction
-    | ButtonInteraction
-    | ModalSubmitInteraction,
+    ChatInputCommandInteraction | ButtonInteraction | ModalSubmitInteraction,
   content: string,
 ): Promise<void> {
   const body = {
