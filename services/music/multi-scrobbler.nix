@@ -7,8 +7,11 @@ _: {
       name = "Multi Scrobbler";
       authelia = {
         enable = true;
-        # gatus probes this vhost sessionless; /healthz bypasses forward auth.
-        bypassPaths = ["/healthz"];
+        # gatus probes this vhost sessionless; /api/version bypasses forward
+        # auth and is proxied to the app. Deliberately not /api/health — it
+        # answers 500 whenever any source/client is down, which would flap
+        # this alert on broken (not hung) sources.
+        bypassPaths = ["/api/version"];
       };
     };
 
@@ -16,7 +19,7 @@ _: {
       {
         name = "Multi-Scrobbler";
         group = "Music";
-        url = "https://scrobble.int.kuipr.de/healthz";
+        url = "https://scrobble.int.kuipr.de/api/version";
         conditions = [
           "[STATUS] == 200"
           "[CERTIFICATE_EXPIRATION] > 168h"
@@ -65,7 +68,17 @@ _: {
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         ports = ["127.0.0.1:9078:9078"];
+        # The linuxserver base image ships curl. Probe the UI root — /api/health
+        # answers 500 whenever any source/client is down, which would restart-loop
+        # on a broken (not hung) source. Unhealthy → podman kills → systemd
+        # Restart recreates.
         extraOptions = [
+          "--health-cmd=curl -fsS http://127.0.0.1:9078/ >/dev/null"
+          "--health-interval=30s"
+          "--health-on-failure=kill"
+          "--health-retries=3"
+          "--health-start-period=2m"
+          "--health-timeout=5s"
           "--network=podman"
           "--network=msv6"
         ];

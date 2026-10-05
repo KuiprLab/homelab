@@ -22,7 +22,10 @@ _: {
         labels = {
           "io.containers.autoupdate" = "registry";
         };
+        # The image ships its own HEALTHCHECK (curl → \${UPSNAP_HTTP_LISTEN}/api/health).
+        # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
+          "--health-on-failure=kill"
           "--dns=192.168.0.85"
           "--cap-add=NET_RAW"
           "--network=host"

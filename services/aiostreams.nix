@@ -188,7 +188,10 @@ _: {
         labels = {
           "io.containers.autoupdate" = "registry";
         };
+        # The image ships its own HEALTHCHECK (node → localhost:$PORT/api/v1/status).
+        # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
+          "--health-on-failure=kill"
           "--network=container:gluetun"
         ];
       };

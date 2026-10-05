@@ -306,6 +306,9 @@
           owner = "root";
         };
 
+        # No container-level healthcheck: the gatus image is FROM scratch —
+        # no shell, wget, or curl to probe with. Availability is covered by
+        # eclair's gatus instance and the healthchecks.io heartbeat.
         virtualisation.oci-containers.containers.gatus = {
           image = "ghcr.io/twin/gatus:latest";
           volumes = [
@@ -386,6 +389,7 @@
 
           oci-containers = {
             backend = lib.mkDefault "podman";
+            # No healthcheck: scratch image, no probe binary (see sorbet gatus).
             containers.gatus = {
               image = "ghcr.io/twin/gatus:latest";
               volumes = [

@@ -45,6 +45,11 @@ _: {
           labels = {
             "io.containers.autoupdate" = "registry";
           };
+          # The image ships its own HEALTHCHECK (curl → 127.0.0.1:8000/rest/ping).
+          # Unhealthy → podman kills the container; systemd's Restart recreates it.
+          extraOptions = [
+            "--health-on-failure=kill"
+          ];
         };
       };
 

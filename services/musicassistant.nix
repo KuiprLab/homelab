@@ -52,7 +52,15 @@ _: {
             "io.containers.autoupdate" = "registry";
           };
 
+          # wget is installed by the image's base (Dockerfile.base); probe the
+          # web UI root. Unhealthy → podman kills; systemd's Restart recreates.
           extraOptions = [
+            "--health-cmd=wget -q --spider http://127.0.0.1:8095/"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=2m"
+            "--health-timeout=5s"
             "--network=host"
           ];
         };

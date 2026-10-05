@@ -85,7 +85,18 @@ _: {
           };
 
           image = "ghcr.io/lemker/unifi-os-server:latest";
+          # TCP-only probe: the UOS image has no verified curl/wget, but bash's
+          # /dev/tcp is guaranteed on its Ubuntu base. Proves the UniFi portal
+          # (nginx) accepts connections; real HTTP checks stay with gatus.
+          # 5m start period: systemd inside the container boots the whole
+          # UniFi stack. Unhealthy → podman kills → systemd Restart recreates.
           extraOptions = [
+            "--health-cmd=bash -c 'exec 3<>/dev/tcp/127.0.0.1/443'"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=5m"
+            "--health-timeout=10s"
             "--cgroupns=host"
             "--cap-add=NET_RAW"
             "--cap-add=NET_ADMIN"

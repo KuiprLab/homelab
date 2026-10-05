@@ -50,11 +50,16 @@ _: {
             environmentFiles = [
               "/run/secrets/gluetun.env"
             ];
+            # --health-on-failure=kill: podman kills the container when its
+            # healthcheck fails; the systemd unit's Restart=on-failure then
+            # recreates it (podman docs warn against `restart` under systemd,
+            # which owns all restarts here).
             extraOptions = [
               "--cap-add=NET_ADMIN"
               "--device=/dev/net/tun:/dev/net/tun:rwm"
               "--health-cmd=[\"wget\", \"-qO-\", \"https://ipinfo.io/ip\"]"
               "--health-interval=30s"
+              "--health-on-failure=kill"
               "--health-retries=3"
               "--health-start-period=10s"
               "--health-timeout=10s"

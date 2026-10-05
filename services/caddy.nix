@@ -118,10 +118,14 @@
               header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
             }
           '';
+        # Bypassed paths are still reverse-proxied to the app (extraConfig),
+        # so sessionless gatus probes exercise the backend instead of getting
+        # a synthetic 200 from caddy that could never fail regardless of
+        # whether the app is actually healthy.
         bypassBlocks =
           lib.concatMapStringsSep "\n" (p: ''
             route ${p} {
-              respond "ok" 200
+              ${v.extraConfig}
             }
           '')
           v.authelia.bypassPaths;

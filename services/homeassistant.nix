@@ -44,7 +44,16 @@ _: {
           labels = {
             "io.containers.autoupdate" = "registry";
           };
+          # busybox wget ships with the alpine image; probe the frontend root.
+          # 5m start period: HA binds 8123 early but boots integrations slowly.
+          # Unhealthy → podman kills the container; systemd's Restart recreates it.
           extraOptions = [
+            "--health-cmd=wget -q --spider http://127.0.0.1:8123/"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=5m"
+            "--health-timeout=5s"
             "--network=host"
 
             "--cap-add=SYS_ADMIN"
