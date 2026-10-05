@@ -39,7 +39,7 @@ _: {
     services.crowdsec.package = crowdsecWithPlugins;
     sops.secrets = {
       "crowdsec/console-enrollment" = {
-        sopsFile = ../../secrets/eclair/crowdsec-console-enrollment;
+        sopsFile = ../secrets/eclair/crowdsec-console-enrollment;
         format = "binary";
         key = "";
         owner = "root";
