@@ -70,9 +70,13 @@ _: {
         {
           # caddy's JSON access logs (see eclair-caddy.nix); with PROXY
           # protocol from haproxy these carry real client IPs.
+          # type MUST stay "syslog": the hub's s00-raw parser strips the
+          # journalctl timestamp prefix for syslog-type sources, leaving
+          # the pure JSON message the caddy-logs parser needs. With any
+          # other type the message keeps its prefix and fails to parse.
           source = "journalctl";
           journalctl_filter = ["-u" "caddy.service"];
-          labels.type = "caddy";
+          labels.type = "syslog";
         }
       ];
 
