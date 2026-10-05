@@ -63,9 +63,13 @@ _: {
           labels.type = "syslog";
         }
         {
+          # type MUST be "syslog": the hub's s00-raw parser strips the
+          # journalctl timestamp prefix for syslog-type sources, leaving
+          # the clean haproxy line its grok patterns expect. With any
+          # other type the prefix stays in the message and nothing parses.
           source = "journalctl";
           journalctl_filter = ["-u" "haproxy.service"];
-          labels.type = "haproxy";
+          labels.type = "syslog";
         }
         {
           # caddy's JSON access logs (see eclair-caddy.nix); with PROXY
