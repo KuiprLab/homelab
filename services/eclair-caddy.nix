@@ -68,8 +68,14 @@
                   disable_tlsalpn_challenge
                 }
               }
-              # JSON access logs → stderr → journald → CrowdSec agent.
-              log
+              # Access logs → stderr → journald → CrowdSec agent. Explicit
+              # own logger: the module's global default logger runs at level
+              # ERROR (services.caddy.logFormat), which would swallow the
+              # INFO-level access entries.
+              log {
+                output stderr
+                level INFO
+              }
               ${v.extraConfig}
             '';
           })
