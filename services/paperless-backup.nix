@@ -25,7 +25,9 @@
 #      secrets/sorbet/healthchecks).
 #   2. Restore drill (a backup you've never restored is a guess): on a fresh
 #      paperless instance run
-#      `paperless-manage document_importer /media/data/Paperless-export`.
+#      `paperless-manage document_importer /media/data/Paperless-export`,
+#      then `paperless-manage document_thumbnails` (exports skip thumbnails;
+#      they regenerate from the originals).
 #
 # Remotes: pushed to both, independently — one failing target doesn't
 # block the other, and any failure trips the /fail ping:
@@ -83,8 +85,16 @@ _: {
       enable = true;
       directory = exportDir;
       onCalendar = "01:30:00";
-      # Defaults kept: --no-progress-bar --no-color --compare-checksums
-      # --delete. No --zip (would defeat the incremental sync).
+      settings = {
+        # Defaults kept: --no-progress-bar --no-color --compare-checksums
+        # --delete. No --zip (would defeat the incremental sync).
+        # Thumbnails are one tiny webp per document — a huge file count,
+        # which is the painful part for the iCloud sync. They're
+        # deterministically regenerable from the originals (see restore
+        # drill above), so skip them; --delete prunes existing ones from
+        # the export (and the remotes, via the sync) on the first run.
+        "no-thumbnail" = true;
+      };
     };
 
     # Push off-box only after a *successful* export; on export failure the
