@@ -31,10 +31,6 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # nixpkgs PR #446307 — crowdsec module refactor
-    # Overrides the upstream crowdsec NixOS modules on eclair.
-    nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";
   };
 
   # Dendritic: every .nix file under these roots is a flake-parts module that

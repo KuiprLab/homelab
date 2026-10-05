@@ -1,36 +1,43 @@
-# CrowdSec security engine + firewall bouncer for eclair
-# Agent detects attacks; firewall bouncer enforces bans via nftables.
-# TCP-mode haproxy can't use lua/SPOE bouncer, so IP banning happens
-# at the nftables layer — blocks before haproxy ever sees the connection.
+# CrowdSec security engine + firewall bouncer for eclair.
+# Replaces the previous fail2ban setup.
 #
-# Uses nixpkgs PR #446307 (TornaxO7/nixpkgs:crowdsec) which fixes the
-# broken module architecture (config.yaml symlink, DynamicUser issues, etc.)
+# The agent detects attacks from sshd and haproxy journal logs; the
+# firewall bouncer enforces bans via nftables — blocking before haproxy
+# ever sees the connection (TCP-mode haproxy can't use a lua/SPOE bouncer).
 _: {
   flake.eclairNixosModules.crowdsec = _: {
-    # services.crowdsec = {
-    #   enable = true;
-    #
-    #   hub.collections = [
-    #     "crowdsecurity/linux"
-    #     "crowdsecurity/haproxy"
-    #   ];
-    #
-    #   # Acquisitions: watch haproxy and sshd journals for attack signals.
-    #   settings.acquisitions = [
-    #     {
-    #       source = "journalctl";
-    #       journalctl_filter = ["-u" "haproxy.service"];
-    #       labels.type = "haproxy";
-    #     }
-    #     {
-    #       source = "journalctl";
-    #       journalctl_filter = ["-u" "sshd.service"];
-    #       labels.type = "syslog";
-    #     }
-    #   ];
-    # };
+    services.crowdsec = {
+      enable = true;
+      autoUpdateService = true;
 
-    # nftables required for the firewall bouncer
-    # networking.nftables.enable = true;
+      hub.collections = [
+        "crowdsecurity/linux"
+        "crowdsecurity/haproxy"
+      ];
+
+      localConfig.acquisitions = [
+        {
+          source = "journalctl";
+          journalctl_filter = ["-u" "sshd.service"];
+          labels.type = "syslog";
+        }
+        {
+          source = "journalctl";
+          journalctl_filter = ["-u" "haproxy.service"];
+          labels.type = "haproxy";
+        }
+      ];
+    };
+
+    services.crowdsec-firewall-bouncer = {
+      enable = true;
+      # Auto-register with the local LAPI; the API key is generated on the box.
+      registerBouncer.enable = true;
+      # settings.mode defaults to "nftables" once networking.nftables is enabled.
+    };
+
+    # Switches the firewall backend to nftables, which the bouncer's
+    # rulesets (tables "crowdsec"/"crowdsec6") hook into.
+    networking.nftables.enable = true;
   };
 }
