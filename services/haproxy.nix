@@ -10,6 +10,7 @@
 _: {
   flake.eclairNixosModules.haproxy = {
     lib,
+    config,
     sorbetTailscaleIp,
     caddyVirtualHosts,
     eclairCaddyVirtualHosts,
@@ -126,5 +127,10 @@ _: {
           tcp-request content reject
       '';
     };
+
+    # The upstream module writes the config via environment.etc and has no
+    # trigger — config changes would silently never reach the running
+    # process. Reload (USR2, zero-downtime) whenever the config text changes.
+    systemd.services.haproxy.reloadTriggers = [config.services.haproxy.config];
   };
 }
