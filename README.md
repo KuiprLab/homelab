@@ -72,6 +72,7 @@ Secrets are encrypted with [sops-nix](https://github.com/Mic92/sops-nix) using a
 | `secrets/sorbet/beszel-hub-key` | Beszel hub — ed25519 signing key               |
 | `secrets/sorbet/github-runner`  | GitHub Actions runner token                    |
 | `secrets/sorbet/rclone`         | rclone Google Drive config                     |
+| `secrets/sorbet/paperless-backup-ping` | paperless backup — healthchecks.io ping URL |
 | `secrets/sorbet/beets`          | beets config                                   |
 | `secrets/eclair/tailscale`      | eclair tailscale auth key                      |
 | `secrets/eclair/beszel-agent`   | Beszel agents — hub public key + WS token      |
