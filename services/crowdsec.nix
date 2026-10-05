@@ -24,11 +24,6 @@ _: {
     pkgs,
     ...
   }: let
-    # Console enrollment token, created by the user with
-    # `sops secrets/eclair/crowdsec-console-enrollment`. Guarded so the host
-    # still evaluates (and deploys, unenrolled) before that file exists.
-    enrollmentTokenExists = builtins.pathExists ../../secrets/eclair/crowdsec-console-enrollment;
-
     # The PR module's setup script installs the notification plugins from
     # `${package}/libexec/crowdsec/plugins/`, but nixpkgs' crowdsec 1.8.1
     # builds them into `bin/` and no longer does that install (the PR branch's
@@ -42,7 +37,7 @@ _: {
     });
   in {
     services.crowdsec.package = crowdsecWithPlugins;
-    sops.secrets = lib.optionalAttrs enrollmentTokenExists {
+    sops.secrets = {
       "crowdsec/console-enrollment" = {
         sopsFile = ../../secrets/eclair/crowdsec-console-enrollment;
         format = "binary";
@@ -73,10 +68,7 @@ _: {
         }
       ];
 
-      settings.console.enrollKeyFile =
-        if enrollmentTokenExists
-        then config.sops.secrets."crowdsec/console-enrollment".path
-        else null;
+      settings.console.enrollKeyFile = config.sops.secrets."crowdsec/console-enrollment".path;
 
       # eclair's caddy binds *:8080 for its global http port (ACME), so the
       # LAPI can't use its default 127.0.0.1:8080. Everything derives from
