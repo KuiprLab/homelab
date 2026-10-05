@@ -79,11 +79,10 @@ _: {
         else null;
 
       # eclair's caddy binds *:8080 for its global http port (ACME), so the
-      # LAPI can't use its default 127.0.0.1:8080. The bouncer's api_url
-      # default follows listen_uri; the client URL needs the override too,
-      # or cscli would still point at 8080 (settings.config is freeform yaml).
+      # LAPI can't use its default 127.0.0.1:8080. Everything derives from
+      # this: `cscli machines add --auto` writes credentials with
+      # http://<listen_uri>, and the bouncer's api_url default follows it too.
       settings.config.api.server.listen_uri = "127.0.0.1:9090";
-      settings.config.api.client.url = "http://127.0.0.1:9090";
     };
 
     services.crowdsec-firewall-bouncer = {
