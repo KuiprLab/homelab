@@ -35,7 +35,16 @@ in {
             inherit (config.flake) caddyVirtualHosts;
             inherit (config.flake) eclairCaddyVirtualHosts;
           };
+
+          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix)
+          disabledModules = [
+            "services/security/crowdsec.nix"
+            "services/security/crowdsec-firewall-bouncer.nix"
+          ];
         }
+        # Import crowdsec modules from the PR branch
+        "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec.nix"
+        "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec-firewall-bouncer.nix"
       ]
       ++ collectModules self.eclairNixosModules;
   };

@@ -277,6 +277,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-crowdsec": {
+      "locked": {
+        "lastModified": 1781346399,
+        "narHash": "sha256-iEQ6kf7Pzxq9jyEgEDP9MB2fayckqJTcNtMDLVpkREg=",
+        "owner": "TornaxO7",
+        "repo": "nixpkgs",
+        "rev": "72de654bfafff415d5d9faabd29276310b70d349",
+        "type": "github"
+      },
+      "original": {
+        "owner": "TornaxO7",
+        "ref": "crowdsec",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-lib": {
       "locked": {
         "lastModified": 1790477367,
@@ -362,6 +378,7 @@
         "home-manager": "home-manager",
         "import-tree": "import-tree",
         "nixpkgs": "nixpkgs_3",
+        "nixpkgs-crowdsec": "nixpkgs-crowdsec",
         "sops-nix": "sops-nix",
         "treefmt-nix": "treefmt-nix",
         "wrapper-modules": "wrapper-modules"
