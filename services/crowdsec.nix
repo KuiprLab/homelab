@@ -127,7 +127,7 @@ _: {
         description: "Loopback, RFC1918, link-local and tailnet ranges"
         whitelist:
           reason: "local infrastructure ranges"
-          ip:
+          cidr:
             - "127.0.0.0/8"
             - "10.0.0.0/8"
             - "172.16.0.0/12"
@@ -139,6 +139,14 @@ _: {
             - "fc00::/7"
       '';
     };
+
+    # The PR module has no triggers: acquisition/collection changes only land
+    # on disk (via crowdsec-setup) and the running agent keeps its old config.
+    # Restart the agent when the acquisition or hub-collection config changes.
+    systemd.services.crowdsec.restartTriggers = [
+      (builtins.toJSON config.services.crowdsec.settings.acquisitions)
+      (builtins.toJSON config.services.crowdsec.hub.collections)
+    ];
 
     # Switches the firewall backend to nftables, which the bouncer's
     # rulesets (tables "crowdsec"/"crowdsec6") hook into.
