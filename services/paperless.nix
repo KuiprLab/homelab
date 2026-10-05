@@ -41,6 +41,7 @@ _: {
       services.paperless = {
         enable = true;
         consumptionDir = "/media/data/Paperless-ingest";
+        consumptionDirIsPublic = true;
         mediaDir = "/media/data/data/Paperless-data"; # Where to store the documents
         domain = "paperless.int.kuipr.de"; # The domain to use for the Paperless web interface
         dataDir = "/var/lib/paperless"; # Where to store the database and other state

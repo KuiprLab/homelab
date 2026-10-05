@@ -172,7 +172,6 @@ in {
           initialPassword = "nixos";
           extraGroups = [
             "networkmanager"
-            "paperless"
             "root"
             "wheel"
             "incus-admin"
