@@ -44,6 +44,9 @@
     lib.mkIf (virtualHosts != {}) {
       services.caddy = {
         enable = true;
+        # CADDY_APPSEC_KEY for the AppSec forward_auth (file maintained by
+        # crowdsec-caddy-appsec-register.service, see services/crowdsec.nix).
+        environmentFile = "/var/lib/crowdsec-caddy-appsec/api-key.env";
         globalConfig = ''
           # haproxy holds :80/:443; it forwards the local SNIs to 8443.
           http_port 8080
@@ -76,10 +79,33 @@
                 output stderr
                 level INFO
               }
+              # CrowdSec AppSec (WAF): clone each request to the local appsec
+              # listener for inspection — 2xx continues, otherwise (e.g. 403
+              # from an in-band WAF rule) the response is sent to the client.
+              # The engine reads the request details from dedicated headers,
+              # so they are set explicitly here and a client can't spoof
+              # them (header_up replaces anything the client sent). Note:
+              # fail-closed — if the crowdsec agent is down, so are the
+              # vhosts.
+              forward_auth 127.0.0.1:7422 {
+                header_up X-Crowdsec-Appsec-Ip {remote_host}
+                header_up X-Crowdsec-Appsec-Verb {method}
+                header_up X-Crowdsec-Appsec-Uri {uri}
+                header_up X-Crowdsec-Appsec-Host {host}
+                header_up X-Crowdsec-Appsec-User-Agent {header.User-Agent}
+                header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
+              }
               ${v.extraConfig}
             '';
           })
           virtualHosts;
+      };
+
+      # The AppSec key env-file must exist before caddy parses its config
+      # (the Caddyfile expands {$CADDY_APPSEC_KEY} at load time).
+      systemd.services.caddy = {
+        after = ["crowdsec-caddy-appsec-register.service"];
+        requires = ["crowdsec-caddy-appsec-register.service"];
       };
     };
 }

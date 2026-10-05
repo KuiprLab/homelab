@@ -1,9 +1,12 @@
-# CrowdSec security engine + firewall bouncer for eclair.
+# CrowdSec security engine + firewall bouncer + AppSec (WAF) for eclair.
 # Replaces the previous fail2ban setup.
 #
-# The agent detects attacks from sshd and haproxy journal logs; the
+# The agent detects attacks from sshd, haproxy and caddy journal logs; the
 # firewall bouncer enforces bans via nftables — blocking before haproxy
 # ever sees the connection (TCP-mode haproxy can't use a lua/SPOE bouncer).
+# On top of that, the AppSec engine (same agent process, listener on
+# 127.0.0.1:7422) inspects every request that caddy forwards to it and
+# blocks WAF rule matches in-band (see eclair-caddy.nix).
 #
 # Uses the PR branch modules (see flake.nix input `nixpkgs-crowdsec`):
 # the modules merged into nixpkgs are still broken (DynamicUser without
@@ -54,7 +57,13 @@ _: {
         "crowdsecurity/linux"
         "crowdsecurity/haproxy"
         "crowdsecurity/caddy"
+        # AppSec rule sets pulled in as dependencies of the appsec-default
+        # config (virtual-patching = CVE rules, generic = SQLi/RCE/LFI/etc.).
+        "crowdsecurity/appsec-virtual-patching"
+        "crowdsecurity/appsec-generic-rules"
       ];
+
+      hub.appsec-configs = ["crowdsecurity/appsec-default"];
 
       settings.acquisitions = [
         {
@@ -81,6 +90,17 @@ _: {
           source = "journalctl";
           journalctl_filter = ["-u" "caddy.service"];
           labels.type = "syslog";
+        }
+        {
+          # CrowdSec AppSec (WAF): caddy forwards every request to this
+          # listener (forward_auth in eclair-caddy.nix); in-band rule matches
+          # answer 403, matches also feed the usual scenario pipeline.
+          # Requests must carry a bouncer API key — registered for caddy by
+          # crowdsec-caddy-appsec-register.service below.
+          source = "appsec";
+          listen_addr = "127.0.0.1:7422";
+          appsec_config = "crowdsecurity/appsec-default";
+          labels.type = "appsec";
         }
       ];
 
@@ -154,7 +174,70 @@ _: {
     systemd.services.crowdsec.restartTriggers = [
       (builtins.toJSON config.services.crowdsec.settings.acquisitions)
       (builtins.toJSON config.services.crowdsec.hub.collections)
+      (builtins.toJSON config.services.crowdsec.hub.appsec-configs)
     ];
+
+    # AppSec requests must carry a bouncer API key (validated against the
+    # LAPI), so caddy needs one. Mirror the firewall-bouncer's registration
+    # pattern: register `caddy-appsec` on first boot and drop the key into
+    # an env-file that caddy's systemd service reads via
+    # services.caddy.environmentFile (see eclair-caddy.nix).
+    systemd.services.crowdsec-caddy-appsec-register = {
+      description = "Register the caddy-appsec bouncer to the local CrowdSec service";
+      wantedBy = ["multi-user.target"];
+      after = ["crowdsec.service"];
+      wants = ["crowdsec.service"];
+      path = [config.services.crowdsec.package];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = let
+        apiKeyFile = "/var/lib/crowdsec-caddy-appsec/api-key.env";
+      in ''
+        mkdir -p "$(dirname ${apiKeyFile})"
+        if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "caddy-appsec")' >/dev/null; then
+          if [ -s ${apiKeyFile} ]; then
+            echo "caddy-appsec registered, key file present"
+            exit 0
+          fi
+          echo "caddy-appsec registered but key file missing; re-registering"
+          cscli bouncers delete caddy-appsec || true
+        fi
+        echo "CADDY_APPSEC_KEY=$(cscli bouncers add --output raw caddy-appsec)" > ${apiKeyFile}
+        chmod 0600 ${apiKeyFile}
+      '';
+    };
+
+    # The parser-stage whitelist (environment.etc above) only filters log
+    # lines — AppSec bans bypass it. The LAPI allowlist is enforced at
+    # alert/decision ingestion and synced into the AppSec engine, so local
+    # infra traffic can never get banned by WAF rules either.
+    systemd.services.crowdsec-internal-allowlist = {
+      description = "Ensure the CrowdSec LAPI allowlist covers internal ranges";
+      wantedBy = ["multi-user.target"];
+      after = ["crowdsec.service"];
+      wants = ["crowdsec.service"];
+      path = [config.services.crowdsec.package];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        cscli allowlists create internal-ranges -d "local infrastructure ranges" 2>/dev/null || true
+        ${lib.concatMapStringsSep "\n" (r: "cscli allowlists add internal-ranges ${r} -d 'local infra' 2>/dev/null || true") [
+          "127.0.0.0/8"
+          "10.0.0.0/8"
+          "172.16.0.0/12"
+          "192.168.0.0/16"
+          "169.254.0.0/16"
+          "100.64.0.0/10"
+          "::1/128"
+          "fe80::/10"
+          "fc00::/7"
+        ]}
+      '';
+    };
 
     # Switches the firewall backend to nftables, which the bouncer's
     # rulesets (tables "crowdsec"/"crowdsec6") hook into.
