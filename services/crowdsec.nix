@@ -177,6 +177,10 @@ _: {
       text = ''
         name: local/private-ranges
         description: "Loopback, RFC1918, link-local and tailnet ranges"
+        # onsuccess: next_stage is REQUIRED: a whitelist node without it
+        # "succeeds" but never advances the event, so every non-whitelisted
+        # line aborts at this stage and no scenario ever sees it.
+        onsuccess: next_stage
         whitelist:
           reason: "local infrastructure ranges"
           cidr:
