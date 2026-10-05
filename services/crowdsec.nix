@@ -39,7 +39,6 @@ _: {
         '';
     });
   in {
-    services.crowdsec.package = crowdsecWithPlugins;
     sops.secrets = {
       "crowdsec/console-enrollment" = {
         sopsFile = ../secrets/eclair/crowdsec-console-enrollment;
@@ -58,105 +57,123 @@ _: {
       };
     };
 
-    services.crowdsec = {
-      enable = true;
-      autoUpdateService = true;
+    # All `services.*` config in one place.
+    services = {
+      crowdsec = {
+        package = crowdsecWithPlugins;
+        enable = true;
+        autoUpdateService = true;
 
-      hub.collections = [
-        "crowdsecurity/linux"
-        "crowdsecurity/haproxy"
-        "crowdsecurity/caddy"
-        # AppSec rule sets pulled in as dependencies of the appsec-default
-        # config (virtual-patching = CVE rules, generic = SQLi/RCE/LFI/etc.).
-        "crowdsecurity/appsec-virtual-patching"
-        "crowdsecurity/appsec-generic-rules"
-        # Third-party collection: parses authelia's logrus logs and detects
-        # login brute-force / user enumeration (authelia runs on sorbet, its
-        # logs are shipped here — see the syslog source below).
-        "LePresidente/authelia"
-      ];
+        hub.collections = [
+          "crowdsecurity/linux"
+          "crowdsecurity/haproxy"
+          "crowdsecurity/caddy"
+          # AppSec rule sets pulled in as dependencies of the appsec-default
+          # config (virtual-patching = CVE rules, generic = SQLi/RCE/LFI/etc.).
+          "crowdsecurity/appsec-virtual-patching"
+          "crowdsecurity/appsec-generic-rules"
+          # Third-party collection: parses authelia's logrus logs and detects
+          # login brute-force / user enumeration (authelia runs on sorbet, its
+          # logs are shipped here — see the syslog source below).
+          "LePresidente/authelia"
+        ];
 
-      hub.appsec-configs = ["crowdsecurity/appsec-default"];
+        hub.appsec-configs = ["crowdsecurity/appsec-default"];
 
-      settings.acquisitions = [
-        {
-          source = "journalctl";
-          journalctl_filter = ["-u" "sshd.service"];
-          labels.type = "syslog";
-        }
-        {
-          # type MUST be "syslog": the hub's s00-raw parser strips the
-          # journalctl timestamp prefix for syslog-type sources, leaving
-          # the clean haproxy line its grok patterns expect. With any
-          # other type the prefix stays in the message and nothing parses.
-          source = "journalctl";
-          journalctl_filter = ["-u" "haproxy.service"];
-          labels.type = "syslog";
-        }
-        {
-          # caddy's JSON access logs (see eclair-caddy.nix); with PROXY
-          # protocol from haproxy these carry real client IPs.
-          # type MUST stay "syslog": the hub's s00-raw parser strips the
-          # journalctl timestamp prefix for syslog-type sources, leaving
-          # the pure JSON message the caddy-logs parser needs. With any
-          # other type the message keeps its prefix and fails to parse.
-          source = "journalctl";
-          journalctl_filter = ["-u" "caddy.service"];
-          labels.type = "syslog";
-        }
-        {
-          # CrowdSec AppSec (WAF): caddy forwards every request to this
-          # listener (forward_auth in eclair-caddy.nix and — for the
-          # *.ext.kuipr.de vhosts — sorbet's caddy); in-band rule matches
-          # answer 403, matches also feed the usual scenario pipeline.
-          # Requests must carry a bouncer API key — registered for caddy by
-          # crowdsec-caddy-appsec-register.service below (local caddy) and
-          # crowdsec-sorbet-caddy-appsec-register.service (sorbet's caddy).
-          # Bound to 0.0.0.0 so sorbet's caddy can reach it over the tailnet
-          # (the tailnet IP comes up late at boot); the firewall below
-          # restricts the port to tailscale0.
-          source = "appsec";
-          listen_addr = "0.0.0.0:7422";
-          appsec_config = "crowdsecurity/appsec-default";
-          labels.type = "appsec";
-        }
-        {
-          # UDP syslog feed from sorbet: rsyslog there forwards caddy +
-          # authelia journal logs over the tailnet (see
-          # services/crowdsec-shipping.nix on the sorbet side). The datasource
-          # strips the syslog header and s00-raw extracts `program`, so the
-          # caddy-logs and authelia-logs parsers pick their lines out of this
-          # one listener. max_message_len: the default 2048 truncates caddy's
-          # JSON access lines (long URLs/user agents) into unparsable junk.
-          # Bound to 0.0.0.0 (the tailnet IP comes up late at boot); the
-          # firewall below restricts the port to tailscale0. Unprivileged
-          # 5514 instead of 514: the agent runs as a static non-root user.
-          source = "syslog";
-          listen_addr = "0.0.0.0";
-          listen_port = 5514;
-          max_message_len = 16384;
-          labels.type = "syslog";
-        }
-      ];
+        settings = {
+          acquisitions = [
+            {
+              source = "journalctl";
+              journalctl_filter = ["-u" "sshd.service"];
+              labels.type = "syslog";
+            }
+            {
+              # type MUST be "syslog": the hub's s00-raw parser strips the
+              # journalctl timestamp prefix for syslog-type sources, leaving
+              # the clean haproxy line its grok patterns expect. With any
+              # other type the prefix stays in the message and nothing parses.
+              source = "journalctl";
+              journalctl_filter = ["-u" "haproxy.service"];
+              labels.type = "syslog";
+            }
+            {
+              # caddy's JSON access logs (see eclair-caddy.nix); with PROXY
+              # protocol from haproxy these carry real client IPs.
+              # type MUST stay "syslog": the hub's s00-raw parser strips the
+              # journalctl timestamp prefix for syslog-type sources, leaving
+              # the pure JSON message the caddy-logs parser needs. With any
+              # other type the message keeps its prefix and fails to parse.
+              source = "journalctl";
+              journalctl_filter = ["-u" "caddy.service"];
+              labels.type = "syslog";
+            }
+            {
+              # CrowdSec AppSec (WAF): caddy forwards every request to this
+              # listener (forward_auth in eclair-caddy.nix and — for the
+              # *.ext.kuipr.de vhosts — sorbet's caddy); in-band rule matches
+              # answer 403, matches also feed the usual scenario pipeline.
+              # Requests must carry a bouncer API key — registered for caddy by
+              # crowdsec-caddy-appsec-register.service below (local caddy) and
+              # crowdsec-sorbet-caddy-appsec-register.service (sorbet's caddy).
+              # Bound to 0.0.0.0 so sorbet's caddy can reach it over the tailnet
+              # (the tailnet IP comes up late at boot); the firewall below
+              # restricts the port to tailscale0.
+              source = "appsec";
+              listen_addr = "0.0.0.0:7422";
+              appsec_config = "crowdsecurity/appsec-default";
+              labels.type = "appsec";
+            }
+            {
+              # UDP syslog feed from sorbet: rsyslog there forwards caddy +
+              # authelia journal logs over the tailnet (see
+              # services/crowdsec-shipping.nix on the sorbet side). The datasource
+              # strips the syslog header and s00-raw extracts `program`, so the
+              # caddy-logs and authelia-logs parsers pick their lines out of this
+              # one listener. max_message_len: the default 2048 truncates caddy's
+              # JSON access lines (long URLs/user agents) into unparsable junk.
+              # Bound to 0.0.0.0 (the tailnet IP comes up late at boot); the
+              # firewall below restricts the port to tailscale0. Unprivileged
+              # 5514 instead of 514: the agent runs as a static non-root user.
+              source = "syslog";
+              listen_addr = "0.0.0.0";
+              listen_port = 5514;
+              max_message_len = 16384;
+              labels.type = "syslog";
+            }
+          ];
 
-      settings.console.enrollKeyFile = config.sops.secrets."crowdsec/console-enrollment".path;
+          console.enrollKeyFile = config.sops.secrets."crowdsec/console-enrollment".path;
 
-      # eclair's caddy binds *:8080 for its global http port (ACME), so the
-      # LAPI can't use its default 127.0.0.1:8080. Everything derives from
-      # this: `cscli machines add --auto` writes credentials with
-      # http://<listen_uri>, and the bouncer's api_url default follows it too.
-      settings.config.api.server.listen_uri = "127.0.0.1:9090";
+          # eclair's caddy binds *:8080 for its global http port (ACME), so the
+          # LAPI can't use its default 127.0.0.1:8080. Everything derives from
+          # this: `cscli machines add --auto` writes credentials with
+          # http://<listen_uri>, and the bouncer's api_url default follows it too.
+          config.api.server.listen_uri = "127.0.0.1:9090";
 
-      # Needed for `cscli console enroll` (the setup script then runs
-      # `cscli capi register` first, creating this file if absent).
-      settings.config.api.server.online_client.credentials_path = "/var/lib/crowdsec/data/online_api_credentials.yaml";
+          # Needed for `cscli console enroll` (the setup script then runs
+          # `cscli capi register` first, creating this file if absent).
+          config.api.server.online_client.credentials_path = "/var/lib/crowdsec/data/online_api_credentials.yaml";
+        };
+      };
+
+      crowdsec-firewall-bouncer = {
+        enable = true;
+        # Auto-register with the local LAPI; the API key is generated on the box.
+        registerBouncer.enable = true;
+        # settings.mode defaults to "nftables" once networking.nftables is enabled.
+      };
     };
 
-    # Syslog feed from sorbet, tailnet only.
-    networking.firewall.interfaces."tailscale0".allowedUDPPorts = [5514];
-
-    # AppSec listener for sorbet's caddy, tailnet only.
-    networking.firewall.interfaces."tailscale0".allowedTCPPorts = [7422];
+    # Syslog feed from sorbet (UDP) and AppSec listener for sorbet's caddy
+    # (TCP), tailnet only. nftables is the backend the bouncer's rulesets
+    # (tables "crowdsec"/"crowdsec6") hook into.
+    networking = {
+      firewall.interfaces."tailscale0" = {
+        allowedUDPPorts = [5514];
+        allowedTCPPorts = [7422];
+      };
+      nftables.enable = true;
+    };
 
     # The module runs every crowdsec service under its own DynamicUser (all
     # named `crowdsec`, but with different transient uids). Files written by
@@ -169,19 +186,110 @@ _: {
     };
     users.groups.crowdsec = {};
 
+    # All `systemd.services` config in one place.
     systemd.services = {
       crowdsec.serviceConfig.DynamicUser = lib.mkForce false;
       crowdsec-setup.serviceConfig.DynamicUser = lib.mkForce false;
       crowdsec-update-hub.serviceConfig.DynamicUser = lib.mkForce false;
       crowdsec-firewall-bouncer.serviceConfig.DynamicUser = lib.mkForce false;
       crowdsec-firewall-bouncer-register.serviceConfig.DynamicUser = lib.mkForce false;
-    };
 
-    services.crowdsec-firewall-bouncer = {
-      enable = true;
-      # Auto-register with the local LAPI; the API key is generated on the box.
-      registerBouncer.enable = true;
-      # settings.mode defaults to "nftables" once networking.nftables is enabled.
+      # The PR module has no triggers: acquisition/collection changes only land
+      # on disk (via crowdsec-setup) and the running agent keeps its old config.
+      # Restart the agent when the acquisition or hub-collection config changes.
+      crowdsec.restartTriggers = [
+        (builtins.toJSON config.services.crowdsec.settings.acquisitions)
+        (builtins.toJSON config.services.crowdsec.hub.collections)
+        (builtins.toJSON config.services.crowdsec.hub.appsec-configs)
+      ];
+
+      # AppSec requests must carry a bouncer API key (validated against the
+      # LAPI), so caddy needs one. Mirror the firewall-bouncer's registration
+      # pattern: register `caddy-appsec` on first boot and drop the key into
+      # an env-file that caddy's systemd service reads via
+      # services.caddy.environmentFile (see eclair-caddy.nix).
+      crowdsec-caddy-appsec-register = {
+        description = "Register the caddy-appsec bouncer to the local CrowdSec service";
+        wantedBy = ["multi-user.target"];
+        after = ["crowdsec.service"];
+        wants = ["crowdsec.service"];
+        path = [config.services.crowdsec.package];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = let
+          apiKeyFile = "/var/lib/crowdsec-caddy-appsec/api-key.env";
+        in ''
+          mkdir -p "$(dirname ${apiKeyFile})"
+          if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "caddy-appsec")' >/dev/null; then
+            if [ -s ${apiKeyFile} ]; then
+              echo "caddy-appsec registered, key file present"
+              exit 0
+            fi
+            echo "caddy-appsec registered but key file missing; re-registering"
+            cscli bouncers delete caddy-appsec || true
+          fi
+          echo "CADDY_APPSEC_KEY=$(cscli bouncers add --output raw caddy-appsec)" > ${apiKeyFile}
+          chmod 0600 ${apiKeyFile}
+        '';
+      };
+
+      # Same pattern, for sorbet's caddy: its *.ext.kuipr.de vhosts forward_auth
+      # to this AppSec listener over the tailnet (see services/caddy.nix). The
+      # key is NOT generated here — both hosts share one sops-encrypted key
+      # (secrets/sorbet/crowdsec-appsec), so this only ensures the bouncer
+      # exists and is bound to that exact key. If the key is ever rotated,
+      # delete + re-add the bouncer manually: cscli bouncers delete
+      # sorbet-caddy-appsec.
+      crowdsec-sorbet-caddy-appsec-register = {
+        description = "Register the sorbet-caddy-appsec bouncer to the local CrowdSec service";
+        wantedBy = ["multi-user.target"];
+        after = ["crowdsec.service" "sops-install-secrets.service"];
+        wants = ["crowdsec.service"];
+        path = [config.services.crowdsec.package];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "sorbet-caddy-appsec")' >/dev/null; then
+            echo "sorbet-caddy-appsec already registered"
+            exit 0
+          fi
+          cscli bouncers add sorbet-caddy-appsec --key "$(sed 's/^CADDY_APPSEC_KEY=//' ${config.sops.secrets."crowdsec/appsec-key".path})"
+        '';
+      };
+
+      # The parser-stage whitelist (environment.etc above) only filters log
+      # lines — AppSec bans bypass it. The LAPI allowlist is enforced at
+      # alert/decision ingestion and synced into the AppSec engine, so local
+      # infra traffic can never get banned by WAF rules either.
+      crowdsec-internal-allowlist = {
+        description = "Ensure the CrowdSec LAPI allowlist covers internal ranges";
+        wantedBy = ["multi-user.target"];
+        after = ["crowdsec.service"];
+        wants = ["crowdsec.service"];
+        path = [config.services.crowdsec.package];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          cscli allowlists create internal-ranges -d "local infrastructure ranges" 2>/dev/null || true
+          ${lib.concatMapStringsSep "\n" (r: "cscli allowlists add internal-ranges ${r} -d 'local infra' 2>/dev/null || true") [
+            "127.0.0.0/8"
+            "10.0.0.0/8"
+            "172.16.0.0/12"
+            "192.168.0.0/16"
+            "169.254.0.0/16"
+            "100.64.0.0/10"
+            "::1/128"
+            "fe80::/10"
+            "fc00::/7"
+          ]}
+        '';
+      };
     };
 
     # Whitelist internal ranges so infra traffic (haproxy→caddy hops, gatus
@@ -212,106 +320,5 @@ _: {
             - "fc00::/7"
       '';
     };
-
-    # The PR module has no triggers: acquisition/collection changes only land
-    # on disk (via crowdsec-setup) and the running agent keeps its old config.
-    # Restart the agent when the acquisition or hub-collection config changes.
-    systemd.services.crowdsec.restartTriggers = [
-      (builtins.toJSON config.services.crowdsec.settings.acquisitions)
-      (builtins.toJSON config.services.crowdsec.hub.collections)
-      (builtins.toJSON config.services.crowdsec.hub.appsec-configs)
-    ];
-
-    # AppSec requests must carry a bouncer API key (validated against the
-    # LAPI), so caddy needs one. Mirror the firewall-bouncer's registration
-    # pattern: register `caddy-appsec` on first boot and drop the key into
-    # an env-file that caddy's systemd service reads via
-    # services.caddy.environmentFile (see eclair-caddy.nix).
-    systemd.services.crowdsec-caddy-appsec-register = {
-      description = "Register the caddy-appsec bouncer to the local CrowdSec service";
-      wantedBy = ["multi-user.target"];
-      after = ["crowdsec.service"];
-      wants = ["crowdsec.service"];
-      path = [config.services.crowdsec.package];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      script = let
-        apiKeyFile = "/var/lib/crowdsec-caddy-appsec/api-key.env";
-      in ''
-        mkdir -p "$(dirname ${apiKeyFile})"
-        if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "caddy-appsec")' >/dev/null; then
-          if [ -s ${apiKeyFile} ]; then
-            echo "caddy-appsec registered, key file present"
-            exit 0
-          fi
-          echo "caddy-appsec registered but key file missing; re-registering"
-          cscli bouncers delete caddy-appsec || true
-        fi
-        echo "CADDY_APPSEC_KEY=$(cscli bouncers add --output raw caddy-appsec)" > ${apiKeyFile}
-        chmod 0600 ${apiKeyFile}
-      '';
-    };
-
-    # Same pattern, for sorbet's caddy: its *.ext.kuipr.de vhosts forward_auth
-    # to this AppSec listener over the tailnet (see services/caddy.nix). The
-    # key is NOT generated here — both hosts share one sops-encrypted key
-    # (secrets/sorbet/crowdsec-appsec), so this only ensures the bouncer
-    # exists and is bound to that exact key. If the key is ever rotated,
-    # delete + re-add the bouncer manually: cscli bouncers delete
-    # sorbet-caddy-appsec.
-    systemd.services.crowdsec-sorbet-caddy-appsec-register = {
-      description = "Register the sorbet-caddy-appsec bouncer to the local CrowdSec service";
-      wantedBy = ["multi-user.target"];
-      after = ["crowdsec.service" "sops-install-secrets.service"];
-      wants = ["crowdsec.service"];
-      path = [config.services.crowdsec.package];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      script = ''
-        if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "sorbet-caddy-appsec")' >/dev/null; then
-          echo "sorbet-caddy-appsec already registered"
-          exit 0
-        fi
-        cscli bouncers add sorbet-caddy-appsec --key "$(sed 's/^CADDY_APPSEC_KEY=//' ${config.sops.secrets."crowdsec/appsec-key".path})"
-      '';
-    };
-
-    # The parser-stage whitelist (environment.etc above) only filters log
-    # lines — AppSec bans bypass it. The LAPI allowlist is enforced at
-    # alert/decision ingestion and synced into the AppSec engine, so local
-    # infra traffic can never get banned by WAF rules either.
-    systemd.services.crowdsec-internal-allowlist = {
-      description = "Ensure the CrowdSec LAPI allowlist covers internal ranges";
-      wantedBy = ["multi-user.target"];
-      after = ["crowdsec.service"];
-      wants = ["crowdsec.service"];
-      path = [config.services.crowdsec.package];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      script = ''
-        cscli allowlists create internal-ranges -d "local infrastructure ranges" 2>/dev/null || true
-        ${lib.concatMapStringsSep "\n" (r: "cscli allowlists add internal-ranges ${r} -d 'local infra' 2>/dev/null || true") [
-          "127.0.0.0/8"
-          "10.0.0.0/8"
-          "172.16.0.0/12"
-          "192.168.0.0/16"
-          "169.254.0.0/16"
-          "100.64.0.0/10"
-          "::1/128"
-          "fe80::/10"
-          "fc00::/7"
-        ]}
-      '';
-    };
-
-    # Switches the firewall backend to nftables, which the bouncer's
-    # rulesets (tables "crowdsec"/"crowdsec6") hook into.
-    networking.nftables.enable = true;
   };
 }
