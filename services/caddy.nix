@@ -94,7 +94,30 @@
       # backend directives. Bypass paths become sibling route blocks that
       # answer 200 directly — sibling routes match first-come, so a bypassed
       # path never reaches forward_auth.
-      siteConfig = v: let
+      #
+      # External (*.ext.kuipr.de) vhosts additionally clone every request to
+      # eclair's CrowdSec AppSec engine over the tailnet (WAF inspection;
+      # see services/crowdsec.nix on eclair). AppSec runs BEFORE authelia so
+      # obvious junk is blocked before touching the session store. Note:
+      # fail-closed — if eclair's crowdsec agent is down, these vhosts are
+      # down. Internal (*.int.kuipr.de) vhosts are LAN-only and skip it.
+      siteConfig = host: v: let
+        appsecAuth =
+          if !lib.hasSuffix ".ext.kuipr.de" host
+          then ""
+          else ''
+            forward_auth 100.99.168.34:7422 {
+              # the appsec reads the real URI from a header; this is just
+              # the wire path (a required subdirective in caddy 2.11).
+              uri /
+              header_up X-Crowdsec-Appsec-Ip {remote_host}
+              header_up X-Crowdsec-Appsec-Verb {method}
+              header_up X-Crowdsec-Appsec-Uri {uri}
+              header_up X-Crowdsec-Appsec-Host {host}
+              header_up X-Crowdsec-Appsec-User-Agent {header.User-Agent}
+              header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
+            }
+          '';
         bypassBlocks =
           lib.concatMapStringsSep "\n" (p: ''
             route ${p} {
@@ -114,11 +137,12 @@
         '';
       in
         if !v.authelia.enable
-        then accessLog + v.extraConfig
+        then accessLog + appsecAuth + v.extraConfig
         else ''
           ${accessLog}
           ${bypassBlocks}
           route {
+            ${appsecAuth}
             forward_auth 127.0.0.1:9091 {
                     uri /api/authz/forward-auth
                     copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
@@ -196,6 +220,15 @@
           owner = "caddy";
         };
 
+        # Shared with eclair: the API key sorbet's caddy sends to eclair's
+        # AppSec listener (registered as `sorbet-caddy-appsec` there).
+        sops.secrets."caddy/crowdsec-appsec" = {
+          sopsFile = ../secrets/sorbet/crowdsec-appsec;
+          format = "binary";
+          key = "";
+          owner = "caddy";
+        };
+
         services.caddy = {
           enable = true;
           package = pkgs.caddy.withPlugins {
@@ -227,7 +260,7 @@
             }
           '';
           virtualHosts =
-            lib.mapAttrs (_: v: {extraConfig = siteConfig v;}) virtualHosts
+            lib.mapAttrs (host: v: {extraConfig = siteConfig host v;}) virtualHosts
             // {
               "home.int.kuipr.de" = {
                 extraConfig = ''
@@ -238,8 +271,12 @@
             };
         };
 
-        systemd.services.caddy.serviceConfig.EnvironmentFile =
-          config.sops.secrets."caddy/bunny_api_key".path;
+        systemd.services.caddy.serviceConfig.EnvironmentFile = [
+          config.sops.secrets."caddy/bunny_api_key".path
+          # CADDY_APPSEC_KEY for the AppSec forward_auth on *.ext vhosts
+          # (expanded at Caddyfile parse time, like the bunny key).
+          config.sops.secrets."caddy/crowdsec-appsec".path
+        ];
       };
   };
 }

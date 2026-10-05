@@ -47,6 +47,15 @@ _: {
         key = "";
         owner = "root";
       };
+      # Shared with sorbet (both hosts hold the same age identity, so one
+      # recipient covers them): the AppSec API key for sorbet's caddy,
+      # registered as the `sorbet-caddy-appsec` bouncer by the oneshot below.
+      "crowdsec/appsec-key" = {
+        sopsFile = ../secrets/sorbet/crowdsec-appsec;
+        format = "binary";
+        key = "";
+        owner = "root";
+      };
     };
 
     services.crowdsec = {
@@ -97,12 +106,17 @@ _: {
         }
         {
           # CrowdSec AppSec (WAF): caddy forwards every request to this
-          # listener (forward_auth in eclair-caddy.nix); in-band rule matches
+          # listener (forward_auth in eclair-caddy.nix and — for the
+          # *.ext.kuipr.de vhosts — sorbet's caddy); in-band rule matches
           # answer 403, matches also feed the usual scenario pipeline.
           # Requests must carry a bouncer API key — registered for caddy by
-          # crowdsec-caddy-appsec-register.service below.
+          # crowdsec-caddy-appsec-register.service below (local caddy) and
+          # crowdsec-sorbet-caddy-appsec-register.service (sorbet's caddy).
+          # Bound to 0.0.0.0 so sorbet's caddy can reach it over the tailnet
+          # (the tailnet IP comes up late at boot); the firewall below
+          # restricts the port to tailscale0.
           source = "appsec";
-          listen_addr = "127.0.0.1:7422";
+          listen_addr = "0.0.0.0:7422";
           appsec_config = "crowdsecurity/appsec-default";
           labels.type = "appsec";
         }
@@ -140,6 +154,9 @@ _: {
 
     # Syslog feed from sorbet, tailnet only.
     networking.firewall.interfaces."tailscale0".allowedUDPPorts = [5514];
+
+    # AppSec listener for sorbet's caddy, tailnet only.
+    networking.firewall.interfaces."tailscale0".allowedTCPPorts = [7422];
 
     # The module runs every crowdsec service under its own DynamicUser (all
     # named `crowdsec`, but with different transient uids). Files written by
@@ -234,6 +251,32 @@ _: {
         fi
         echo "CADDY_APPSEC_KEY=$(cscli bouncers add --output raw caddy-appsec)" > ${apiKeyFile}
         chmod 0600 ${apiKeyFile}
+      '';
+    };
+
+    # Same pattern, for sorbet's caddy: its *.ext.kuipr.de vhosts forward_auth
+    # to this AppSec listener over the tailnet (see services/caddy.nix). The
+    # key is NOT generated here — both hosts share one sops-encrypted key
+    # (secrets/sorbet/crowdsec-appsec), so this only ensures the bouncer
+    # exists and is bound to that exact key. If the key is ever rotated,
+    # delete + re-add the bouncer manually: cscli bouncers delete
+    # sorbet-caddy-appsec.
+    systemd.services.crowdsec-sorbet-caddy-appsec-register = {
+      description = "Register the sorbet-caddy-appsec bouncer to the local CrowdSec service";
+      wantedBy = ["multi-user.target"];
+      after = ["crowdsec.service" "sops-install-secrets.service"];
+      wants = ["crowdsec.service"];
+      path = [config.services.crowdsec.package];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        if cscli bouncers list --output json | ${lib.getExe pkgs.jq} -e 'any(.[]; .name == "sorbet-caddy-appsec")' >/dev/null; then
+          echo "sorbet-caddy-appsec already registered"
+          exit 0
+        fi
+        cscli bouncers add sorbet-caddy-appsec --key "$(sed 's/^CADDY_APPSEC_KEY=//' ${config.sops.secrets."crowdsec/appsec-key".path})"
       '';
     };
 
