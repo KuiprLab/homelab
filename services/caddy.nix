@@ -102,10 +102,21 @@
             }
           '')
           v.authelia.bypassPaths;
+        # Access logs → stderr → journald → rsyslog ships them to eclair's
+        # CrowdSec (services/crowdsec-shipping.nix). Own logger: the module's
+        # global default logger runs at ERROR (services.caddy.logFormat),
+        # which would swallow the INFO-level access entries.
+        accessLog = ''
+          log {
+            output stderr
+            level INFO
+          }
+        '';
       in
         if !v.authelia.enable
-        then v.extraConfig
+        then accessLog + v.extraConfig
         else ''
+          ${accessLog}
           ${bypassBlocks}
           route {
             forward_auth 127.0.0.1:9091 {
@@ -199,6 +210,21 @@
             # aborts caddy 2.11's mandatory propagation check, and it can't
             # see the public TXT records anyway.
             tls_resolvers 1.1.1.1 8.8.8.8
+            # eclair's haproxy speaks PROXY protocol on the tailnet hop so
+            # caddy sees real client IPs (authelia attributes via XFF, and
+            # the access logs are shipped to eclair's CrowdSec). The wrapper
+            # only honors PROXY headers from eclair; direct LAN clients
+            # connect without one (fallback IGNORE), same pattern as
+            # services/eclair-caddy.nix on the VPS.
+            servers {
+              listener_wrappers {
+                proxy_protocol {
+                  allow 100.99.168.34/32
+                  fallback_policy IGNORE
+                }
+                tls
+              }
+            }
           '';
           virtualHosts =
             lib.mapAttrs (_: v: {extraConfig = siteConfig v;}) virtualHosts

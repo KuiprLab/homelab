@@ -61,6 +61,10 @@ _: {
         # config (virtual-patching = CVE rules, generic = SQLi/RCE/LFI/etc.).
         "crowdsecurity/appsec-virtual-patching"
         "crowdsecurity/appsec-generic-rules"
+        # Third-party collection: parses authelia's logrus logs and detects
+        # login brute-force / user enumeration (authelia runs on sorbet, its
+        # logs are shipped here — see the syslog source below).
+        "LePresidente/authelia"
       ];
 
       hub.appsec-configs = ["crowdsecurity/appsec-default"];
@@ -102,6 +106,22 @@ _: {
           appsec_config = "crowdsecurity/appsec-default";
           labels.type = "appsec";
         }
+        {
+          # UDP syslog feed from sorbet: rsyslog there forwards caddy +
+          # authelia journal logs over the tailnet (see
+          # services/crowdsec-shipping.nix on the sorbet side). The datasource
+          # strips the syslog header and s00-raw extracts `program`, so the
+          # caddy-logs and authelia-logs parsers pick their lines out of this
+          # one listener. max_message_len: the default 2048 truncates caddy's
+          # JSON access lines (long URLs/user agents) into unparsable junk.
+          # Bound to 0.0.0.0 (the tailnet IP comes up late at boot); the
+          # firewall below restricts 514 to tailscale0.
+          source = "syslog";
+          listen_addr = "0.0.0.0";
+          listen_port = 514;
+          max_message_len = 16384;
+          labels.type = "syslog";
+        }
       ];
 
       settings.console.enrollKeyFile = config.sops.secrets."crowdsec/console-enrollment".path;
@@ -116,6 +136,9 @@ _: {
       # `cscli capi register` first, creating this file if absent).
       settings.config.api.server.online_client.credentials_path = "/var/lib/crowdsec/data/online_api_credentials.yaml";
     };
+
+    # Syslog feed from sorbet, tailnet only.
+    networking.firewall.interfaces."tailscale0".allowedUDPPorts = [514];
 
     # The module runs every crowdsec service under its own DynamicUser (all
     # named `crowdsec`, but with different transient uids). Files written by

@@ -104,7 +104,11 @@ _: {
         #--------------------------------------------------------------------
         backend be_sorbet
           mode tcp
-          server sorbet ${sorbetTailscaleIp}:443 check inter 10s rise 2 fall 3
+          # send-proxy-v2: sorbet's caddy needs real client IPs — authelia
+          # attributes logins via caddy's XFF, and the access logs are
+          # shipped to the CrowdSec agent here. Headerless health checks
+          # pass through unchanged.
+          server sorbet ${sorbetTailscaleIp}:443 check inter 10s rise 2 fall 3 send-proxy-v2
 
         #--------------------------------------------------------------------
         # Backend: local caddy (services hosted on eclair itself)
