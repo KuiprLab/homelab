@@ -27,18 +27,38 @@
 #      paperless instance run
 #      `paperless-manage document_importer /media/data/Paperless-export`.
 #
-# Remote: rclone has no official iCloud Drive backend, so this syncs to the
-# gdrive remote already present in secrets/sorbet/rclone (the navidrome
-# backup's remote). To retarget, change `remote` and add the remote to that
-# sops config.
+# Remotes: pushed to both, independently — one failing target doesn't
+# block the other, and any failure trips the /fail ping:
+#   - icloud (official rclone `iclouddrive` backend, needs rclone ≥ 1.69):
+#     Apple trust tokens expire after 30 days — when that happens the sync
+#     fails and the /fail ping alerts. Fix it on sorbet (2FA prompt arrives
+#     on a trusted device, no sops surgery needed):
+#       sudo -u paperless \
+#         rclone reconnect icloud: --config /var/lib/paperless-backup/rclone.conf
+#     Initial setup: interactively create the [icloud] remote and merge it
+#     into secrets/sorbet/rclone (Apple ID password + 2FA; app-specific
+#     passwords are NOT accepted):
+#       rclone config   # storage: iclouddrive, service: drive
+#     Documents end up unencrypted on Apple servers; add an rclone crypt
+#     remote on top if that's a problem.
+#   - gdrive: second copy that doesn't depend on the Apple login staying
+#     healthy (already in secrets/sorbet/rclone).
 _: {
   flake.nixosModules.paperlessBackup = {
     config,
+    lib,
     pkgs,
     ...
   }: let
-    remote = "gdrive:paperless-backup";
+    remotes = [
+      "icloud:Backups/Paperless"
+      "gdrive:paperless-backup"
+    ];
     exportDir = "/media/data/Paperless-export";
+    # Writable copy of the sops-rendered rclone config: the iCloud backend
+    # refreshes cookies/trust tokens in place between runs, which the
+    # read-only sops file can't absorb. This also gives the reconnect
+    # command above a stable config path.
   in {
     sops.secrets = {
       # Same rclone config as navidrome-gdrive-sync, rendered for the
@@ -79,6 +99,7 @@ _: {
       serviceConfig = {
         Type = "oneshot";
         User = "paperless";
+        StateDirectory = "paperless-backup";
         ExecStart = pkgs.writeShellScript "paperless-backup" ''
           set -eu
 
@@ -89,19 +110,28 @@ _: {
 
           hc "$PING_URL/start" || true
 
+          install -m 0600 ${config.sops.secrets."rclone/paperless".path} \
+            /var/lib/paperless-backup/rclone.conf
+
           # --transfers 2 / --checkers 4: keep the request rate low so the
-          # remote's rate limits don't trip on the nightly run.
-          if ${pkgs.rclone}/bin/rclone sync \
-            --config ${config.sops.secrets."rclone/paperless".path} \
-            --fast-list --transfers 2 --checkers 4 \
-            ${exportDir} "${remote}"
-          then
-            hc "$PING_URL"
-          else
-            status=$?
+          # remotes' rate limits don't trip on the nightly run.
+          failed=""
+          for target in ${lib.escapeShellArgs remotes}; do
+            if ! ${pkgs.rclone}/bin/rclone sync \
+              --config /var/lib/paperless-backup/rclone.conf \
+              --fast-list --transfers 2 --checkers 4 \
+              ${exportDir} "$target"
+            then
+              echo "rclone sync to $target failed" >&2
+              failed=1
+            fi
+          done
+
+          if [ -n "$failed" ]; then
             hc "$PING_URL/fail" || true
-            exit "$status"
+            exit 1
           fi
+          hc "$PING_URL"
         '';
       };
     };
