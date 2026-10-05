@@ -53,14 +53,16 @@ _: {
           };
 
           # wget is installed by the image's base (Dockerfile.base); probe the
-          # web UI root. Unhealthy → podman kills; systemd's Restart recreates.
+          # web UI root, retrying for up to ~75s: podman's first check fires
+          # immediately at start and a failed transient-unit check aborts NixOS
+          # activations. Unhealthy → podman kills; systemd's Restart recreates.
           extraOptions = [
-            "--health-cmd=wget -q --spider http://127.0.0.1:8095/"
+            "--health-cmd=sh -c 'n=0; until wget -q --spider http://127.0.0.1:8095/; do n=$((n+1)); [ $n -ge 15 ] && exit 1; sleep 5; done'"
             "--health-interval=30s"
             "--health-on-failure=kill"
             "--health-retries=3"
             "--health-start-period=2m"
-            "--health-timeout=5s"
+            "--health-timeout=100s"
             "--network=host"
           ];
         };

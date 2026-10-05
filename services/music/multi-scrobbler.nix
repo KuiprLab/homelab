@@ -70,15 +70,17 @@ _: {
         ports = ["127.0.0.1:9078:9078"];
         # The linuxserver base image ships curl. Probe the UI root — /api/health
         # answers 500 whenever any source/client is down, which would restart-loop
-        # on a broken (not hung) source. Unhealthy → podman kills → systemd
-        # Restart recreates.
+        # on a broken (not hung) source. Retry inside the command: podman's first
+        # check fires immediately at start, and a failed transient-unit check
+        # aborts NixOS activations. Unhealthy → podman kills → systemd Restart
+        # recreates.
         extraOptions = [
-          "--health-cmd=curl -fsS http://127.0.0.1:9078/ >/dev/null"
+          "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
           "--health-interval=30s"
           "--health-on-failure=kill"
           "--health-retries=3"
           "--health-start-period=2m"
-          "--health-timeout=5s"
+          "--health-timeout=40s"
           "--network=podman"
           "--network=msv6"
         ];

@@ -51,12 +51,14 @@ _: {
         # liveness probe, and the 60m start period covers Soulseek login).
         # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
-          "--health-cmd=wget -q -O /dev/null http://localhost:5030/health"
+          # Retry inside the command: podman's first check fires immediately at
+          # start, and a failed transient-unit check aborts NixOS activations.
+          "--health-cmd=sh -c 'n=0; until wget -q -O /dev/null http://localhost:5030/health; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
           "--health-interval=60s"
           "--health-on-failure=kill"
           "--health-retries=3"
           "--health-start-period=60m"
-          "--health-timeout=3s"
+          "--health-timeout=50s"
           "--network=container:gluetun"
         ];
       };

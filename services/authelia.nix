@@ -61,12 +61,14 @@ _: {
           # Unhealthy → podman kills the container; the unit's Restart=always
           # (set below) recreates it.
           extraOptions = [
-            "--health-cmd=/app/healthcheck.sh"
+            # Retry inside the command: podman's first check fires immediately at
+            # start, and a failed transient-unit check aborts NixOS activations.
+            "--health-cmd=sh -c 'n=0; until /app/healthcheck.sh; do n=$((n+1)); [ $n -ge 8 ] && exit 1; sleep 2; done'"
             "--health-interval=30s"
             "--health-on-failure=kill"
             "--health-retries=3"
             "--health-start-period=1m"
-            "--health-timeout=3s"
+            "--health-timeout=30s"
             "--network-alias=authelia"
             "--network=authelia_default"
             "--network=proxy"
