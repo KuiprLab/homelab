@@ -53,6 +53,7 @@ _: {
       hub.collections = [
         "crowdsecurity/linux"
         "crowdsecurity/haproxy"
+        "crowdsecurity/caddy"
       ];
 
       settings.acquisitions = [
@@ -65,6 +66,13 @@ _: {
           source = "journalctl";
           journalctl_filter = ["-u" "haproxy.service"];
           labels.type = "haproxy";
+        }
+        {
+          # caddy's JSON access logs (see eclair-caddy.nix); with PROXY
+          # protocol from haproxy these carry real client IPs.
+          source = "journalctl";
+          journalctl_filter = ["-u" "caddy.service"];
+          labels.type = "caddy";
         }
       ];
 
@@ -105,6 +113,31 @@ _: {
       # Auto-register with the local LAPI; the API key is generated on the box.
       registerBouncer.enable = true;
       # settings.mode defaults to "nftables" once networking.nftables is enabled.
+    };
+
+    # Whitelist internal ranges so infra traffic (haproxy→caddy hops, gatus
+    # health checks, tailnet management access) can never generate alerts or
+    # bans — the v0.0.36 firewall bouncer itself has no whitelist option, so
+    # this happens at the agent's parse stage.
+    environment.etc."crowdsec/parsers/s01-whitelist/local-ranges.yaml" = {
+      user = "crowdsec";
+      group = "crowdsec";
+      text = ''
+        name: local/private-ranges
+        description: "Loopback, RFC1918, link-local and tailnet ranges"
+        whitelist:
+          reason: "local infrastructure ranges"
+          ip:
+            - "127.0.0.0/8"
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+            - "192.168.0.0/16"
+            - "169.254.0.0/16"
+            - "100.64.0.0/10"
+            - "::1/128"
+            - "fe80::/10"
+            - "fc00::/7"
+      '';
     };
 
     # Switches the firewall backend to nftables, which the bouncer's

@@ -110,7 +110,9 @@ _: {
         #--------------------------------------------------------------------
         backend be_local
           mode tcp
-          server local 127.0.0.1:8443 check inter 10s rise 2 fall 3
+          # send-proxy-v2: caddy needs real client IPs (CrowdSec parses its
+          # access logs); headerless health checks pass through unchanged.
+          server local 127.0.0.1:8443 check inter 10s rise 2 fall 3 send-proxy-v2
 
         backend be_local_http
           mode http

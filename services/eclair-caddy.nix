@@ -3,8 +3,15 @@
 #
 # haproxy owns :80/:443, so caddy listens on 127.0.0.1:8443 and haproxy
 # routes the matching SNI there (see haproxy.nix). Certificates come from
-# ACME TLS-ALPN-01: the challenge handshake carries the same SNI, so haproxy
-# passes it straight through to caddy — no DNS credentials needed.
+# ACME HTTP-01: the challenge rides haproxy's :80 → 8080 hop — no DNS
+# credentials needed.
+#
+# haproxy speaks PROXY protocol to caddy (send-proxy-v2); without it caddy
+# would see every client as 127.0.0.1 and CrowdSec bans would be useless.
+# The wrapper only honors PROXY headers from 127.0.0.1 (fallback IGNORE),
+# so a direct internet client can't spoof a client IP with a forged header.
+# Per-vhost `log` directives emit JSON access logs to journald, which the
+# CrowdSec agent tails (services/crowdsec.nix).
 {
   lib,
   config,
@@ -41,6 +48,16 @@
           # haproxy holds :80/:443; it forwards the local SNIs to 8443.
           http_port 8080
           https_port 8443
+
+          servers {
+            listener_wrappers {
+              proxy_protocol {
+                allow 127.0.0.1/32
+                fallback_policy IGNORE
+              }
+              tls
+            }
+          }
         '';
         virtualHosts =
           lib.mapAttrs (_: v: {
@@ -51,6 +68,8 @@
                   disable_tlsalpn_challenge
                 }
               }
+              # JSON access logs → stderr → journald → CrowdSec agent.
+              log
               ${v.extraConfig}
             '';
           })
