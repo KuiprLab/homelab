@@ -21,13 +21,27 @@ _: {
   flake.eclairNixosModules.crowdsec = {
     config,
     lib,
+    pkgs,
     ...
   }: let
     # Console enrollment token, created by the user with
     # `sops secrets/eclair/crowdsec-console-enrollment`. Guarded so the host
     # still evaluates (and deploys, unenrolled) before that file exists.
     enrollmentTokenExists = builtins.pathExists ../../secrets/eclair/crowdsec-console-enrollment;
+
+    # The PR module's setup script installs the notification plugins from
+    # `${package}/libexec/crowdsec/plugins/`, but nixpkgs' crowdsec 1.8.1
+    # builds them into `bin/` and no longer does that install (the PR branch's
+    # own package did, which is what the module was written against).
+    crowdsecWithPlugins = pkgs.crowdsec.overrideAttrs (old: {
+      postInstall =
+        (old.postInstall or "")
+        + ''
+          install -D $out/bin/notification-* -t $out/libexec/crowdsec/plugins/
+        '';
+    });
   in {
+    services.crowdsec.package = crowdsecWithPlugins;
     sops.secrets = lib.optionalAttrs enrollmentTokenExists {
       "crowdsec/console-enrollment" = {
         sopsFile = ../../secrets/eclair/crowdsec-console-enrollment;
