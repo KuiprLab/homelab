@@ -88,6 +88,9 @@
               # fail-closed — if the crowdsec agent is down, so are the
               # vhosts.
               forward_auth 127.0.0.1:7422 {
+                # the appsec reads the real URI from a header; this is just
+                # the wire path (a required subdirective in caddy 2.11).
+                uri /
                 header_up X-Crowdsec-Appsec-Ip {remote_host}
                 header_up X-Crowdsec-Appsec-Verb {method}
                 header_up X-Crowdsec-Appsec-Uri {uri}
