@@ -17,12 +17,13 @@ _: {
       # journal to disk without rotation.
       defaultConfig = "";
       extraConfig = ''
-        # eclair's CrowdSec agent listens on UDP 514 (tailnet-restricted by
+        # eclair's CrowdSec agent listens on UDP 5514 (unprivileged port so
+        # the agent's non-root user can bind it; tailnet-restricted by
         # eclair's firewall). Tags come from journald's SYSLOG_IDENTIFIER:
         # "caddy" and "authelia" — the CrowdSec parsers key off exactly
         # those program names.
         if ($syslogtag startswith "caddy") or ($syslogtag startswith "authelia") then {
-            action(type="omfwd" target="100.99.168.34" port="514" protocol="udp")
+            action(type="omfwd" target="100.99.168.34" port="5514" protocol="udp")
         }
       '';
     };

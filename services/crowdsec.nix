@@ -115,10 +115,11 @@ _: {
           # one listener. max_message_len: the default 2048 truncates caddy's
           # JSON access lines (long URLs/user agents) into unparsable junk.
           # Bound to 0.0.0.0 (the tailnet IP comes up late at boot); the
-          # firewall below restricts 514 to tailscale0.
+          # firewall below restricts the port to tailscale0. Unprivileged
+          # 5514 instead of 514: the agent runs as a static non-root user.
           source = "syslog";
           listen_addr = "0.0.0.0";
-          listen_port = 514;
+          listen_port = 5514;
           max_message_len = 16384;
           labels.type = "syslog";
         }
@@ -138,7 +139,7 @@ _: {
     };
 
     # Syslog feed from sorbet, tailnet only.
-    networking.firewall.interfaces."tailscale0".allowedUDPPorts = [514];
+    networking.firewall.interfaces."tailscale0".allowedUDPPorts = [5514];
 
     # The module runs every crowdsec service under its own DynamicUser (all
     # named `crowdsec`, but with different transient uids). Files written by
