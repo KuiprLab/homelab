@@ -75,6 +75,11 @@ _: {
       # this: `cscli machines add --auto` writes credentials with
       # http://<listen_uri>, and the bouncer's api_url default follows it too.
       settings.config.api.server.listen_uri = "127.0.0.1:9090";
+
+      # Needed for `cscli console enroll` (the setup script then runs
+      # `cscli capi register` first, creating this file if absent).
+      settings.config.api.server.online_client.credentials_path =
+        "/var/lib/crowdsec/data/online_api_credentials.yaml";
     };
 
     # The module runs every crowdsec service under its own DynamicUser (all
