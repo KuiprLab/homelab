@@ -85,6 +85,25 @@ _: {
       settings.config.api.server.listen_uri = "127.0.0.1:9090";
     };
 
+    # The module runs every crowdsec service under its own DynamicUser (all
+    # named `crowdsec`, but with different transient uids). Files written by
+    # one service with UMask 0077 — e.g. the hub content installed by
+    # crowdsec-setup — are then unreadable by the agent. Pin everything to a
+    # real static user instead so all services share one identity.
+    users.users.crowdsec = {
+      isSystemUser = true;
+      group = "crowdsec";
+    };
+    users.groups.crowdsec = {};
+
+    systemd.services = {
+      crowdsec.serviceConfig.DynamicUser = lib.mkForce false;
+      crowdsec-setup.serviceConfig.DynamicUser = lib.mkForce false;
+      crowdsec-update-hub.serviceConfig.DynamicUser = lib.mkForce false;
+      crowdsec-firewall-bouncer.serviceConfig.DynamicUser = lib.mkForce false;
+      crowdsec-firewall-bouncer-register.serviceConfig.DynamicUser = lib.mkForce false;
+    };
+
     services.crowdsec-firewall-bouncer = {
       enable = true;
       # Auto-register with the local LAPI; the API key is generated on the box.
