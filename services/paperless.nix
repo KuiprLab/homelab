@@ -36,6 +36,10 @@ _: {
         sopsFile = ../secrets/sorbet/paperless-oidc;
         format = "binary";
         key = "";
+        # paperless-manage (run as the paperless user by the exporter)
+        # sources this file; the web services read it via EnvironmentFile=,
+        # which systemd reads as root — paperless ownership is fine for all.
+        owner = "paperless";
       };
 
       services.paperless = {
