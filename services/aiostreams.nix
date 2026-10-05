@@ -188,10 +188,16 @@ _: {
         labels = {
           "io.containers.autoupdate" = "registry";
         };
-        # The image ships its own HEALTHCHECK (node → localhost:$PORT/api/v1/status).
+        # Podman does not inherit image HEALTHCHECKs — mirror the upstream
+        # one explicitly (node script → localhost:$PORT/api/v1/status).
         # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
+          "--health-cmd=[\"/nodejs/bin/node\", \"/app/scripts/healthcheck.js\"]"
+          "--health-interval=30s"
           "--health-on-failure=kill"
+          "--health-retries=3"
+          "--health-start-period=30s"
+          "--health-timeout=5s"
           "--network=container:gluetun"
         ];
       };

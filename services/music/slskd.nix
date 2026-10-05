@@ -46,11 +46,17 @@ _: {
         labels = {
           "io.containers.autoupdate" = "registry";
         };
-        # The image ships its own HEALTHCHECK (wget → localhost:$SLSKD_HTTP_PORT/health,
-        # 60m start period for the Soulseek login). Unhealthy → podman kills the
-        # container; systemd's Restart recreates it.
+        # Podman does not inherit image HEALTHCHECKs — mirror the upstream
+        # one explicitly (wget → localhost:5030/health; it is a static 200
+        # liveness probe, and the 60m start period covers Soulseek login).
+        # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
+          "--health-cmd=wget -q -O /dev/null http://localhost:5030/health"
+          "--health-interval=60s"
           "--health-on-failure=kill"
+          "--health-retries=3"
+          "--health-start-period=60m"
+          "--health-timeout=3s"
           "--network=container:gluetun"
         ];
       };

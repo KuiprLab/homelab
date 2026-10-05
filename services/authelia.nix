@@ -56,11 +56,17 @@ _: {
             "io.containers.autoupdate" = "registry";
           };
           log-driver = "journald";
-          # The image ships its own HEALTHCHECK (healthcheck.sh → /api/health
-          # on 127.0.0.1:9091), so no --health-cmd is needed. Unhealthy → podman
-          # kills the container; the unit's Restart=always (set below) recreates it.
+          # Podman does not inherit image HEALTHCHECKs — mirror the upstream
+          # one explicitly (healthcheck.sh probes /api/health on 9091).
+          # Unhealthy → podman kills the container; the unit's Restart=always
+          # (set below) recreates it.
           extraOptions = [
+            "--health-cmd=/app/healthcheck.sh"
+            "--health-interval=30s"
             "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=1m"
+            "--health-timeout=3s"
             "--network-alias=authelia"
             "--network=authelia_default"
             "--network=proxy"
