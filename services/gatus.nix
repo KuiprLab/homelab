@@ -310,7 +310,7 @@
         # no shell, wget, or curl to probe with. Availability is covered by
         # eclair's gatus instance and the healthchecks.io heartbeat.
         virtualisation.oci-containers.containers.gatus = {
-          image = "ghcr.io/twin/gatus:latest";
+          image = "ghcr.io/twin/gatus:latest@sha256:88337f7a281c18619d44c2d31508e7c4b249bc91b4f0c2cc859a1a5ca8825460";
           volumes = [
             "${(pkgs.formats.yaml {}).generate "gatus.yaml" gatusConfig}:/config/config.yaml:ro"
             "gatus-data:/data"
@@ -320,7 +320,6 @@
             TZ = "Europe/Berlin";
           };
           environmentFiles = [config.sops.secrets."gatus/discord_webhook".path];
-          labels."io.containers.autoupdate" = "registry";
           # --dns=192.168.0.85: Use host dnsmasq directly. Default podman
           #   DNS path goes through aardvark-dns which inherits the host's
           #   /etc/resolv.conf (nameserver 127.0.0.1) — but 127.0.0.1
@@ -391,7 +390,7 @@
             backend = lib.mkDefault "podman";
             # No healthcheck: scratch image, no probe binary (see sorbet gatus).
             containers.gatus = {
-              image = "ghcr.io/twin/gatus:latest";
+              image = "ghcr.io/twin/gatus:latest@sha256:88337f7a281c18619d44c2d31508e7c4b249bc91b4f0c2cc859a1a5ca8825460";
               volumes = [
                 "${(pkgs.formats.yaml {}).generate "gatus.yaml" gatusConfig}:/config/config.yaml:ro"
                 "gatus-data:/data"
@@ -405,7 +404,6 @@
               # `ports` is intentionally omitted — host network ignores it.
               environment.TZ = "Europe/Berlin";
               environmentFiles = [config.sops.secrets."gatus/discord_webhook".path];
-              labels."io.containers.autoupdate" = "registry";
               extraOptions =
                 extraHostsArgs
                 ++ ["--network=host"];

@@ -237,7 +237,7 @@
           enable = true;
           package = pkgs.caddy.withPlugins {
             plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
-            hash = "sha256-zKqfJW6ScRsrYTwUTyGkj46G5//RwHITd+a/mDj/6FQ=";
+            hash = "sha256-MSUCHg7Ej7xSmfn5Y5JZtttOWOHcXqnrpmHlhoS4KLQ=";
           };
           globalConfig = ''
             acme_dns bunny {env.BUNNY_API_KEY}

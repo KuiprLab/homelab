@@ -44,12 +44,10 @@ _: {
         containers.musicassistant = {
           volumes = ["music-assistant:/data"];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/music-assistant/server:latest"; # Warning: if the tag does not change, the image will not be updated
+          image = "ghcr.io/music-assistant/server:latest@sha256:28023f8c0d96ca2496391f3218a6d70d7ef3ba84db846b3a3f3cd9ce7ef8aedc";
+          # Digest-pinned; renovate bumps the digest.
           environment = {
             "LOG_LEVEL" = "info";
-          };
-          labels = {
-            "io.containers.autoupdate" = "registry";
           };
 
           # wget is installed by the image's base (Dockerfile.base); probe the
