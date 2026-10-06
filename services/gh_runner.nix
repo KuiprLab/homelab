@@ -53,7 +53,7 @@
           # a deploy triggered within an hour of the previous one re-resolves to
           # the OLD rev and silently redeploys the previous commit. Refresh the
           # cache entry first -- both commands below resolve the same URL.
-          nix flake metadata --refresh "github:KuiprLab/sorbet.nix" > /dev/null 2>&1 || true
+          REV=$(nix flake metadata --refresh "github:KuiprLab/sorbet.nix" 2>/dev/null | jq -r '.revision // empty') || REV=""
 
           EXIT=0
           nixos-rebuild switch --flake "github:KuiprLab/sorbet.nix#sorbet" > /tmp/deploy.log 2>&1 || EXIT=$?
@@ -69,6 +69,14 @@
           deploy -s "github:KuiprLab/sorbet.nix#eclair" \
             --ssh-opts "-o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes -i ${config.sops.secrets."eclair-deploy-key".path}" \
             > /tmp/deploy-eclair.log 2>&1 || ECLAIR_EXIT=$?
+
+          # Remember the revision only when BOTH hosts deployed successfully.
+          # The CI deploy check compares this against main and skips scheduled
+          # deploys when nothing new has landed.
+          if [ "''${EXIT}" -eq 0 ] && [ "''${ECLAIR_EXIT}" -eq 0 ] && [ -n "''${REV}" ]; then
+            mkdir -p /var/lib/actions-deploy
+            echo -n "''${REV}" > /var/lib/actions-deploy/last-deployed-revision
+          fi
 
           if [ "''${EXIT}" -eq 0 ]; then
             SORBET_STATUS="SUCCESS: sorbet deploy succeeded"

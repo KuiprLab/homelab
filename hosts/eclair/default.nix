@@ -45,6 +45,8 @@ in {
         # Import crowdsec modules from the PR branch
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec.nix"
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec-firewall-bouncer.nix"
+        # Record the build revision (see hosts/sorbet/default.nix).
+        {system.configurationRevision = self.rev or self.dirtyRev or null;}
       ]
       ++ collectModules self.eclairNixosModules;
   };
