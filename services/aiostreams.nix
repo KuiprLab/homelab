@@ -99,7 +99,7 @@ _: {
       };
 
       virtualisation.oci-containers.containers.aiostreams = {
-        image = "ghcr.io/viren070/aiostreams:latest";
+        image = "ghcr.io/viren070/aiostreams:latest@sha256:a749e0c52563b3d8fd7ac0ea829212c96f900394e8968275de7932c1e59fdac6";
         volumes = [
           "/var/lib/aiostreams:/app/data"
           "${hostsFile}:/etc/hosts:ro"
@@ -185,9 +185,6 @@ _: {
           "/run/secrets/aiostreams.env"
           "/run/secrets/aiostreams-oidc.env"
         ];
-        labels = {
-          "io.containers.autoupdate" = "registry";
-        };
         # Podman does not inherit image HEALTHCHECKs — mirror the upstream
         # one explicitly (node script → localhost:$PORT/api/v1/status).
         # Unhealthy → podman kills the container; systemd's Restart recreates it.

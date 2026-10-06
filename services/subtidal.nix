@@ -29,7 +29,7 @@ _: {
         };
         oci-containers.backend = "podman";
         oci-containers.containers.subtidal = {
-          image = "ghcr.io/frostplexx/subtidal:latest";
+          image = "ghcr.io/frostplexx/subtidal:latest@sha256:6d81c30842f371babcaf69ecc70e2f06dfc4b56300a003a95e269a8c0575f461";
           volumes = [
             "/var/lib/subtidal:/data:rw"
             "${config.sops.secrets."subtidal".path}:/config/subtidal/settings.toml:ro"
@@ -41,9 +41,6 @@ _: {
             XDG_CONFIG_HOME = "/config";
             SUBTIDAL_TOKEN_FILE = "/data/tokens.json";
             RUST_LOG = "info";
-          };
-          labels = {
-            "io.containers.autoupdate" = "registry";
           };
           # Podman does not inherit image HEALTHCHECKs — mirror the upstream
           # one explicitly (curl → 127.0.0.1:8000/rest/ping).

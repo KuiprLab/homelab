@@ -40,7 +40,7 @@ _: {
       # Containers
       virtualisation.oci-containers.containers = {
         "authelia" = {
-          image = "docker.io/authelia/authelia:4.38.8";
+          image = "docker.io/authelia/authelia:4.38.8@sha256:19375b10024caeef4e0b119a6247beae84cbaa02c846cfd750e92dea910d4b6a";
           volumes = [
             "${config.sops.secrets."authelia/configuration.yml".path}:/config/configuration.yml:ro"
             "authelia_data:/data:rw"
@@ -52,9 +52,6 @@ _: {
           environmentFiles = [
             "${config.sops.secrets."authelia/authelia.env".path}"
           ];
-          labels = {
-            "io.containers.autoupdate" = "registry";
-          };
           log-driver = "journald";
           # Podman does not inherit image HEALTHCHECKs — mirror the upstream
           # one explicitly (healthcheck.sh probes /api/health on 9091).

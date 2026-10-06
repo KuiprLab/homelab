@@ -41,7 +41,7 @@ _: {
 
       virtualisation.oci-containers.containers = {
         koito = {
-          image = "docker.io/gabehf/koito:latest";
+          image = "docker.io/gabehf/koito:latest@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857";
           volumes = [
             "koito-data:/etc/koito"
           ];
@@ -50,9 +50,6 @@ _: {
             KOITO_DEFAULT_USERNAME = "daniel";
           };
           ports = ["127.0.0.1:4110:4110"];
-          labels = {
-            "io.containers.autoupdate" = "registry";
-          };
           # The bookworm-slim image has no curl/wget — TCP probe via bash's
           # /dev/tcp instead; gatus keeps the real HTTP check via caddy.
           # Unhealthy → podman kills the container; systemd's Restart recreates it.
@@ -68,12 +65,9 @@ _: {
 
         # No container-level healthcheck: process-only bot, no HTTP endpoint to probe.
         last-fm-presence = {
-          image = "ghcr.io/frostplexx/lastfm-discord-presence:main";
+          image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:0263193924d3010d0775ccb2ecd85d055a959296276634e7aaa16c7c496ffe5f";
           volumes = [];
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
-          labels = {
-            "io.containers.autoupdate" = "registry";
-          };
         };
       };
     };
