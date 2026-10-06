@@ -1,6 +1,4 @@
-# sorbet.nix
-
-NixOS homelab — two hosts managed with [deploy-rs](https://github.com/serokell/deploy-rs) and [flake-parts](https://github.com/hercules-ci/flake-parts).
+# Homelab monorepo
 
 ## Hosts
 
