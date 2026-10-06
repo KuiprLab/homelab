@@ -1,12 +1,45 @@
 name: "Deploy Configuration"
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    # Daily at 07:00 UTC. The check job skips the run when main hasn't moved
+    # since the last deploy, so idle days produce no approval request.
+    # For a ~48h cadence instead, use: "0 7 * * 1,3,5" (Mon/Wed/Fri).
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
+  check:
+    name: Deploy needed?
+    # Runs on sorbet itself, reading the last *fully successful* deploy
+    # revision (both hosts) that actions-deploy records. This job must NOT
+    # use the production environment: everything in an environment-gated
+    # job waits for approval before executing, so the skip decision has to
+    # happen before the gated job is ever started.
+    runs-on: self-hosted
+    outputs:
+      should_deploy: ${{ steps.compare.outputs.should_deploy }}
+    steps:
+      - name: Compare deployed revision with main
+        id: compare
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "manual dispatch: deploying regardless"
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DEPLOYED=$(cat /var/lib/actions-deploy/last-deployed-revision 2>/dev/null || echo "unknown")
+          if [ "$DEPLOYED" = "$GITHUB_SHA" ]; then
+            echo "main is at ${GITHUB_SHA:0:7}, already deployed; nothing to do"
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "main moved (${DEPLOYED:0:7} -> ${GITHUB_SHA:0:7}); requesting deploy"
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
+    name: Deploy
+    needs: [check]
+    if: needs.check.outputs.should_deploy == 'true'
     runs-on: self-hosted
     environment: production
     steps:
