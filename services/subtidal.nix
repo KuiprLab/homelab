@@ -45,6 +45,20 @@ _: {
           labels = {
             "io.containers.autoupdate" = "registry";
           };
+          # Podman does not inherit image HEALTHCHECKs — mirror the upstream
+          # one explicitly (curl → 127.0.0.1:8000/rest/ping).
+          # Unhealthy → podman kills the container; systemd's Restart recreates it.
+          extraOptions = [
+            # Retry inside the command: podman's first check fires immediately at
+            # start, and a failed transient-unit check aborts NixOS activations
+            # (this actually failed a deploy — Rust boot is slower than the check).
+            "--health-cmd=curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=30s"
+            "--health-timeout=20s"
+          ];
         };
       };
 

@@ -10,8 +10,9 @@ _: {
         name = "Koito";
         authelia = {
           enable = true;
-          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
-          bypassPaths = ["/healthz"];
+          # gatus probes this vhost sessionless; /apis/web/v1/health bypasses
+          # forward auth and is proxied to the app (503 until koito is ready).
+          bypassPaths = ["/apis/web/v1/health"];
         };
       };
     };
@@ -20,7 +21,7 @@ _: {
       {
         name = "Koito";
         group = "Music";
-        url = "https://koito.int.kuipr.de/healthz";
+        url = "https://koito.int.kuipr.de/apis/web/v1/health";
         conditions = [
           "[STATUS] == 200"
           "[CERTIFICATE_EXPIRATION] > 168h"
@@ -52,8 +53,20 @@ _: {
           labels = {
             "io.containers.autoupdate" = "registry";
           };
+          # The bookworm-slim image has no curl/wget — TCP probe via bash's
+          # /dev/tcp instead; gatus keeps the real HTTP check via caddy.
+          # Unhealthy → podman kills the container; systemd's Restart recreates it.
+          extraOptions = [
+            "--health-cmd=bash -c 'exec 3<>/dev/tcp/127.0.0.1/4110'"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=1m"
+            "--health-timeout=5s"
+          ];
         };
 
+        # No container-level healthcheck: process-only bot, no HTTP endpoint to probe.
         last-fm-presence = {
           image = "ghcr.io/frostplexx/lastfm-discord-presence:main";
           volumes = [];

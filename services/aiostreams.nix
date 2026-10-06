@@ -188,7 +188,18 @@ _: {
         labels = {
           "io.containers.autoupdate" = "registry";
         };
+        # Podman does not inherit image HEALTHCHECKs — mirror the upstream
+        # one explicitly (node script → localhost:$PORT/api/v1/status).
+        # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
+          # Retry inside the command: podman's first check fires immediately at
+          # start, and a failed transient-unit check aborts NixOS activations.
+          "--health-cmd=sh -c 'n=0; until /nodejs/bin/node /app/scripts/healthcheck.js; do n=$((n+1)); [ $n -ge 8 ] && exit 1; sleep 3; done'"
+          "--health-interval=30s"
+          "--health-on-failure=kill"
+          "--health-retries=3"
+          "--health-start-period=30s"
+          "--health-timeout=40s"
           "--network=container:gluetun"
         ];
       };

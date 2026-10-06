@@ -44,7 +44,18 @@ _: {
           labels = {
             "io.containers.autoupdate" = "registry";
           };
+          # busybox wget ships with the alpine image; probe the frontend root,
+          # retrying for up to ~2min: podman's first check fires immediately at
+          # start and a failed transient-unit check aborts NixOS activations,
+          # while HA takes minutes to boot its integrations.
+          # Unhealthy → podman kills the container; systemd's Restart recreates it.
           extraOptions = [
+            "--health-cmd=sh -c 'n=0; until wget -q --spider http://127.0.0.1:8123/; do n=$((n+1)); [ $n -ge 24 ] && exit 1; sleep 5; done'"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=5m"
+            "--health-timeout=150s"
             "--network=host"
 
             "--cap-add=SYS_ADMIN"

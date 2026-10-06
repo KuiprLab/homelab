@@ -50,14 +50,22 @@ _: {
             environmentFiles = [
               "/run/secrets/gluetun.env"
             ];
+            # --health-on-failure=kill: podman kills the container when its
+            # healthcheck fails; the systemd unit's Restart=on-failure then
+            # recreates it (podman docs warn against `restart` under systemd,
+            # which owns all restarts here).
             extraOptions = [
               "--cap-add=NET_ADMIN"
               "--device=/dev/net/tun:/dev/net/tun:rwm"
-              "--health-cmd=[\"wget\", \"-qO-\", \"https://ipinfo.io/ip\"]"
+              # Podman runs each check in a transient systemd unit; a failed unit
+              # aborts NixOS activations. The first check fires before the VPN
+              # tunnel is up, so retry inside the command until it is established.
+              "--health-cmd=sh -c 'n=0; until wget -qO- https://ipinfo.io/ip >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 12 ] && exit 1; sleep 5; done'"
               "--health-interval=30s"
+              "--health-on-failure=kill"
               "--health-retries=3"
               "--health-start-period=10s"
-              "--health-timeout=10s"
+              "--health-timeout=90s"
               "--network-alias=gluetun"
               "--network=proxy"
             ];

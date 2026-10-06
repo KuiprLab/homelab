@@ -32,8 +32,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nixpkgs PR #446307 — crowdsec module refactor
-    # Overrides the upstream crowdsec NixOS modules on eclair.
+    # Crowdsec module rewrite (PR #446307 branch). The version merged into
+    # nixpkgs is still broken: the agent runs as a DynamicUser without
+    # StateDirectory (can't create /var/lib/crowdsec), the bouncer-register
+    # script reads /etc/crowdsec/config.yaml which nothing creates, and LAPI
+    # is disabled by default. The PR branch fixes all of those and adds
+    # settings.console.enrollKeyFile (console enrollment via LoadCredential).
     nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";
   };
 

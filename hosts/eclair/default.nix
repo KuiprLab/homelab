@@ -36,7 +36,7 @@ in {
             inherit (config.flake) eclairCaddyVirtualHosts;
           };
 
-          # Replace upstream crowdsec modules with PR #446307
+          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix)
           disabledModules = [
             "services/security/crowdsec.nix"
             "services/security/crowdsec-firewall-bouncer.nix"
