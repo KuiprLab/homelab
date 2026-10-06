@@ -40,7 +40,7 @@ _: {
       # Containers
       virtualisation.oci-containers.containers = {
         "authelia" = {
-          image = "docker.io/authelia/authelia:4.38.8@sha256:19375b10024caeef4e0b119a6247beae84cbaa02c846cfd750e92dea910d4b6a";
+          image = "docker.io/authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54";
           volumes = [
             "${config.sops.secrets."authelia/configuration.yml".path}:/config/configuration.yml:ro"
             "authelia_data:/data:rw"
