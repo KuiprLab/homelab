@@ -28,7 +28,7 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
   lint:
-    name: Statix Lint
+    name: Nix Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -38,11 +38,11 @@ jobs:
           extra-conf: |
             extra-experimental-features = nix-command flakes external-builders
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - name: Run statix linter
-        run: |
-          echo "Linting Flake..."
-          nix run nixpkgs#statix -- check .
-          nix run nixpkgs#deadnix -- -eq .
+      - uses: DeterminateSystems/flake-checker-action@main
+      - name: Flake checks (statix, deadnix, treefmt, sni-routing)
+        env:
+          NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
+        run: nix flake check
 
   detect-configs:
     name: Detect Configurations
@@ -116,7 +116,7 @@ jobs:
 
   test-configurations:
     name: Test Nix Configurations
-    needs: [security-check, lint, detect-configs]
+    needs: [detect-configs]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -141,12 +141,6 @@ jobs:
         with:
           name: sorbet
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
-      - uses: DeterminateSystems/flake-checker-action@main
-      - name: Check flake
-        env:
-          NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
-        run: nix flake check
 
       - name: Build Configuration
         env:
