@@ -36,8 +36,6 @@ _: {
     aclBlock = aclBlockFor "be_local" localHostNames + aclBlockFor "be_sorbet" extHostNames;
   in {
     networking.firewall.allowedTCPPorts = [80 443];
-    # Stats, tailnet-only.
-    networking.firewall.interfaces."tailscale0".allowedTCPPorts = [8404];
 
     services.haproxy = {
       enable = true;
@@ -63,11 +61,13 @@ _: {
         #--------------------------------------------------------------------
         # CSV at /stats;csv exposes backend up/down so gatus can alert on
         # be_sorbet flipping to DOWN before users see 503s.
-        # Bound to all interfaces; firewall restricts 8404 to tailscale0 +
-        # loopback so it's never publicly reachable.
+        # Loopback-only: the local, host-networked gatus scrapes 127.0.0.1,
+        # remote viewing works via `ssh -L 8404:127.0.0.1:8404 eclair`.
+        # (Not bound to the tailnet IP: haproxy would fail at boot whenever
+        # tailscale brings the address up after haproxy starts.)
         frontend fe_stats
           mode http
-          bind *:8404
+          bind 127.0.0.1:8404
           stats enable
           stats uri /stats
           stats refresh 10s

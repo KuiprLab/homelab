@@ -59,21 +59,27 @@ _: {
           ];
           ports = [
             "127.0.0.1:11443:443"
-            "5005:5005"
-            "9543:9543"
-            "6789:6789"
-            "8080:8080"
-            "8443:8443"
-            "9080:9080"
-            "8444:8444"
-            "3478:3478/udp"
-            "5514:5514/udp"
-            "10003:10003/udp"
-            "11084:11084"
-            "5671:5671"
-            "8880:8880"
-            "8881:8881"
-            "8882:8882"
+            # Device/portal ports: bound to the LAN IP, not 0.0.0.0. APs and
+            # other devices talk to UOS_SYSTEM_IP (192.168.0.85, see the
+            # set-inform note above), so LAN-side behavior is unchanged — but
+            # tailscale0 is a trusted interface, so a 0.0.0.0 bind would make
+            # every port tailnet-wide. (Loopback-only would break device
+            # adoption, which is why these aren't 127.0.0.1 like the UI.)
+            "192.168.0.85:5005:5005"
+            "192.168.0.85:9543:9543"
+            "192.168.0.85:6789:6789"
+            "192.168.0.85:8080:8080"
+            "192.168.0.85:8443:8443"
+            "192.168.0.85:9080:9080"
+            "192.168.0.85:8444:8444"
+            "192.168.0.85:3478:3478/udp"
+            "192.168.0.85:5514:5514/udp"
+            "192.168.0.85:10003:10003/udp"
+            "192.168.0.85:11084:11084"
+            "192.168.0.85:5671:5671"
+            "192.168.0.85:8880:8880"
+            "192.168.0.85:8881:8881"
+            "192.168.0.85:8882:8882"
           ];
           privileged = true;
           environment = {
