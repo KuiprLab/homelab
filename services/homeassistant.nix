@@ -40,10 +40,8 @@ _: {
         containers.homeassistant = {
           volumes = ["home-assistant:/config"];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/home-assistant/home-assistant:stable"; # Warning: if the tag does not change, the image will not be updated
-          labels = {
-            "io.containers.autoupdate" = "registry";
-          };
+          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:3e6710a7ab2a61311d9d899b719f6c3657791c63e8f4942cec4ebc42401d6b76";
+          # Digest-pinned; renovate bumps the digest.
           # busybox wget ships with the alpine image; probe the frontend root,
           # retrying for up to ~2min: podman's first check fires immediately at
           # start and a failed transient-unit check aborts NixOS activations,

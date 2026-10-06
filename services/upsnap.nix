@@ -18,10 +18,7 @@ _: {
           TZ = "Europe/Berlin";
           SLSKD_REMOTE_CONFIGURATION = "true";
         };
-        image = "ghcr.io/seriousm4x/upsnap:latest";
-        labels = {
-          "io.containers.autoupdate" = "registry";
-        };
+        image = "ghcr.io/seriousm4x/upsnap:latest@sha256:1e7c2345c493f9228a5dc2102be06b5a33331100f303fe0078502f4ef1068724";
         # Podman does not inherit image HEALTHCHECKs — mirror the upstream
         # one explicitly (curl → 127.0.0.1:8090/api/health).
         # Unhealthy → podman kills the container; systemd's Restart recreates it.

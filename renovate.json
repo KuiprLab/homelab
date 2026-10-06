@@ -8,5 +8,18 @@
   ],
   "automerge": true,
   "automergeType": "pr",
-  "prHourlyLimit": 0
+  "prHourlyLimit": 0,
+  "pinDigests": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "podman container images declared in NixOS modules",
+      "fileMatch": ["\\.nix$"],
+      "matchStrings": [
+        "image\\s*=\\s*\"(?<depName>(?:[a-z0-9][a-z0-9.-]*\\.[a-z]{2,}(?::\\d+)?/)?[a-z0-9][a-z0-9-]*(?:/[a-z0-9][a-z0-9._-]*)+):(?<currentValue>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ]
 }
