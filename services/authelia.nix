@@ -44,10 +44,14 @@ _: {
           volumes = [
             "${config.sops.secrets."authelia/configuration.yml".path}:/config/configuration.yml:ro"
             "authelia_data:/data:rw"
-            "${config.sops.secrets."authelia/authelia-users.yaml".path}:/config/users_database.yaml:rw"
+            # :ro -- a compromised container must not be able to rewrite the
+            # password hashes; rotate by regenerating the sops secret instead.
+            "${config.sops.secrets."authelia/authelia-users.yaml".path}:/config/users_database.yaml:ro"
           ];
           ports = [
-            "9091:9091/tcp"
+            # loopback only: caddy (host) proxies auth.ext.kuipr.de -> here;
+            # never expose the auth service to LAN/tailnet directly
+            "127.0.0.1:9091:9091/tcp"
           ];
           environmentFiles = [
             "${config.sops.secrets."authelia/authelia.env".path}"

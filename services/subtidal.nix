@@ -11,11 +11,24 @@ _: {
     };
 
     eclairNixosModules.subtidal = {config, ...}: {
+      # Host identity matching the container's `user = "1000:100"`: the
+      # secret is chowned to this user so the container (uid 1000) can read
+      # it, while no other unprivileged user can.
+      users.groups.subtidal = {};
+      users.users.subtidal = {
+        isSystemUser = true;
+        uid = 1000;
+        group = "subtidal";
+      };
+
       sops.secrets."subtidal" = {
         sopsFile = ../secrets/eclair/subtidal.toml;
         format = "binary";
         key = "";
-        mode = "0444";
+        # 0400 + owner: readable only by the container user (uid 1000),
+        # not world-readable as before.
+        owner = "subtidal";
+        mode = "0400";
       };
 
       virtualisation = {

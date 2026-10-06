@@ -276,32 +276,33 @@ _: {
           RemainAfterExit = true;
         };
         script = ''
-          cscli allowlists create internal-ranges -d "local infrastructure ranges" 2>/dev/null || true
+          cscli allowlists create internal-ranges -d "loopback, link-local and the two tailnet infra IPs" 2>/dev/null || true
           ${lib.concatMapStringsSep "\n" (r: "cscli allowlists add internal-ranges ${r} -d 'local infra' 2>/dev/null || true") [
             "127.0.0.0/8"
-            "10.0.0.0/8"
-            "172.16.0.0/12"
-            "192.168.0.0/16"
             "169.254.0.0/16"
-            "100.64.0.0/10"
+            # eclair's own tailnet IP (AppSec listener, LAPI) ...
+            "100.99.168.34/32"
+            # ... and sorbet's (its caddy forward_auths here, gatus probes here)
+            "100.120.32.9/32"
             "::1/128"
             "fe80::/10"
-            "fc00::/7"
           ]}
         '';
       };
     };
 
-    # Whitelist internal ranges so infra traffic (haproxy→caddy hops, gatus
-    # health checks, tailnet management access) can never generate alerts or
-    # bans — the v0.0.36 firewall bouncer itself has no whitelist option, so
-    # this happens at the agent's parse stage.
+    # Whitelist only the traffic paths that are genuinely ours (loopback hops,
+    # link-local, the two tailnet infra IPs) so infra traffic can never
+    # generate alerts or bans — the v0.0.36 firewall bouncer itself has no
+    # whitelist option, so this happens at the agent's parse stage.
+    # Deliberately NOT blanket RFC1918/CGNAT: a compromised LAN device (hairpin
+    # dual-A record) or tailnet node must remain ban-able.
     environment.etc."crowdsec/parsers/s01-whitelist/local-ranges.yaml" = {
       user = "crowdsec";
       group = "crowdsec";
       text = ''
         name: local/private-ranges
-        description: "Loopback, RFC1918, link-local and tailnet ranges"
+        description: "Loopback, link-local and tailnet infra IPs"
         # onsuccess: next_stage is REQUIRED: a whitelist node without it
         # "succeeds" but never advances the event, so every non-whitelisted
         # line aborts at this stage and no scenario ever sees it.
@@ -310,14 +311,11 @@ _: {
           reason: "local infrastructure ranges"
           cidr:
             - "127.0.0.0/8"
-            - "10.0.0.0/8"
-            - "172.16.0.0/12"
-            - "192.168.0.0/16"
             - "169.254.0.0/16"
-            - "100.64.0.0/10"
+            - "100.99.168.34/32"
+            - "100.120.32.9/32"
             - "::1/128"
             - "fe80::/10"
-            - "fc00::/7"
       '';
     };
   };

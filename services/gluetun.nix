@@ -70,7 +70,10 @@ _: {
               "--network=proxy"
             ];
             ports = [
-              "8081:8080"
+              # loopback only: gluetun's HTTP proxy has no consumer in this
+              # repo; anything that needs VPN egress should reach it via a
+              # caddy vhost or the loopback address
+              "127.0.0.1:8081:8080"
               # slskd web UI: loopback only, so caddy + authelia is the sole way in
               "127.0.0.1:5030:5030"
               # aiostreams: loopback only, caddy publishes it as *.ext.kuipr.de
