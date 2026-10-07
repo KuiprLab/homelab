@@ -40,7 +40,7 @@ _: {
         containers.homeassistant = {
           volumes = ["home-assistant:/config"];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:3e6710a7ab2a61311d9d899b719f6c3657791c63e8f4942cec4ebc42401d6b76";
+          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:1b64d38f38d922bf9d59336451fd6453e1d614f934456af4ee3d2a51061be3a4";
           # Digest-pinned; renovate bumps the digest.
           # busybox wget ships with the alpine image; probe the frontend root,
           # retrying for up to ~2min: podman's first check fires immediately at
