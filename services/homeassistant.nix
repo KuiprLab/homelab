@@ -36,8 +36,8 @@ _: {
       # the file byte-exactly.
       # Mounted :ro -- UI-side edits to configuration.yaml won't persist;
       # change the secret in git and rotate via sops.
-      sops.secrets."homeassistant/configuration.yaml" = {
-        sopsFile = ../secrets/sorbet/homeassistant/configuration.yaml;
+      sops.secrets."homeassistant/configuration" = {
+        sopsFile = ../secrets/sorbet/homeassistant/configuration;
         format = "binary";
         key = "";
         restartUnits = ["podman-homeassistant.service"];
@@ -58,7 +58,7 @@ _: {
             "home-assistant:/config"
             # Shadows the copy inside the named volume; the volume still holds
             # everything else (/storage, themes, automations.yaml, ...).
-            "${config.sops.secrets."homeassistant/configuration.yaml".path}:/config/configuration.yaml:ro"
+            "${config.sops.secrets."homeassistant/configuration".path}:/config/configuration.yaml:ro"
           ];
           environment.TZ = "Europe/Berlin";
           image = "ghcr.io/home-assistant/home-assistant:stable@sha256:1b64d38f38d922bf9d59336451fd6453e1d614f934456af4ee3d2a51061be3a4";
