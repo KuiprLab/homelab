@@ -26,7 +26,18 @@ _: {
     ];
 
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module
-    nixosModules.homeassistant = _: {
+    nixosModules.homeassistant = {config, ...}: {
+      # configuration.yaml holds credentials (WOL switch password), so it is
+      # tracked in git as a sops secret instead of living only in the volume.
+      # Mounted :ro -- UI-side edits to configuration.yaml won't persist;
+      # change the secret in git and rotate via sops.
+      sops.secrets."homeassistant/configuration.yaml" = {
+        sopsFile = ../secrets/sorbet/homeassistant/configuration.yaml;
+        format = "yaml";
+        key = "";
+        restartUnits = ["podman-homeassistant.service"];
+      };
+
       networking.firewall.allowedTCPPorts = [
         8123
         5353
@@ -38,7 +49,12 @@ _: {
       virtualisation.oci-containers = {
         backend = "podman";
         containers.homeassistant = {
-          volumes = ["home-assistant:/config"];
+          volumes = [
+            "home-assistant:/config"
+            # Shadows the copy inside the named volume; the volume still holds
+            # everything else (/storage, themes, automations.yaml, ...).
+            "${config.sops.secrets."homeassistant/configuration.yaml".path}:/config/configuration.yaml:ro"
+          ];
           environment.TZ = "Europe/Berlin";
           image = "ghcr.io/home-assistant/home-assistant:stable@sha256:1b64d38f38d922bf9d59336451fd6453e1d614f934456af4ee3d2a51061be3a4";
           # Digest-pinned; renovate bumps the digest.
