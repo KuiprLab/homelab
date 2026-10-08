@@ -27,13 +27,18 @@ _: {
 
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module
     nixosModules.homeassistant = {config, ...}: {
-      # configuration.yaml holds credentials (WOL switch password), so it is
-      # tracked in git as a sops secret instead of living only in the volume.
+      # configuration.yaml holds credentials (auth_oidc client secret), so it
+      # is tracked in git as a sops secret instead of living only in the
+      # volume. Encrypted in binary format on purpose: sops' YAML mode parses
+      # and re-serializes the document, which silently destroys HA config
+      # semantics (!include tags become plain strings, empty scalars become
+      # null) and breaks frontend setup into recovery mode. Binary decrypts
+      # the file byte-exactly.
       # Mounted :ro -- UI-side edits to configuration.yaml won't persist;
       # change the secret in git and rotate via sops.
       sops.secrets."homeassistant/configuration.yaml" = {
         sopsFile = ../secrets/sorbet/homeassistant/configuration.yaml;
-        format = "yaml";
+        format = "binary";
         key = "";
         restartUnits = ["podman-homeassistant.service"];
       };
