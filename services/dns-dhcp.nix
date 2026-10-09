@@ -55,13 +55,15 @@ _: {
         bind-interfaces = true;
         dns-forward-max = 300;
         address = "/.int.kuipr.de/${serverIp}";
-        server = [
-          #TODO: Find non-US alternative that isn't Quad9
-          "1.1.1.1"
-          "1.1.2.2"
-          "8.8.8.8"
-          "8.8.4.4"
-        ];
+        # Single upstream: the Pi-hole on eclair (tailnet), so every
+        # LAN lookup gets ad blocking and query logging. Deliberately NO
+        # public fallbacks — dnsmasq forwards to all configured servers
+        # and takes the first reply, so a fallback would race Pi-hole's
+        # answers and bypass blocking. Fail-closed like the DoH profiles;
+        # the gatus DNS probe (this host, has.int.kuipr.de) covers
+        # outages. The *.int.kuipr.de wildcard below is still answered
+        # locally, before any forwarding.
+        server = ["100.99.168.34"];
 
         dhcp-range = "192.168.0.2,192.168.0.254,255.255.255.0,24h";
         dhcp-option = [

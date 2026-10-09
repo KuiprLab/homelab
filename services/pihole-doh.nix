@@ -390,9 +390,13 @@
             "/var/lib/pihole:/etc/pihole:rw"
           ];
           ports = [
-            # DNS for the DoH shim (loopback only).
+            # DNS for the DoH shim (loopback) plus the tailnet IP: the
+            # upstream for sorbet's LAN dnsmasq (dnsDhcp module), which
+            # forwards unresolved LAN names here over tailscale0.
             "127.0.0.1:53:53/tcp"
             "127.0.0.1:53:53/udp"
+            "${eclairTailscaleIp}:53:53/tcp"
+            "${eclairTailscaleIp}:53:53/udp"
             # Dashboard: loopback (for pihole-blocklists.service — no
             # dependency on the tailnet IP existing yet) plus the tailnet
             # IP so only sorbet's caddy (pi.ext.kuipr.de → authelia) can
@@ -421,9 +425,14 @@
       };
 
       # Tailnet traffic lands on tailscale0, which the firewall drops by
-      # default — allow only the dashboard port there (8053/53 stay
-      # loopback-only and never cross the wire).
-      networking.firewall.interfaces.tailscale0.allowedTCPPorts = [8090];
+      # default — allow the dashboard port (8090, sorbet's caddy →
+      # authelia'd pi.ext) and the LAN-dnsmasq upstream port (53, from
+      # sorbet's dnsmasq). 8053 stays loopback-only and never crosses
+      # the wire.
+      networking.firewall.interfaces.tailscale0 = {
+        allowedTCPPorts = [53 8090];
+        allowedUDPPorts = [53];
+      };
     };
   };
 }
