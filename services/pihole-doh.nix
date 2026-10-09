@@ -410,11 +410,15 @@
             "${eclairTailscaleIp}:8090:80/tcp"
           ];
           # Podman does not inherit image HEALTHCHECKs — mirror the
-          # upstream one (dig pi.hole, no recursion needed).
-          # Unhealthy → podman kills the container; systemd's Restart
-          # recreates it (same pattern as subtidal).
+          # upstream one (dig pi.hole, no recursion needed). The command
+          # must ride out FTL's own startup: podman runs healthchecks as
+          # transient systemd units (subtidal pattern), and deploy-rs
+          # aborts activation on ANY failed unit — so the first tick,
+          # which fires while FTL is still booting, retries a few times
+          # before reporting failure. Unhealthy → podman kills the
+          # container; systemd's Restart recreates it (same as subtidal).
           extraOptions = [
-            "--health-cmd=dig -p 53 +short +norecurse +retry=0 @127.0.0.1 pi.hole >/dev/null"
+            "--health-cmd=dig -p 53 +short +norecurse +retry=0 @127.0.0.1 pi.hole >/dev/null || { for _ in 1 2 3; do sleep 3; dig -p 53 +short +norecurse +retry=0 @127.0.0.1 pi.hole >/dev/null && exit 0; done; exit 1; }"
             "--health-interval=60s"
             "--health-on-failure=kill"
             "--health-retries=3"
