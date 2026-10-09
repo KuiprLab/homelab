@@ -23,3 +23,5 @@ dist/
 # Generated DoH device profiles (embed secret tokens — see
 # scripts/gen-doh-profiles).
 doh-profiles/
+
+PLAN.md
