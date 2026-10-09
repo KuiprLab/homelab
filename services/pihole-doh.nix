@@ -342,6 +342,9 @@
           ExecStart =
             "${pkgs.dnsproxy}/bin/dnsproxy "
             + "--listen=127.0.0.1 "
+            # --port=0 disables the plain TCP/UDP listener: the default
+            # port 53 would collide with the container's published 53.
+            + "--port=0 "
             + "--https-port=8053 "
             + "--tls-crt=${localDohCert}/localhost.crt "
             + "--tls-key=${localDohCert}/localhost.key "
