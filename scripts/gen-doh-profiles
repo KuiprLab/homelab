@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Generates token-gated DoH configuration profiles (.mobileconfig) for the
+# Apple devices listed in services/pihole-doh.nix.
+#
+# The per-device tokens live in secrets/eclair/doh-tokens (sops, dotenv);
+# this script decrypts them locally and writes one plist per device to
+# ./doh-profiles/ (gitignored). Install by AirDropping the profile to the
+# device, then Settings → Profile Downloaded → install, and finally
+# Settings → General → VPN & Device Management → DNS → select the Pi-hole
+# profile (iOS asks which DNS server to trust).
+#
+# The payload uses Apple's DNSSettings dictionary keys:
+#   DNSProtocol=HTTPS, ServerURL (singular — per Apple's device-management
+#   docs a profile carries ONE DoH URL), ServerAddresses (plain-IP metadata;
+#   inert for HTTPS payloads), AllowFailover=false (iOS 26+: failover means
+#   "fall back to the default system resolver" — for this homelab that is
+#   the ISP's DNS, which would silently bypass the Pi-hole AND break the
+#   *.int.kuipr.de split horizon; false keeps filtering enforced: DoH or
+#   no DNS — gatus alerts cover the outage).
+#
+# Usage: ./scripts/gen-doh-profiles [device ...]   (default: all devices)
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+OUT_DIR="$REPO_ROOT/doh-profiles"
+
+# The age key is not on disk in keychains — fetch it from 1Password like
+# scripts/upload-secrets.sh does.
+export SOPS_AGE_KEY="$(op read "$(sed -n 's/.*onepassworditem: *//p' "$REPO_ROOT/.sops.yaml")")"
+
+TOKENS="$(
+  sops -d --input-type dotenv --output-type dotenv "$REPO_ROOT/secrets/eclair/doh-tokens"
+)"
+
+# Devices from services/pihole-doh.nix (keep in sync).
+ALL_DEVICES=(iphone ipad macbook)
+
+DEVICES=("$@")
+if [[ ${#DEVICES[@]} -eq 0 ]]; then
+  DEVICES=("${ALL_DEVICES[@]}")
+fi
+
+mkdir -p "$OUT_DIR"
+
+for DEVICE in "${DEVICES[@]}"; do
+  VAR="DOH_TOKEN_${DEVICE^^}"
+  TOKEN="$(grep "^$VAR=" <<<"$TOKENS" | cut -d= -f2-)"
+  [[ -n "$TOKEN" ]] || { echo "ERROR: $VAR not found in doh-tokens" >&2; exit 1; }
+
+  UUID1="$(uuidgen | tr 'A-Z' 'a-z')"
+  UUID2="$(uuidgen | tr 'A-Z' 'a-z')"
+
+  cat >"$OUT_DIR/$DEVICE.mobileconfig" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>DNSSettings</key>
+      <dict>
+        <key>DNSProtocol</key>
+        <string>HTTPS</string>
+        <key>ServerAddresses</key>
+        <array>
+          <string>46.38.236.192</string>
+        </array>
+        <key>ServerURL</key>
+        <string>https://dns.ext.kuipr.de/$TOKEN/dns-query</string>
+        <key>AllowFailover</key>
+        <false/>
+      </dict>
+      <key>PayloadDescription</key>
+      <string>Encrypted DNS (DoH) via dns.ext.kuipr.de, device token: $DEVICE</string>
+      <key>PayloadDisplayName</key>
+      <string>Pi-hole DoH ($DEVICE)</string>
+      <key>PayloadIdentifier</key>
+      <string>de.kuipr.doh.$DEVICE</string>
+      <key>PayloadType</key>
+      <string>com.apple.dnsSettings.managed</string>
+      <key>PayloadUUID</key>
+      <string>$UUID1</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>ProhibitDisablement</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Routes DNS over HTTPS through the homelab Pi-hole (ad blocking everywhere). Token identifies this device in query logs.</string>
+  <key>PayloadDisplayName</key>
+  <string>Pi-hole DoH ($DEVICE)</string>
+  <key>PayloadIdentifier</key>
+  <string>de.kuipr.doh.$DEVICE.profile</string>
+  <key>PayloadOrganization</key>
+  <string>kuipr lab</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>$UUID2</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+EOF
+
+  # The profile embeds the device token — keep permissions tight until it
+  # is moved onto the device.
+  chmod 600 "$OUT_DIR/$DEVICE.mobileconfig"
+  plutil -lint "$OUT_DIR/$DEVICE.mobileconfig"
+  echo "wrote $OUT_DIR/$DEVICE.mobileconfig"
+done

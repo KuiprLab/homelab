@@ -19,3 +19,7 @@ dist/
 
 # Local dev credentials (plaintext). Real secrets live in secrets/, via sops.
 .env
+
+# Generated DoH device profiles (embed secret tokens — see
+# scripts/gen-doh-profiles).
+doh-profiles/

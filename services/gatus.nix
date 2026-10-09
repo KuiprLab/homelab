@@ -71,11 +71,23 @@
     # endpoint instead.
     ssoProtectedExtHosts = [
       "music.ext.kuipr.de"
+      # pi.ext.kuipr.de — authelia SSO; monitored via its /api/auth probe
+      # (services/pihole-doh.nix).
+      "pi.ext.kuipr.de"
+    ];
+
+    # Hosts whose own modules contribute dedicated probes with non-200
+    # semantics. The auto-generated probes expect [STATUS] == 200, which
+    # these never return on their bare root, so keep them out of both
+    # auto lists (they'd false-alert immediately).
+    non200ExtHosts = [
+      # token-gated DoH: tokenless probe must answer 403 (services/pihole-doh.nix)
+      "dns.ext.kuipr.de"
     ];
 
     extHostNames =
       builtins.filter
-      (host: !(lib.elem host ssoProtectedExtHosts))
+      (host: !(lib.elem host (ssoProtectedExtHosts ++ non200ExtHosts)))
       (lib.filter
         (lib.hasSuffix ".ext.kuipr.de")
         (lib.attrNames (config.flake.caddyVirtualHosts // config.flake.eclairCaddyVirtualHosts)));

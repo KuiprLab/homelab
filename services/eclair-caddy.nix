@@ -29,6 +29,31 @@
           default = null;
           description = "Human-readable service name.";
         };
+        appsec = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = ''
+                  Send each request through the CrowdSec AppSec engine
+                  (forward_auth). Disable for machine-to-machine endpoints
+                  where WAF inspection is noise (e.g. DNS wire payloads).
+                '';
+              };
+            };
+          };
+          default = {};
+        };
+        logFormat = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = ''
+            Value of a `format` directive inside the access-log block, e.g.
+            a filter encoder that redacts secrets from logged URIs. The
+            default (null) keeps caddy's default json encoder.
+          '';
+        };
       };
     });
     default = {};
@@ -78,26 +103,29 @@
               log {
                 output stderr
                 level INFO
+                ${lib.optionalString (v.logFormat != null) v.logFormat}
               }
-              # CrowdSec AppSec (WAF): clone each request to the local appsec
-              # listener for inspection — 2xx continues, otherwise (e.g. 403
-              # from an in-band WAF rule) the response is sent to the client.
-              # The engine reads the request details from dedicated headers,
-              # so they are set explicitly here and a client can't spoof
-              # them (header_up replaces anything the client sent). Note:
-              # fail-closed — if the crowdsec agent is down, so are the
-              # vhosts.
-              forward_auth 127.0.0.1:7422 {
-                # the appsec reads the real URI from a header; this is just
-                # the wire path (a required subdirective in caddy 2.11).
-                uri /
-                header_up X-Crowdsec-Appsec-Ip {remote_host}
-                header_up X-Crowdsec-Appsec-Verb {method}
-                header_up X-Crowdsec-Appsec-Uri {uri}
-                header_up X-Crowdsec-Appsec-Host {host}
-                header_up X-Crowdsec-Appsec-User-Agent {header.User-Agent}
-                header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
-              }
+              ${lib.optionalString v.appsec.enable ''
+                # CrowdSec AppSec (WAF): clone each request to the local appsec
+                # listener for inspection — 2xx continues, otherwise (e.g. 403
+                # from an in-band WAF rule) the response is sent to the client.
+                # The engine reads the request details from dedicated headers,
+                # so they are set explicitly here and a client can't spoof
+                # them (header_up replaces anything the client sent). Note:
+                # fail-closed — if the crowdsec agent is down, so are the
+                # vhosts.
+                forward_auth 127.0.0.1:7422 {
+                  # the appsec reads the real URI from a header; this is just
+                  # the wire path (a required subdirective in caddy 2.11).
+                  uri /
+                  header_up X-Crowdsec-Appsec-Ip {remote_host}
+                  header_up X-Crowdsec-Appsec-Verb {method}
+                  header_up X-Crowdsec-Appsec-Uri {uri}
+                  header_up X-Crowdsec-Appsec-Host {host}
+                  header_up X-Crowdsec-Appsec-User-Agent {header.User-Agent}
+                  header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
+                }
+              ''}
               ${v.extraConfig}
             '';
           })
