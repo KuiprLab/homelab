@@ -9,14 +9,15 @@
 # Settings → General → VPN & Device Management → DNS → select the Pi-hole
 # profile (iOS asks which DNS server to trust).
 #
-# The payload uses Apple's DNSSettings dictionary keys:
-#   DNSProtocol=HTTPS, ServerURL (singular — per Apple's device-management
-#   docs a profile carries ONE DoH URL), ServerAddresses (plain-IP metadata;
-#   inert for HTTPS payloads), AllowFailover=false (iOS 26+: failover means
-#   "fall back to the default system resolver" — for this homelab that is
-#   the ISP's DNS, which would silently bypass the Pi-hole AND break the
-#   *.int.kuipr.de split horizon; false keeps filtering enforced: DoH or
-#   no DNS — gatus alerts cover the outage).
+# The payload is the minimal shape that installs on current iOS/macOS
+# (modeled on AdGuard's official DoH profile): DNSSettings carries ONLY
+# DNSProtocol=HTTPS and ServerURL. The older keys ServerAddresses and
+# AllowFailover are deprecated — on current iOS they make the profile
+# REFUSE TO INSTALL — and ProhibitDisablement is left at its default
+# (false). Consequence: if the DoH endpoint is down, iOS may fall back
+# to the system resolver (fail-open); outage detection is gatus's job.
+# The profile is unsigned (fine for manual install; iOS shows a
+# "not signed" warning).
 #
 # Usage: ./scripts/gen-doh-profiles [device ...]   (default: all devices)
 set -euo pipefail
@@ -48,8 +49,10 @@ for DEVICE in "${DEVICES[@]}"; do
   TOKEN="$(grep "^$VAR=" <<<"$TOKENS" | cut -d= -f2-)"
   [[ -n "$TOKEN" ]] || { echo "ERROR: $VAR not found in doh-tokens" >&2; exit 1; }
 
-  UUID1="$(uuidgen | tr 'A-Z' 'a-z')"
-  UUID2="$(uuidgen | tr 'A-Z' 'a-z')"
+  # Payload UUIDs must be uppercase (matches the Apple reference and
+  # AdGuard's working profile; uuidgen is already uppercase on macOS).
+  UUID1="$(uuidgen)"
+  UUID2="$(uuidgen)"
 
   cat >"$OUT_DIR/$DEVICE.mobileconfig" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -63,14 +66,8 @@ for DEVICE in "${DEVICES[@]}"; do
       <dict>
         <key>DNSProtocol</key>
         <string>HTTPS</string>
-        <key>ServerAddresses</key>
-        <array>
-          <string>46.38.236.192</string>
-        </array>
         <key>ServerURL</key>
         <string>https://dns.ext.kuipr.de/$TOKEN/dns-query</string>
-        <key>AllowFailover</key>
-        <false/>
       </dict>
       <key>PayloadDescription</key>
       <string>Encrypted DNS (DoH) via dns.ext.kuipr.de, device token: $DEVICE</string>
@@ -78,14 +75,14 @@ for DEVICE in "${DEVICES[@]}"; do
       <string>Pi-hole DoH ($DEVICE)</string>
       <key>PayloadIdentifier</key>
       <string>de.kuipr.doh.$DEVICE</string>
+      <key>PayloadOrganization</key>
+      <string>kuipr lab</string>
       <key>PayloadType</key>
       <string>com.apple.dnsSettings.managed</string>
       <key>PayloadUUID</key>
       <string>$UUID1</string>
       <key>PayloadVersion</key>
       <integer>1</integer>
-      <key>ProhibitDisablement</key>
-      <false/>
     </dict>
   </array>
   <key>PayloadDescription</key>
@@ -98,6 +95,8 @@ for DEVICE in "${DEVICES[@]}"; do
   <string>kuipr lab</string>
   <key>PayloadRemovalDisallowed</key>
   <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
   <key>PayloadType</key>
   <string>Configuration</string>
   <key>PayloadUUID</key>
