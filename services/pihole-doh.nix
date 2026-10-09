@@ -404,9 +404,10 @@
             # Dashboard: loopback (for pihole-blocklists.service — no
             # dependency on the tailnet IP existing yet) plus the tailnet
             # IP so only sorbet's caddy (pi.ext.kuipr.de → authelia) can
-            # reach it.
-            "127.0.0.1:8090:8080/tcp"
-            "${eclairTailscaleIp}:8090:8080/tcp"
+            # reach it. Target port 80: FTL's default webserver port
+            # (verified: `pihole-FTL --config webserver.port` → 80/443).
+            "127.0.0.1:8090:80/tcp"
+            "${eclairTailscaleIp}:8090:80/tcp"
           ];
           # Podman does not inherit image HEALTHCHECKs — mirror the
           # upstream one (dig pi.hole, no recursion needed).
