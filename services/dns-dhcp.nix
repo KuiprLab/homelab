@@ -64,6 +64,11 @@ _: {
         # outages. The *.int.kuipr.de wildcard below is still answered
         # locally, before any forwarding.
         server = ["100.99.168.34"];
+        # Tag forwarded queries with the requesting client's full address
+        # (EDNS Client Subnet). Pi-hole reads it (FTL dns.EDNS0ECS) and
+        # shows each LAN device as its own client. Only ever sent to
+        # Pi-hole; FTL does not propagate received ECS upstream.
+        add-subnet = "32,128";
 
         dhcp-range = "192.168.0.2,192.168.0.254,255.255.255.0,24h";
         dhcp-option = [
