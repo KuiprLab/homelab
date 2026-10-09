@@ -44,7 +44,7 @@ _: {
         containers.musicassistant = {
           volumes = ["music-assistant:/data"];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/music-assistant/server:latest@sha256:28023f8c0d96ca2496391f3218a6d70d7ef3ba84db846b3a3f3cd9ce7ef8aedc";
+          image = "ghcr.io/music-assistant/server:latest@sha256:45fdb050e06962097a07feeb092606ad119fac17965c8228a57146448d5fa772";
           # Digest-pinned; renovate bumps the digest.
           environment = {
             "LOG_LEVEL" = "info";
