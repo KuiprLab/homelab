@@ -14,7 +14,10 @@
 # scripts/gen-doh-profiles.
 #
 # The dashboard rides the sorbet caddy + authelia pattern: sorbet
-# reverse-proxies pi.ext.kuipr.de → this container on eclair's tailnet IP.
+# reverse-proxies pi.ext.kuipr.de → this container on eclair's tailnet
+# IP. FTL's own webserver password is cleared (FTLCONF_webserver_api_
+# password = "") — authelia is the only gate; the open REST API is what
+# pihole-blocklists.service talks to.
 #
 # Verified-against-upstream notes (things that differ from the plan draft):
 # - dnscrypt-proxy CANNOT shim for a plain-DNS upstream: 2.1.18 rejects
@@ -102,11 +105,12 @@
       '';
       authelia = {
         enable = true;
-        # Unauthenticated GET /api/auth answers 401 from FTL itself (no
-        # session info beyond `valid: false`), so gatus can probe the full
-        # sorbet caddy → tailnet → eclair → pihole path without a bypass
-        # returning 200 and without any secret in the probe. Without this
-        # bypass authelia 401s the request before it reaches eclair.
+        # Passwordless FTL answers GET /api/auth with
+        # {"session":{"valid":true,...,"message":"no password set"}}
+        # (200), so gatus can probe the full sorbet caddy → tailnet →
+        # eclair → pihole path without a secret in the probe. Without
+        # this bypass authelia would 302 the request before it reaches
+        # eclair.
         bypassPaths = ["/api/auth"];
       };
     };
@@ -135,14 +139,14 @@
       {
         name = "Pi-hole dashboard (e2e)";
         group = "external";
-        # Unauthenticated → FTL 401 (see bypassPaths above). Failure means
-        # the tailnet leg, the container, or FTL is down; authelia being
-        # bypassed here means it does NOT cover the SSO path.
+        # Passwordless FTL answers 200 (see bypassPaths above). Failure
+        # means the tailnet leg, the container, or FTL is down; authelia
+        # being bypassed here means it does NOT cover the SSO path.
         url = "https://pi.ext.kuipr.de/api/auth";
         interval = "60s";
         client.timeout = "10s";
         conditions = [
-          "[STATUS] == 401"
+          "[STATUS] == 200"
           "[RESPONSE_TIME] < 2000"
         ];
         alerts = [{type = "discord";}];
@@ -199,25 +203,19 @@
 
         # Wait for FTL's webserver (container may still be starting).
         for _ in $(${pkgs.coreutils}/bin/seq 1 30); do
-          # No -f: any HTTP answer (including 401) means FTL is up.
+          # No -f: any HTTP answer (even an error) means FTL is up.
           if ${pkgs.curl}/bin/curl -s -o /dev/null http://127.0.0.1:8090/api/auth; then
             break
           fi
           sleep 2
         done
 
-        PAYLOAD="$(${pkgs.jq}/bin/jq -n --arg password "$FTLCONF_webserver_api_password" '{password: $password}')"
-        RESP="$(${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/auth \
-          -H 'Content-Type: application/json' -d "$PAYLOAD")"
-        SID="$(${pkgs.jq}/bin/jq -r '.session.sid' <<<"$RESP")"
-        CSRF="$(${pkgs.jq}/bin/jq -r '.session.csrf' <<<"$RESP")"
-        [[ -n "$SID" && "$SID" != "null" ]] || {
-          echo "ERROR: Pi-hole API auth failed" >&2
-          exit 1
-        }
-        AUTH=(-H "X-FTL-SID: $SID" -H "X-FTL-CSRF: $CSRF")
-
-        CUR="$(${pkgs.curl}/bin/curl -fsS "''${AUTH[@]}" http://127.0.0.1:8090/api/lists)"
+        # No auth: the webserver password is deliberately cleared (see
+        # FTLCONF_webserver_api_password below) — the dashboard and API
+        # are gated by authelia on sorbet, and with no password set FTL
+        # serves everything unauthenticated (verified: POST /api/lists
+        # returns 201 without any SID/CSRF headers).
+        CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8090/api/lists)"
 
         # Remove block-type lists that are not in the declarative set
         # (UI-added adlists are removed on the next run — allowlists and
@@ -228,7 +226,7 @@
             | select(.address as $a | $want[0] | map(.address) | index($a) | not)
             | {item: .address, type: "block"}]' <<<"$CUR")"
         if [[ "$TO_DELETE" != "[]" ]]; then
-          ${pkgs.curl}/bin/curl -fsS "''${AUTH[@]}" -X POST http://127.0.0.1:8090/api/lists/batchDelete \
+          ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/lists/batchDelete \
             -H 'Content-Type: application/json' -d "$TO_DELETE" >/dev/null
         fi
 
@@ -239,7 +237,7 @@
               '.lists[] | select(.type == "block" and .address == $a)' <<<"$CUR" >/dev/null; then
             COMMENT="$(${pkgs.jq}/bin/jq -r --arg a "$ADDR" \
               '[.[] | select(.address == $a)][0].comment' ${blocklists})"
-            ${pkgs.curl}/bin/curl -fsS "''${AUTH[@]}" -X POST 'http://127.0.0.1:8090/api/lists?type=block' \
+            ${pkgs.curl}/bin/curl -fsS -X POST 'http://127.0.0.1:8090/api/lists?type=block' \
               -H 'Content-Type: application/json' \
               -d "$(${pkgs.jq}/bin/jq -n --arg a "$ADDR" --arg c "$COMMENT" \
                 '{address: $a, comment: $c}')" >/dev/null
@@ -257,16 +255,6 @@
         # Caddy expands {$DOH_TOKEN_*} from this file at config load.
         "doh-tokens" = {
           sopsFile = ../secrets/eclair/doh-tokens;
-          format = "dotenv";
-          key = "";
-          owner = "root";
-        };
-
-        # FTLCONF_webserver_api_password — plaintext, because the same
-        # secret is needed to log into the REST API for the blocklist
-        # bootstrap (webserver.api.pwhash is write-only inside FTL).
-        "doh-env" = {
-          sopsFile = ../secrets/eclair/doh-env;
           format = "dotenv";
           key = "";
           owner = "root";
@@ -297,13 +285,12 @@
             wantedBy = ["multi-user.target"];
             after = ["podman-pihole.service"];
             requires = ["podman-pihole.service"];
-            # FTLCONF_webserver_api_password (see doh-env above) — the
-            # script uses it to log into the REST API.
+            # The REST API is open (no webserver password — see the
+            # container env below), so the script needs no credentials.
             serviceConfig = {
               Type = "oneshot";
               ExecStart = applyBlocklists;
               RemainAfterExit = true;
-              EnvironmentFile = [config.sops.secrets."doh-env".path];
             };
           };
 
@@ -371,9 +358,19 @@
         oci-containers.containers.pihole = {
           image = "docker.io/pihole/pihole:2025.11.1@sha256:848cf5af61397e6976e2fc356aa00aaa3d3a53b2ac90a956675779ff1f4bdf34";
           autoStart = true;
-          environmentFiles = [config.sops.secrets."doh-env".path];
           environment = {
             TZ = "Europe/Berlin";
+
+            # Deliberate empty password → no FTL login/API auth. The
+            # docker image ships a default password hash in its baked-in
+            # pihole.toml, so this empty value is load-bearing: it clears
+            # webserver.api.password. The dashboard is gated by authelia
+            # on sorbet instead, and the blocklist script relies on the
+            # open API (verified: POST /api/lists → 201 with no SID).
+            # Note: with the env var set, `pihole-FTL --config
+            # webserver.api.password` is read-only — the password can
+            # only be changed here, not via pihole -a -p.
+            FTLCONF_webserver_api_password = "";
 
             # Upstream resolvers (newline-separated arrays, not JSON).
             FTLCONF_dns_upstreams = "1.1.1.1;9.9.9.9";
