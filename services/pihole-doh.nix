@@ -374,7 +374,7 @@
         podman.enable = true;
         oci-containers.backend = "podman";
         oci-containers.containers.pihole = {
-          image = "pihole/pihole:2025.11.1@sha256:848cf5af61397e6976e2fc356aa00aaa3d3a53b2ac90a956675779ff1f4bdf34";
+          image = "docker.io/pihole/pihole:2025.11.1@sha256:848cf5af61397e6976e2fc356aa00aaa3d3a53b2ac90a956675779ff1f4bdf34";
           autoStart = true;
           environmentFiles = [config.sops.secrets."doh-env".path];
           environment = {
