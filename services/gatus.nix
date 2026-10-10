@@ -157,9 +157,10 @@
       [
         {
           name = "Caddy";
-          # /healthz bypasses forward auth (see vhost below) — a bare probe
-          # would get a 302 from authelia and fail [STATUS] == 200.
-          url = "https://gatus.int.kuipr.de/healthz";
+          # /health bypasses forward auth (see vhost below) — a bare probe
+          # would get a 302 from authelia and fail [STATUS] == 200. Note:
+          # gatus images >= Oct 2026 no longer serve the /healthz alias.
+          url = "https://gatus.int.kuipr.de/health";
           group = "Network";
           conditions = [
             "[STATUS] == 200"
@@ -210,8 +211,9 @@
         {
           name = "sorbet caddy (tailnet)";
           group = "sorbet-perspective";
-          # /healthz bypasses forward auth, same as the sorbet-side Caddy check.
-          url = "https://gatus.int.kuipr.de/healthz";
+          # /health bypasses forward auth, same as the sorbet-side Caddy check.
+          # gatus images >= Oct 2026 no longer serve the /healthz alias.
+          url = "https://gatus.int.kuipr.de/health";
           interval = "60s";
           client = {
             timeout = "10s";
@@ -270,8 +272,9 @@
       authelia = {
         enable = true;
         # gatus probes its own dashboard with no session; authelia would 302
-        # it. /healthz answers 200 from caddy, bypassing forward auth.
-        bypassPaths = ["/healthz"];
+        # it. /health answers 200 from caddy, bypassing forward auth.
+        # gatus images >= Oct 2026 no longer serve the /healthz alias.
+        bypassPaths = ["/health"];
       };
     };
 
@@ -346,6 +349,7 @@
           #   stays Unhealthy regardless of actual reachability.
           extraOptions = [
             "--dns=192.168.0.85"
+            "--network=podman:ip=10.88.3.24"
             "--cap-add=NET_RAW"
           ];
         };

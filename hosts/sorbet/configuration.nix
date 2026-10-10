@@ -1,7 +1,11 @@
 _: let
   user = "daniel";
 in {
-  flake.nixosModules.sorbetConfiguration = {pkgs, ...}: {
+  flake.nixosModules.sorbetConfiguration = {
+    pkgs,
+    lib,
+    ...
+  }: {
     system.stateVersion = "24.05";
 
     environment.systemPackages = with pkgs; [
@@ -76,10 +80,23 @@ in {
         ];
       };
       defaultGateway = "192.168.0.1";
-      nameservers = [
-        "1.1.1.1"
-        "127.0.0.1"
-      ];
+      # Resolve via dnsmasq's LAN address instead of loopback: dnsmasq tags
+      # forwarded queries with EDNS client subnet, and Pi-hole trusts the
+      # real routable address 192.168.0.85 as the client — so host services
+      # (musicassistant, navidrome, homeassistant, ...) show up as the named
+      # "sorbet" client in FTL. Loopback sources (127.0.0.1) get their ECS
+      # dropped and collapse into the anonymous published-port client
+      # (10.88.0.1 on eclair) together with the DoH devices.
+      # mkOverride 50 is required: the dnsmasq NixOS module
+      # (services.dnsmasq.resolveLocalQueries) sets localhost nameservers
+      # and networking.resolvconf.useLocalResolver, which a plain value
+      # loses to. Same pattern the Pi-hole module uses on eclair.
+      nameservers = lib.mkOverride 50 ["192.168.0.85"];
+      # ...and useLocalResolver must be off entirely: it forces 127.0.0.1
+      # and ::1 into the generated resolv.conf regardless of the
+      # nameservers above. Without this, host services stay anonymous
+      # loopback clients in FTL.
+      resolvconf.useLocalResolver = false;
     };
 
     # Nix settings

@@ -74,6 +74,14 @@ _: {
         # check fires immediately at start, and a failed transient-unit check
         # aborts NixOS activations. Unhealthy → podman kills → systemd Restart
         # recreates.
+        #
+        # Per-container DNS attribution: aardvark-dns (the default podman DNS
+        # proxy) forwards upstream with no client identity, so Pi-hole logs
+        # every bridge container as the gateway (10.88.0.1 → FTL shows
+        # "host.containers.internal"). Pointing --dns at host dnsmasq makes
+        # dnsmasq tag ECS with this container's pinned IP (ip= option), and
+        # FTL's dns_hosts table names it. NOTE: this bypasses aardvark, so
+        # podman's inter-container name resolution is not available.
         extraOptions = [
           "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
           "--health-interval=30s"
@@ -81,8 +89,9 @@ _: {
           "--health-retries=3"
           "--health-start-period=2m"
           "--health-timeout=40s"
-          "--network=podman"
+          "--network=podman:ip=10.88.3.21"
           "--network=msv6"
+          "--dns=192.168.0.85"
         ];
       };
     };

@@ -46,7 +46,10 @@ _: {
     '';
   in {
     # -------------------------------------------------------------------------
-    # dnsmasq — handles both DHCP and DNS (.int.kuipr.de wildcard)
+    # dnsmasq — DHCP + pure LAN forwarding to the Pi-hole. No local DNS
+    # answers, no cache: every lookup is forwarded (with ECS tagging) and
+    # answered by FTL, which owns both the *.int.kuipr.de wildcard and the
+    # only cache — so the FTL query log shows every lookup with its client.
     # -------------------------------------------------------------------------
     services.dnsmasq = {
       enable = true;
@@ -54,16 +57,21 @@ _: {
         interface = [networkInterface];
         bind-interfaces = true;
         dns-forward-max = 300;
-        address = "/.int.kuipr.de/${serverIp}";
         # Single upstream: the Pi-hole on eclair (tailnet), so every
         # LAN lookup gets ad blocking and query logging. Deliberately NO
         # public fallbacks — dnsmasq forwards to all configured servers
         # and takes the first reply, so a fallback would race Pi-hole's
         # answers and bypass blocking. Fail-closed like the DoH profiles;
         # the gatus DNS probe (this host, has.int.kuipr.de) covers
-        # outages. The *.int.kuipr.de wildcard below is still answered
-        # locally, before any forwarding.
+        # outages. No local overrides: even *.int.kuipr.de is answered
+        # by FTL's wildcard (FTLCONF_misc_dnsmasq_lines in
+        # services/pihole-doh.nix).
         server = ["100.99.168.34"];
+        # No cache here — Pi-hole is the only caching layer, so repeated
+        # lookups stay visible (and attributable) in the FTL query log
+        # instead of being absorbed by dnsmasq. FTL's cache absorbs the
+        # extra traffic; the added latency is one LAN-to-tailnet hop.
+        cache-size = 0;
         # Tag forwarded queries with the requesting client's full address
         # (EDNS Client Subnet). Pi-hole reads it (FTL dns.EDNS0ECS) and
         # shows each LAN device as its own client. Only ever sent to

@@ -38,7 +38,11 @@
     # Devices owning a DoH token. Adding a device = generate a token in
     # secrets/eclair/doh-tokens (DOH_TOKEN_<UPPER>), list it here, redeploy,
     # then `scripts/gen-doh-profiles <device>` and install the profile.
-    dohDevices = ["iphone" "ipad" "macbook"];
+    dohDevices = [
+      "iphone"
+      "ipad"
+      "macbook"
+    ];
 
     # One Caddyfile route per device: strip the token from the URI (the
     # request keeps its /dns-query path for dnsproxy's DoH listener),
@@ -176,16 +180,22 @@
       # Declarative blocklist set — the source of truth applied by
       # pihole-blocklists.service. Edit here, redeploy, done (gravity
       # refresh is part of the convergence unit).
-      blocklists = pkgs.writeText "pihole-blocklists.json" (builtins.toJSON [
-        {
-          address = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
-          comment = "StevenBlack unified hosts (ads + malware)";
-        }
-        {
-          address = "https://big.oisd.nl";
-          comment = "OISD big";
-        }
-      ]);
+      blocklists = pkgs.writeText "pihole-blocklists.json" (
+        builtins.toJSON [
+          {
+            address = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
+            comment = "StevenBlack unified hosts (ads + malware)";
+          }
+          {
+            address = "https://big.oisd.nl";
+            comment = "OISD big";
+          }
+          {
+            address = "https://media.githubusercontent.com/media/zachlagden/Pi-hole-Optimized-Blocklists/main/lists/all_domains.txt";
+            comment = "Zach Lagden's optimized blocklist";
+          }
+        ]
+      );
 
       # Script: converge gravity.db's list set to the declarative one, then
       # refresh gravity. Runs only when the set's content hash changes.
@@ -350,7 +360,10 @@
       # boot (podman image pull needs DNS, the podman DNS path needs
       # the pihole image). Use the provider's resolvers (eclair's current
       # DHCP resolv.conf anyway).
-      networking.nameservers = lib.mkOverride 50 ["46.38.225.230" "46.38.252.230"];
+      networking.nameservers = lib.mkOverride 50 [
+        "46.38.225.230"
+        "46.38.252.230"
+      ];
 
       virtualisation = {
         podman.enable = true;
@@ -379,11 +392,22 @@
             # "local-only" listening mode refuses. Required for 127.0.0.1:53.
             FTLCONF_dns_listeningMode = "ALL";
 
-            # LAN names so DoH clients can resolve hosts at home.
-            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu";
+            # Names for every client that can reach FTL, so the dashboard
+            # shows hosts instead of bare addresses. sorbet's podman
+            # containers query host dnsmasq directly (--dns=192.168.0.85,
+            # pinned IPs); dnsmasq forwards with ECS, but traffic addressed
+            # to the host's own LAN address gets rewritten to 192.168.0.85
+            # on the way in, so container DNS shares the "sorbet" client —
+            # except raw-socket resolvers (gatus's dns:// probe), which
+            # keep their pinned container IP. 10.88.0.1 is eclair's own
+            # published-port path: DoH devices all arrive through it and
+            # cannot be told apart (inherent to DoH).
+            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu;10.88.3.21 multi-scrobbler;10.88.3.22 koito;10.88.3.23 last-fm-presence;10.88.3.24 gatus;10.89.2.20 authelia;10.89.0.20 gluetun;100.120.32.9 sorbet-ts;100.68.101.35 macbook;10.88.0.1 doh-clients";
 
             # Split horizon: *.int.kuipr.de (and the domain itself) answer
-            # with sorbet from anywhere, like dnsmasq does on the LAN.
+            # with sorbet from anywhere. This is the single wildcard
+            # authority now — sorbet's dnsmasq no longer answers .int
+            # locally and forwards here instead.
             FTLCONF_misc_dnsmasq_lines = "address=/int.kuipr.de/192.168.0.85";
           };
           volumes = [
@@ -420,6 +444,14 @@
             "--health-retries=3"
             "--health-start-period=30s"
             "--health-timeout=15s"
+            # podman injects "10.88.0.1 host.containers.internal" into the
+            # container's /etc/hosts, which beats FTLCONF_dns_hosts in FTL's
+            # reverse lookup — the published-port client would stay named
+            # host.containers.internal. --no-hosts drops podman's entries;
+            # FTL then names the client from FTLCONF_dns_hosts (doh-clients).
+            # The healthcheck and FTL only use numeric addresses, so nothing
+            # inside the container needs name resolution.
+            "--no-hosts"
           ];
         };
       };
@@ -430,7 +462,10 @@
       # sorbet's dnsmasq). 8053 stays loopback-only and never crosses
       # the wire.
       networking.firewall.interfaces.tailscale0 = {
-        allowedTCPPorts = [53 8090];
+        allowedTCPPorts = [
+          53
+          8090
+        ];
         allowedUDPPorts = [53];
       };
     };
