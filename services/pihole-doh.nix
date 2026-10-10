@@ -438,6 +438,14 @@
             "--health-retries=3"
             "--health-start-period=30s"
             "--health-timeout=15s"
+            # podman injects "10.88.0.1 host.containers.internal" into the
+            # container's /etc/hosts, which beats FTLCONF_dns_hosts in FTL's
+            # reverse lookup — the published-port client would stay named
+            # host.containers.internal. --no-hosts drops podman's entries;
+            # FTL then names the client from FTLCONF_dns_hosts (doh-clients).
+            # The healthcheck and FTL only use numeric addresses, so nothing
+            # inside the container needs name resolution.
+            "--no-hosts"
           ];
         };
       };

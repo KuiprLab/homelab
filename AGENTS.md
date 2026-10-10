@@ -80,3 +80,7 @@ host.
 When working on a new feature or bug fix, create a new branch first. For commit messages use the conventional commit
 standard.
 
+
+# Documentation
+
+Documentation lives in Obsidian. You can access it using the obsidian cli `obsidian` and all of the Docs live in `2 Resources/Homelab`

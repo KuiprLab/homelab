@@ -1,7 +1,11 @@
 _: let
   user = "daniel";
 in {
-  flake.nixosModules.sorbetConfiguration = {pkgs, ...}: {
+  flake.nixosModules.sorbetConfiguration = {
+    pkgs,
+    lib,
+    ...
+  }: {
     system.stateVersion = "24.05";
 
     environment.systemPackages = with pkgs; [
@@ -83,7 +87,11 @@ in {
       # "sorbet" client in FTL. Loopback sources (127.0.0.1) get their ECS
       # dropped and collapse into the anonymous published-port client
       # (10.88.0.1 on eclair) together with the DoH devices.
-      nameservers = ["192.168.0.85"];
+      # mkOverride 50 is required: the dnsmasq NixOS module
+      # (services.dnsmasq.resolveLocalQueries) sets localhost nameservers
+      # and networking.resolvconf.useLocalResolver, which a plain value
+      # loses to. Same pattern the Pi-hole module uses on eclair.
+      nameservers = lib.mkOverride 50 ["192.168.0.85"];
     };
 
     # Nix settings
