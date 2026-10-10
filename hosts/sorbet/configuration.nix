@@ -92,6 +92,11 @@ in {
       # and networking.resolvconf.useLocalResolver, which a plain value
       # loses to. Same pattern the Pi-hole module uses on eclair.
       nameservers = lib.mkOverride 50 ["192.168.0.85"];
+      # ...and useLocalResolver must be off entirely: it forces 127.0.0.1
+      # and ::1 into the generated resolv.conf regardless of the
+      # nameservers above. Without this, host services stay anonymous
+      # loopback clients in FTL.
+      resolvconf.useLocalResolver = false;
     };
 
     # Nix settings
