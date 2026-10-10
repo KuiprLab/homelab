@@ -386,15 +386,22 @@
             # "local-only" listening mode refuses. Required for 127.0.0.1:53.
             FTLCONF_dns_listeningMode = "ALL";
 
-            # LAN names so DoH clients can resolve hosts at home. The 10.88.x
-            # entries are sorbet's podman containers: each container queries
-            # host dnsmasq directly (--dns=192.168.0.85) with a pinned IP, so
-            # dnsmasq forwards ECS=<container IP> and FTL names the client
-            # from these entries instead of showing a raw bridge address.
-            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu;10.88.3.21 multi-scrobbler;10.88.3.22 koito;10.88.3.23 last-fm-presence;10.88.3.24 gatus;10.89.2.20 authelia;10.89.0.20 gluetun";
+            # Names for every client that can reach FTL, so the dashboard
+            # shows hosts instead of bare addresses. sorbet's podman
+            # containers query host dnsmasq directly (--dns=192.168.0.85,
+            # pinned IPs); dnsmasq forwards with ECS, but traffic addressed
+            # to the host's own LAN address gets rewritten to 192.168.0.85
+            # on the way in, so container DNS shares the "sorbet" client —
+            # except raw-socket resolvers (gatus's dns:// probe), which
+            # keep their pinned container IP. 10.88.0.1 is eclair's own
+            # published-port path: DoH devices all arrive through it and
+            # cannot be told apart (inherent to DoH).
+            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu;10.88.3.21 multi-scrobbler;10.88.3.22 koito;10.88.3.23 last-fm-presence;10.88.3.24 gatus;10.89.2.20 authelia;10.89.0.20 gluetun;100.120.32.9 sorbet-ts;100.68.101.35 macbook;10.88.0.1 doh-clients";
 
             # Split horizon: *.int.kuipr.de (and the domain itself) answer
-            # with sorbet from anywhere, like dnsmasq does on the LAN.
+            # with sorbet from anywhere. This is the single wildcard
+            # authority now — sorbet's dnsmasq no longer answers .int
+            # locally and forwards here instead.
             FTLCONF_misc_dnsmasq_lines = "address=/int.kuipr.de/192.168.0.85";
           };
           volumes = [

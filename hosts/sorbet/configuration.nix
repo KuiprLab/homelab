@@ -76,10 +76,14 @@ in {
         ];
       };
       defaultGateway = "192.168.0.1";
-      nameservers = [
-        "1.1.1.1"
-        "127.0.0.1"
-      ];
+      # Resolve via dnsmasq's LAN address instead of loopback: dnsmasq tags
+      # forwarded queries with EDNS client subnet, and Pi-hole trusts the
+      # real routable address 192.168.0.85 as the client — so host services
+      # (musicassistant, navidrome, homeassistant, ...) show up as the named
+      # "sorbet" client in FTL. Loopback sources (127.0.0.1) get their ECS
+      # dropped and collapse into the anonymous published-port client
+      # (10.88.0.1 on eclair) together with the DoH devices.
+      nameservers = ["192.168.0.85"];
     };
 
     # Nix settings
