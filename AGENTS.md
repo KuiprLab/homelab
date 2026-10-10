@@ -83,4 +83,9 @@ standard.
 
 # Documentation
 
-Documentation lives in Obsidian. You can access it using the obsidian cli `obsidian` and all of the Docs live in `2 Resources/Homelab`
+Documentation lives in Obsidian. You can access it using the obsidian cli `obsidian` and all of the Docs live in `2 Resources/Homelab`.
+Do not write outside of that directory, but you can and should link inline to related items. After adding major
+feartures or rewrites, update the Documentation. The documentation should be as stable as possible i.e. not contain
+information that changes frequently or is "brittle". Especially document quirks and steps that have to be done
+imperatively. Writing style should be terse and technical. Do not use filler words, and such. Keep to the  ASD-STE100
+Simplified Technical English standard!
