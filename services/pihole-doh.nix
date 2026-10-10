@@ -38,7 +38,11 @@
     # Devices owning a DoH token. Adding a device = generate a token in
     # secrets/eclair/doh-tokens (DOH_TOKEN_<UPPER>), list it here, redeploy,
     # then `scripts/gen-doh-profiles <device>` and install the profile.
-    dohDevices = ["iphone" "ipad" "macbook"];
+    dohDevices = [
+      "iphone"
+      "ipad"
+      "macbook"
+    ];
 
     # One Caddyfile route per device: strip the token from the URI (the
     # request keeps its /dns-query path for dnsproxy's DoH listener),
@@ -176,16 +180,22 @@
       # Declarative blocklist set — the source of truth applied by
       # pihole-blocklists.service. Edit here, redeploy, done (gravity
       # refresh is part of the convergence unit).
-      blocklists = pkgs.writeText "pihole-blocklists.json" (builtins.toJSON [
-        {
-          address = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
-          comment = "StevenBlack unified hosts (ads + malware)";
-        }
-        {
-          address = "https://big.oisd.nl";
-          comment = "OISD big";
-        }
-      ]);
+      blocklists = pkgs.writeText "pihole-blocklists.json" (
+        builtins.toJSON [
+          {
+            address = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
+            comment = "StevenBlack unified hosts (ads + malware)";
+          }
+          {
+            address = "https://big.oisd.nl";
+            comment = "OISD big";
+          }
+          {
+            address = "https://media.githubusercontent.com/media/zachlagden/Pi-hole-Optimized-Blocklists/main/lists/all_domains.txt";
+            comment = "Zach Lagden's optimized blocklist";
+          }
+        ]
+      );
 
       # Script: converge gravity.db's list set to the declarative one, then
       # refresh gravity. Runs only when the set's content hash changes.
@@ -350,7 +360,10 @@
       # boot (podman image pull needs DNS, the podman DNS path needs
       # the pihole image). Use the provider's resolvers (eclair's current
       # DHCP resolv.conf anyway).
-      networking.nameservers = lib.mkOverride 50 ["46.38.225.230" "46.38.252.230"];
+      networking.nameservers = lib.mkOverride 50 [
+        "46.38.225.230"
+        "46.38.252.230"
+      ];
 
       virtualisation = {
         podman.enable = true;
@@ -456,7 +469,10 @@
       # sorbet's dnsmasq). 8053 stays loopback-only and never crosses
       # the wire.
       networking.firewall.interfaces.tailscale0 = {
-        allowedTCPPorts = [53 8090];
+        allowedTCPPorts = [
+          53
+          8090
+        ];
         allowedUDPPorts = [53];
       };
     };
