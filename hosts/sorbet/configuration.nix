@@ -42,7 +42,6 @@ in {
       incus = {
         enable = true;
         ui.enable = true;
-        agent.enable = true;
       };
 
       podman = {
