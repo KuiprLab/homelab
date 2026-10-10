@@ -52,7 +52,10 @@ _: {
           ports = ["127.0.0.1:4110:4110"];
           # The bookworm-slim image has no curl/wget — TCP probe via bash's
           # /dev/tcp instead; gatus keeps the real HTTP check via caddy.
-          # Unhealthy → podman kills the container; systemd's Restart recreates it.
+          # Retry inside the command: podman's first check fires immediately
+          # at start, and a failed transient-unit check aborts NixOS
+          # activations (this actually failed a deploy — Rust boot is slower
+          # than the check). Unhealthy → podman kills; systemd Restart recreates.
           #
           # Per-container DNS attribution: aardvark-dns (the default podman DNS
           # proxy) forwards upstream with no client identity, so Pi-hole logs
@@ -62,7 +65,7 @@ _: {
           # FTL's dns_hosts table names it. NOTE: this bypasses aardvark, so
           # podman's inter-container name resolution is not available.
           extraOptions = [
-            "--health-cmd=bash -c 'exec 3<>/dev/tcp/127.0.0.1/4110'"
+            "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
             "--health-interval=30s"
             "--health-on-failure=kill"
             "--health-retries=3"
