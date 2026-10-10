@@ -161,6 +161,11 @@ _: {
         # Auto-register with the local LAPI; the API key is generated on the box.
         registerBouncer.enable = true;
         # settings.mode defaults to "nftables" once networking.nftables is enabled.
+        # The module's generated rulesets build the drop rule without nftables
+        # counters, so the bouncer has nothing to read its usage metrics from
+        # (console "Traffic dropped" stays at zero). We declare the tables
+        # ourselves below instead.
+        createRulesets = false;
       };
     };
 
@@ -173,6 +178,53 @@ _: {
         allowedTCPPorts = [7422];
       };
       nftables.enable = true;
+    };
+
+    # Rulesets for the bouncer's set-only mode (it only fills the sets, the
+    # chains/rules are ours). Mirror the module's createRulesets output, but
+    # with the nftables named counters the bouncer reads its usage metrics
+    # from: cs-firewall-bouncer's metrics collector sums counter objects named
+    # `processed` (must be exactly that) and `crowdsec[6]-blacklists-*` — with
+    # none present it reports dropped/processed = 0 and the console's
+    # "Traffic dropped" widget stays empty. Enforcement semantics (hook input,
+    # priority filter) are unchanged from the module's rulesets.
+    networking.nftables.tables = {
+      "crowdsec" = {
+        family = "ip";
+        content = ''
+          set crowdsec-blacklists {
+            type ipv4_addr
+            flags timeout
+          }
+
+          counter crowdsec-blacklists-all { }
+          counter processed { }
+
+          chain crowdsec-chain {
+            type filter hook input priority filter; policy accept;
+            counter name processed
+            ip saddr @crowdsec-blacklists counter name crowdsec-blacklists-all drop
+          }
+        '';
+      };
+      "crowdsec6" = {
+        family = "ip6";
+        content = ''
+          set crowdsec6-blacklists {
+            type ipv6_addr
+            flags timeout
+          }
+
+          counter crowdsec6-blacklists-all { }
+          counter processed { }
+
+          chain crowdsec6-chain {
+            type filter hook input priority filter; policy accept;
+            counter name processed
+            ip6 saddr @crowdsec6-blacklists counter name crowdsec6-blacklists-all drop
+          }
+        '';
+      };
     };
 
     # The module runs every crowdsec service under its own DynamicUser (all
