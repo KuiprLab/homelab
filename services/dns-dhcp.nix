@@ -80,6 +80,10 @@ _: {
 
         no-resolv = true;
         log-dhcp = true;
+        # TEMPORARY (debugging): log every query with its source to the
+        # journal — used to attribute ws.audioscrobbler.com bursts that
+        # show up in FTL as 10.88.0.1. Remove once the culprit is found.
+        log-queries = true;
       };
     };
 
