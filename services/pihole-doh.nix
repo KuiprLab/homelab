@@ -379,8 +379,12 @@
             # "local-only" listening mode refuses. Required for 127.0.0.1:53.
             FTLCONF_dns_listeningMode = "ALL";
 
-            # LAN names so DoH clients can resolve hosts at home.
-            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu";
+            # LAN names so DoH clients can resolve hosts at home. The 10.88.x
+            # entries are sorbet's podman containers: each container queries
+            # host dnsmasq directly (--dns=192.168.0.85) with a pinned IP, so
+            # dnsmasq forwards ECS=<container IP> and FTL names the client
+            # from these entries instead of showing a raw bridge address.
+            FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu;10.88.3.21 multi-scrobbler;10.88.3.22 koito;10.88.3.23 last-fm-presence;10.88.3.24 gatus;10.89.2.20 authelia;10.89.0.20 gluetun";
 
             # Split horizon: *.int.kuipr.de (and the domain itself) answer
             # with sorbet from anywhere, like dnsmasq does on the LAN.

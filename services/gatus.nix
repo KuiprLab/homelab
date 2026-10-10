@@ -346,6 +346,7 @@
           #   stays Unhealthy regardless of actual reachability.
           extraOptions = [
             "--dns=192.168.0.85"
+            "--network=podman:ip=10.88.3.24"
             "--cap-add=NET_RAW"
           ];
         };
