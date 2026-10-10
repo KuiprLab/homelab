@@ -369,13 +369,6 @@
         podman.enable = true;
         oci-containers.backend = "podman";
         oci-containers.containers.pihole = {
-          # NOTE: the FTL query database (piholeFTL.db) is schema versioned
-          # and forward-only: 2026.09.0 (FTL v6.7.1) migrated it to schema
-          # 22. Anything older refuses to load it ("Expected query database
-          # version 21 but found 22, database not available") — FTL then
-          # boots with an empty in-memory database and the dashboard looks
-          # like all statistics were wiped, while the on-disk db stays
-          # intact. Never pin an image older than this one.
           image = "docker.io/pihole/pihole:2026.09.0@sha256:bd3fc82ee1b1473a45fc074379dcd9fd7ce3e933809c44e10c0df9b22fd5de63";
           autoStart = true;
           environment = {
