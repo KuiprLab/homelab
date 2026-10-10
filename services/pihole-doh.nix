@@ -211,10 +211,12 @@
           exit 0
         fi
 
-        # Wait for FTL's webserver (container may still be starting).
+        # Wait for FTL's webserver (container may still be starting). A bare
+        # HTTP answer isn't enough: while FTL initializes, its endpoints
+        # return 5xx (and a restart of the container mid-switch then fails
+        # the apply and rolls back the whole deploy). Require an actual 200.
         for _ in $(${pkgs.coreutils}/bin/seq 1 30); do
-          # No -f: any HTTP answer (even an error) means FTL is up.
-          if ${pkgs.curl}/bin/curl -s -o /dev/null http://127.0.0.1:8090/api/auth; then
+          if ${pkgs.curl}/bin/curl -fsS -o /dev/null http://127.0.0.1:8090/api/lists; then
             break
           fi
           sleep 2
@@ -236,7 +238,9 @@
             | select(.address as $a | $want[0] | map(.address) | index($a) | not)
             | {item: .address, type: "block"}]' <<<"$CUR")"
         if [[ "$TO_DELETE" != "[]" ]]; then
-          ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/lists/batchDelete \
+          # FTL's batch operations are colon-routed (/api/lists:batchDelete);
+          # a slash is parsed as /api/lists/<item> and rejected with a 400.
+          ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/lists:batchDelete \
             -H 'Content-Type: application/json' -d "$TO_DELETE" >/dev/null
         fi
 
