@@ -1,4 +1,4 @@
-# Pi-hole v6 + token-gated DoH. 
+# Pi-hole v6 + token-gated DoH.
 #
 # DNS topology:
 #   Device → haproxy :443 (SNI dns.ext.kuipr.de → be_local)
@@ -192,7 +192,7 @@
         CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8090/api/lists)"
 
         # Remove block-type lists that are not in the declarative set
-        # (UI-added adlists are removed on the next run 
+        # (UI-added adlists are removed on the next run
         TO_DELETE="$(${pkgs.jq}/bin/jq -c --slurpfile want ${blocklists} '
           [.lists[]
             | select(.type == "block")

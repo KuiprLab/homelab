@@ -44,7 +44,7 @@ _: {
     '';
   in {
     # -------------------------------------------------------------------------
-    # dnsmasq DHCP + pure LAN forwarding to the Pi-hole. 
+    # dnsmasq DHCP + pure LAN forwarding to the Pi-hole.
     # -------------------------------------------------------------------------
     services.dnsmasq = {
       enable = true;
@@ -53,14 +53,14 @@ _: {
         bind-interfaces = true;
         dns-forward-max = 300;
         # Single upstream: the Pi-hole on eclair (tailnet), so every
-        # LAN lookup gets ad blocking and query logging. 
+        # LAN lookup gets ad blocking and query logging.
         server = ["100.99.168.34"];
         # Pi-hole is the only caching layer, so repeated
         # lookups stay visible (and attributable) in the FTL query log
-        # instead of being absorbed by dnsmasq. 
+        # instead of being absorbed by dnsmasq.
         cache-size = 0;
         # Tag forwarded queries with the requesting client's full address
-        # (EDNS Client Subnet). 
+        # (EDNS Client Subnet).
         add-subnet = "32,128";
 
         dhcp-range = "192.168.0.2,192.168.0.254,255.255.255.0,24h";
