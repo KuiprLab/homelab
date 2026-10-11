@@ -1,4 +1,4 @@
-# Caddy on eclair — terminates TLS locally for services hosted on the VPS
+# Caddy on eclair terminates TLS locally for services hosted on the VPS
 # itself, so their traffic never crosses the tailnet to sorbet.
 #
 # haproxy owns :80/:443, so caddy listens on 127.0.0.1:8443 and haproxy

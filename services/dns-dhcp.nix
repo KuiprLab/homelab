@@ -21,9 +21,7 @@ _: {
     serverIp = "192.168.0.85";
     networkInterface = "enp0s31f6";
 
-    # Fallback dnsmasq config — plain DNS forwarding + DHCP, no split-horizon.
-    # Activated automatically if the main dnsmasq service fails, so you can
-    # still reach the server (and it can reach GitHub etc.) to fix things.
+    # Fallback dnsmasq config: plain DNS forwarding + DHCP, no split-horizon.
     fallbackDnsmasqConf = pkgs.writeText "dnsmasq-fallback.conf" ''
       interface=${networkInterface}
       bind-interfaces
@@ -46,10 +44,7 @@ _: {
     '';
   in {
     # -------------------------------------------------------------------------
-    # dnsmasq — DHCP + pure LAN forwarding to the Pi-hole. No local DNS
-    # answers, no cache: every lookup is forwarded (with ECS tagging) and
-    # answered by FTL, which owns both the *.int.kuipr.de wildcard and the
-    # only cache — so the FTL query log shows every lookup with its client.
+    # dnsmasq DHCP + pure LAN forwarding to the Pi-hole. 
     # -------------------------------------------------------------------------
     services.dnsmasq = {
       enable = true;
@@ -58,24 +53,14 @@ _: {
         bind-interfaces = true;
         dns-forward-max = 300;
         # Single upstream: the Pi-hole on eclair (tailnet), so every
-        # LAN lookup gets ad blocking and query logging. Deliberately NO
-        # public fallbacks — dnsmasq forwards to all configured servers
-        # and takes the first reply, so a fallback would race Pi-hole's
-        # answers and bypass blocking. Fail-closed like the DoH profiles;
-        # the gatus DNS probe (this host, has.int.kuipr.de) covers
-        # outages. No local overrides: even *.int.kuipr.de is answered
-        # by FTL's wildcard (FTLCONF_misc_dnsmasq_lines in
-        # services/pihole-doh.nix).
+        # LAN lookup gets ad blocking and query logging. 
         server = ["100.99.168.34"];
-        # No cache here — Pi-hole is the only caching layer, so repeated
+        # Pi-hole is the only caching layer, so repeated
         # lookups stay visible (and attributable) in the FTL query log
-        # instead of being absorbed by dnsmasq. FTL's cache absorbs the
-        # extra traffic; the added latency is one LAN-to-tailnet hop.
+        # instead of being absorbed by dnsmasq. 
         cache-size = 0;
         # Tag forwarded queries with the requesting client's full address
-        # (EDNS Client Subnet). Pi-hole reads it (FTL dns.EDNS0ECS) and
-        # shows each LAN device as its own client. Only ever sent to
-        # Pi-hole; FTL does not propagate received ECS upstream.
+        # (EDNS Client Subnet). 
         add-subnet = "32,128";
 
         dhcp-range = "192.168.0.2,192.168.0.254,255.255.255.0,24h";
