@@ -68,7 +68,7 @@ _: {
               "--health-timeout=90s"
               "--network-alias=gluetun"
               # Pinned IP so the gluetun pod has a stable, named identity in
-              # Pi-hole (slskd/aiostreams share this netns via
+              # Pi-hole (slskd share this netns via
               # --network=container:gluetun). No --dns override: gluetun manages
               # its own resolver for VPN egress.
               "--network=proxy:ip=10.89.0.20"
@@ -80,8 +80,6 @@ _: {
               "127.0.0.1:8081:8080"
               # slskd web UI: loopback only, so caddy + authelia is the sole way in
               "127.0.0.1:5030:5030"
-              # aiostreams: loopback only, caddy publishes it as *.ext.kuipr.de
-              "127.0.0.1:3000:3000"
               "47594/tcp"
               "47594/udp"
             ];
