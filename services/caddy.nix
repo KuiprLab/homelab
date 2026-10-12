@@ -316,6 +316,15 @@
             # only honors PROXY headers from eclair; direct LAN clients
             # connect without one (fallback IGNORE), same pattern as
             # services/eclair-caddy.nix on the VPS.
+            # Global trusted_proxies: the anubis loopback hop (127.0.0.1) is
+            # trusted so the edge's X-Forwarded-Proto/Host/For survive the
+            # loopback re-entry; untrusted, caddy would strip them and
+            # re-set X-Forwarded-Proto to http, making authelia's
+            # forward-auth reject every wrapped path with a plain-text 400
+            # (insecure scheme). Safe globally: the :41000 loopback ports
+            # bind-restricted to anubis, and no public-listener client ever
+            # connects from 127.0.0.1. (Per-site `servers` blocks are only
+            # supported in caddy >= 2.13; sorbet runs 2.11.)
             servers {
               listener_wrappers {
                 proxy_protocol {
@@ -324,6 +333,7 @@
                 }
                 tls
               }
+              trusted_proxies static 127.0.0.1/32
             }
           '';
           virtualHosts =
@@ -339,13 +349,6 @@
                 logFormat = "output discard";
                 extraConfig = ''
                   bind 127.0.0.1
-                  # Trust the local anubis hop, otherwise caddy strips the
-                  # edge's X-Forwarded-* (untrusted 127.0.0.1) and re-sets
-                  # X-Forwarded-Proto to http; authelia's forward-auth then
-                  # rejects the insecure scheme with a plain-text 400.
-                  servers {
-                    trusted_proxies static 127.0.0.1/32
-                  }
                   ${serviceConfig anubisVhosts.${host}}
                 '';
               })
