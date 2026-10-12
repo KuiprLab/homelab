@@ -339,6 +339,13 @@
                 logFormat = "output discard";
                 extraConfig = ''
                   bind 127.0.0.1
+                  # Trust the local anubis hop, otherwise caddy strips the
+                  # edge's X-Forwarded-* (untrusted 127.0.0.1) and re-sets
+                  # X-Forwarded-Proto to http; authelia's forward-auth then
+                  # rejects the insecure scheme with a plain-text 400.
+                  servers {
+                    trusted_proxies static 127.0.0.1/32
+                  }
                   ${serviceConfig anubisVhosts.${host}}
                 '';
               })
