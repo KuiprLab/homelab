@@ -29,22 +29,7 @@
 #      then `paperless-manage document_thumbnails` (exports skip thumbnails;
 #      they regenerate from the originals).
 #
-# Remotes: pushed to both, independently — one failing target doesn't
-# block the other, and any failure trips the /fail ping:
-#   - icloud (official rclone `iclouddrive` backend, needs rclone ≥ 1.69):
-#     Apple trust tokens expire after 30 days — when that happens the sync
-#     fails and the /fail ping alerts. Fix it on sorbet (2FA prompt arrives
-#     on a trusted device, no sops surgery needed):
-#       sudo -u paperless \
-#         rclone reconnect icloud: --config /var/lib/paperless-backup/rclone.conf
-#     Initial setup: interactively create the [icloud] remote and merge it
-#     into secrets/sorbet/rclone (Apple ID password + 2FA; app-specific
-#     passwords are NOT accepted):
-#       rclone config   # storage: iclouddrive, service: drive
-#     Documents end up unencrypted on Apple servers; add an rclone crypt
-#     remote on top if that's a problem.
-#   - gdrive: second copy that doesn't depend on the Apple login staying
-#     healthy (already in secrets/sorbet/rclone).
+# Remote: gdrive (already in secrets/sorbet/rclone).
 _: {
   flake.nixosModules.paperlessBackup = {
     config,
@@ -53,14 +38,12 @@ _: {
     ...
   }: let
     remotes = [
-      "icloud:Backups/Paperless"
       "gdrive:paperless-backup"
     ];
     exportDir = "/media/data/Paperless-export";
-    # Writable copy of the sops-rendered rclone config: the iCloud backend
-    # refreshes cookies/trust tokens in place between runs, which the
-    # read-only sops file can't absorb. This also gives the reconnect
-    # command above a stable config path.
+    # Writable copy of the sops-rendered rclone config: rclone writes
+    # refreshed OAuth tokens back to the config between runs, which the
+    # read-only sops file can't absorb.
   in {
     sops.secrets = {
       # Same rclone config as navidrome-gdrive-sync, rendered for the
