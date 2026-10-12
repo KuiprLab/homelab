@@ -95,6 +95,7 @@
         # eclair.
         bypassPaths = ["/api/auth"];
       };
+      anubis.enable = true;
     };
 
     gatusEndpoints = [
