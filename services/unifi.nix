@@ -87,7 +87,7 @@ _: {
             UOS_SYSTEM_IP = "192.168.0.85";
           };
 
-          image = "ghcr.io/lemker/unifi-os-server:latest@sha256:ffa7bee4d6ed98350abe29247087ee330232c367b11e45a71b769719d29679f5";
+          image = "ghcr.io/lemker/unifi-os-server:latest@sha256:c0136d42d238b9574d93676aada3f61971ffb6bcbe2a3050627a9fa7ced7c878";
           # TCP-only probe: the UOS image has no verified curl/wget, but bash's
           # /dev/tcp is guaranteed on its Ubuntu base. Proves the UniFi portal
           # (nginx) accepts connections; real HTTP checks stay with gatus.
