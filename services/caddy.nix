@@ -49,6 +49,29 @@
             Authelia forward-auth settings for this vhost.
           '';
         };
+
+        anubis = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = ''
+                  Protect this vhost with Anubis (PoW bot challenge).
+                  *.ext.kuipr.de only: the public site block stops at a
+                  per-vhost Anubis instance (unix socket), which proxies
+                  accepted traffic to an auto-generated loopback site
+                  carrying this vhost's normal config (authelia wrap,
+                  routes, headers).
+                '';
+              };
+            };
+          };
+          default = {};
+          description = ''
+            Anubis PoW-challenge settings for this vhost.
+          '';
+        };
       };
     });
     default = {};
@@ -101,7 +124,59 @@
       # obvious junk is blocked before touching the session store. Note:
       # fail-closed — if eclair's crowdsec agent is down, these vhosts are
       # down. Internal (*.int.kuipr.de) vhosts are LAN-only and skip it.
-      siteConfig = host: v: let
+      #
+      # Anubis-protected vhosts (anubis.enable): Anubis has a single
+      # TARGET, so there is one instance per vhost. The public site block
+      # stops at the per-vhost anubis unix socket; the service config
+      # (authelia wrap, routes, headers) moves verbatim to an
+      # auto-generated loopback site that is the instance's TARGET. Anubis
+      # forwards the original Host header, so the loopback sites use
+      # port-only addresses with `bind 127.0.0.1` (empty host matcher).
+      # Request order on *.ext vhosts: crowdsec appsec (edge, forward_auth
+      # runs before reverse_proxy in caddy's directive order) → anubis →
+      # authelia → backend.
+      anubisVhosts = lib.filterAttrs (_: v: v.anubis.enable) virtualHosts;
+      anubisHosts = lib.sort lib.lessThan (lib.attrNames anubisVhosts);
+      # One deterministic loopback port per protected vhost. 41000+ is not
+      # used by any service in this repo; binds are loopback-only.
+      anubisPorts =
+        lib.listToAttrs
+        (lib.imap1 (i: host: lib.nameValuePair host (toString (40999 + i))) anubisHosts);
+
+      # The service part of a site block: authelia wrap and the vhost's own
+      # extraConfig. Runs at the edge for plain vhosts, and inside the
+      # loopback site for anubis-protected ones.
+      serviceConfig = v: let
+        # Bypassed paths are still reverse-proxied to the app (extraConfig),
+        # so sessionless gatus probes exercise the backend instead of getting
+        # a synthetic 200 from caddy that could never fail regardless of
+        # whether the app is actually healthy.
+        bypassBlocks =
+          lib.concatMapStringsSep "\n" (p: ''
+            route ${p} {
+              ${v.extraConfig}
+            }
+          '')
+          v.authelia.bypassPaths;
+      in
+        if !v.authelia.enable
+        then v.extraConfig
+        else ''
+          ${bypassBlocks}
+          route {
+            forward_auth 127.0.0.1:9091 {
+                    uri /api/authz/forward-auth
+                    copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+            }
+            ${v.extraConfig}
+          }
+        '';
+
+      # Edge-facing site block: access log and crowdsec appsec (ext only,
+      # caddy runs forward_auth before route/reverse_proxy), then either the
+      # anubis hop (chain ends here, service part moves to the loopback
+      # site) or the service part directly.
+      edgeConfig = host: v: let
         appsecAuth =
           if !lib.hasSuffix ".ext.kuipr.de" host
           then ""
@@ -118,17 +193,6 @@
               header_up X-Crowdsec-Appsec-Api-Key {$CADDY_APPSEC_KEY}
             }
           '';
-        # Bypassed paths are still reverse-proxied to the app (extraConfig),
-        # so sessionless gatus probes exercise the backend instead of getting
-        # a synthetic 200 from caddy that could never fail regardless of
-        # whether the app is actually healthy.
-        bypassBlocks =
-          lib.concatMapStringsSep "\n" (p: ''
-            route ${p} {
-              ${v.extraConfig}
-            }
-          '')
-          v.authelia.bypassPaths;
         # Access logs → stderr → journald → rsyslog ships them to eclair's
         # CrowdSec (services/crowdsec-shipping.nix). Own logger: the module's
         # global default logger runs at ERROR (services.caddy.logFormat),
@@ -140,20 +204,19 @@
           }
         '';
       in
-        if !v.authelia.enable
-        then accessLog + appsecAuth + v.extraConfig
-        else ''
-          ${accessLog}
-          ${bypassBlocks}
-          route {
-            ${appsecAuth}
-            forward_auth 127.0.0.1:9091 {
-                    uri /api/authz/forward-auth
-                    copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+        accessLog
+        + appsecAuth
+        + (
+          if v.anubis.enable
+          then ''
+            reverse_proxy unix//run/anubis/anubis-${host}/anubis.sock {
+              header_up X-Real-IP {remote_host}
+              header_up X-Http-Version {http.request.proto}
+              header_up X-TLS-SNI-Name {tls_server_name}
             }
-            ${v.extraConfig}
-          }
-        '';
+          ''
+          else serviceConfig v
+        );
     in
       {
         pkgs,
@@ -253,6 +316,15 @@
             # only honors PROXY headers from eclair; direct LAN clients
             # connect without one (fallback IGNORE), same pattern as
             # services/eclair-caddy.nix on the VPS.
+            # Global trusted_proxies: the anubis loopback hop (127.0.0.1) is
+            # trusted so the edge's X-Forwarded-Proto/Host/For survive the
+            # loopback re-entry; untrusted, caddy would strip them and
+            # re-set X-Forwarded-Proto to http, making authelia's
+            # forward-auth reject every wrapped path with a plain-text 400
+            # (insecure scheme). Safe globally: the :41000 loopback ports
+            # bind-restricted to anubis, and no public-listener client ever
+            # connects from 127.0.0.1. (Per-site `servers` blocks are only
+            # supported in caddy >= 2.13; sorbet runs 2.11.)
             servers {
               listener_wrappers {
                 proxy_protocol {
@@ -261,10 +333,26 @@
                 }
                 tls
               }
+              trusted_proxies static 127.0.0.1/32
             }
           '';
           virtualHosts =
-            lib.mapAttrs (host: v: {extraConfig = siteConfig host v;}) virtualHosts
+            lib.mapAttrs (host: v: {extraConfig = edgeConfig host v;}) virtualHosts
+            # Anubis TARGETs: loopback sites carrying the normal service
+            # config. `bind` keeps them off the LAN; the port-only address
+            # keeps the host matcher empty because anubis forwards the
+            # original Host header. logFormat discard: the edge site already
+            # logs each request once (the nixpkgs module would otherwise
+            # give these a file logger with the port in the path).
+            // (lib.mapAttrs' (host: _:
+              lib.nameValuePair "http://:${anubisPorts.${host}}" {
+                logFormat = "output discard";
+                extraConfig = ''
+                  bind 127.0.0.1
+                  ${serviceConfig anubisVhosts.${host}}
+                '';
+              })
+            anubisVhosts)
             // {
               "home.int.kuipr.de" = {
                 extraConfig = ''
@@ -275,12 +363,47 @@
             };
         };
 
-        systemd.services.caddy.serviceConfig.EnvironmentFile = [
-          config.sops.secrets."caddy/bunny_api_key".path
-          # CADDY_APPSEC_KEY for the AppSec forward_auth on *.ext vhosts
-          # (expanded at Caddyfile parse time, like the bunny key).
-          config.sops.secrets."caddy/crowdsec-appsec".path
-        ];
+        # Anubis instances for protected vhosts. Policy = upstream defaults
+        # (deny known AI crawlers, PoW-challenge browser-like traffic, pass
+        # weight-0 clients such as API clients with unknown UAs) plus an
+        # explicit ALLOW for gatus so sessionless probes keep working.
+        services.anubis.instances =
+          lib.mapAttrs (host: _: {
+            settings.TARGET = "http://127.0.0.1:${anubisPorts.${host}}";
+            policy.extraBots = [
+              {
+                name = "gatus-health-probes";
+                user_agent_regex = "(?i)gatus";
+                action = "ALLOW";
+              }
+            ];
+          })
+          anubisVhosts;
+
+        # caddy connects to the anubis unix sockets (SOCKET_MODE 0770, group
+        # anubis) — same pattern as the nginx example in the nixpkgs anubis
+        # module docs.
+        users.users.caddy.extraGroups = lib.mkIf (anubisHosts != []) ["anubis"];
+
+        assertions =
+          lib.mapAttrsToList (host: _: {
+            assertion = lib.hasSuffix ".ext.kuipr.de" host;
+            message = "anubis.enable is only supported on *.ext.kuipr.de vhosts (${host})";
+          })
+          anubisVhosts;
+
+        # Bring the anubis sockets up with caddy so the edge proxy never
+        # 502s against a missing socket after boot.
+        systemd.services.caddy = {
+          wants = map (h: "anubis-${h}.service") anubisHosts;
+          after = map (h: "anubis-${h}.service") anubisHosts;
+          serviceConfig.EnvironmentFile = [
+            config.sops.secrets."caddy/bunny_api_key".path
+            # CADDY_APPSEC_KEY for the AppSec forward_auth on *.ext vhosts
+            # (expanded at Caddyfile parse time, like the bunny key).
+            config.sops.secrets."caddy/crowdsec-appsec".path
+          ];
+        };
       };
   };
 }

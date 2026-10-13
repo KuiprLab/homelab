@@ -53,6 +53,7 @@ in {
       "music.ext.kuipr.de" = {
         extraConfig = navidromeBlock;
         name = "Navidrome (ext)";
+        anubis.enable = true;
       };
     };
 
