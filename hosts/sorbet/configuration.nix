@@ -69,10 +69,21 @@ in {
 
     # Networking
     networking = {
-      firewall.enable = true;
+      firewall = {
+        enable = true;
+        # 5353 = mDNS. AirPlay: 5000 TCP (RTSP control), 6000/6001 UDP
+        # (audio), 319/320 UDP (timing).
+        allowedUDPPorts = [
+          5353
+          6000
+          6001
+          319
+          320
+        ];
+        allowedTCPPorts = [5000];
+      };
       hostName = "sorbet";
       networkmanager.enable = true;
-      firewall.allowedUDPPorts = [5353];
       useDHCP = false; # disable global DHCP
       interfaces."enp0s31f6" = {
         wakeOnLan.enable = true;
