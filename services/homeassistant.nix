@@ -56,6 +56,7 @@ _: {
         containers.homeassistant = {
           volumes = [
             "home-assistant:/config"
+            "/run/dbus:/run/dbus:ro"
             # Shadows the copy inside the named volume; the volume still holds
             # everything else (/storage, themes, automations.yaml, ...).
             "${config.sops.secrets."homeassistant/configuration".path}:/config/configuration.yaml:ro"
