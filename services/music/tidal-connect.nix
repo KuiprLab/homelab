@@ -33,9 +33,15 @@ in {
       scripts = pkgs.callPackage ../../pkgs/tidal-connect-docker {};
       containerUnit = "${backend}-${containerName}";
     in {
-      # qemu-user emulation for the armhf container. Uses the "fix binary"
-      # binfmt flag so the arm dynamic loader inside the container resolves.
-      boot.binfmt.emulatedSystems = ["armv7l-linux"];
+      # qemu-user emulation for the armhf container. preferStaticEmulators is
+      # required, not optional: without a static emulator the binfmt rule
+      # lacks the fix-binary (F) flag, so the kernel tries to resolve the
+      # qemu interpreter inside the container and every exec dies with ENOENT
+      # ("exec container process ... No such file or directory").
+      boot.binfmt = {
+        emulatedSystems = ["armv7l-linux"];
+        preferStaticEmulators = true;
+      };
 
       # Loopback sound card the container plays into. PipeWire captures the
       # other side of the loopback below.
