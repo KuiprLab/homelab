@@ -181,6 +181,16 @@ stdenvNoCC.mkDerivation {
         name = "libgpg-error0_1.26-2_armhf.deb";
         hash = "sha256-Mzdurnnin6ld1SENrhVqZwRYUfdx0g9/jG12PtEy+1c=";
       }
+      {
+        sub = "o/opus";
+        name = "libopus0_1.2~alpha2-1_armhf.deb";
+        hash = "sha256-RNfF3WS1G8FnsSnXitklmoWyGpaVk2Odox6+Mw18sEk=";
+      }
+      {
+        sub = "libg/libgsm";
+        name = "libgsm1_1.0.13-4+b2_armhf.deb";
+        hash = "sha256-LoaWL1gNKKS1Ek5eqd12tkmyHuqTAdZRFUsHFnWvwXE=";
+      }
     ];
 
   nativeBuildInputs = [libarchive xz];

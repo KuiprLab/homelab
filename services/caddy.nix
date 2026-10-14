@@ -298,6 +298,13 @@
 
         services.caddy = {
           enable = true;
+          # enableReload (default) makes activation do a `caddy reload` — but a
+          # reload cannot change the admin endpoint. The admin port was moved
+          # to 2020 for the Tidal Connect binary (see the globalConfig comment
+          # and services/music/tidal-connect.nix), so activation must restart
+          # caddy. One-time change; restarts also keep reload-parity issues
+          # from surfacing for other config-wide options.
+          enableReload = false;
           package = pkgs.caddy.withPlugins {
             plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
             hash = "sha256-MSUCHg7Ej7xSmfn5Y5JZtttOWOHcXqnrpmHlhoS4KLQ=";
