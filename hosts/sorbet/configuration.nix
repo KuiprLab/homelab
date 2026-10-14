@@ -33,6 +33,13 @@ in {
       enable = true;
     };
 
+    hardware = {
+      bluetooth = {
+        enable = true;
+        powerOnBoot = true;
+      };
+    };
+
     networking = {
       firewall.trustedInterfaces = ["incusbr0"];
       nftables.enable = true;
