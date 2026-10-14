@@ -179,7 +179,8 @@ in {
       shairport-sync = {
         wantedBy = ["default.target"];
         after = ["pipewire.service" "pipewire-pulse.service"];
-        serviceConfig.ExecStart = "${pkgs.shairport-sync}/bin/shairport-sync -a 'Home Mini' -o pa";
+        # the backend is named "pulseaudio"; the "pa" shorthand is not valid
+        serviceConfig.ExecStart = "${pkgs.shairport-sync}/bin/shairport-sync -a 'Home Mini' -o pulseaudio";
         serviceConfig.Restart = "on-failure";
       };
     };
