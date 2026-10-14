@@ -303,6 +303,11 @@
             hash = "sha256-MSUCHg7Ej7xSmfn5Y5JZtttOWOHcXqnrpmHlhoS4KLQ=";
           };
           globalConfig = ''
+            # Port 2019 is the default admin endpoint, but the iFi Tidal
+            # Connect binary (services/music/tidal-connect.nix) hard-codes
+            # 2019 for its control websocket on the host network and the
+            # phone's TIDAL app connects to the port advertised over mDNS.
+            admin localhost:2020
             acme_dns bunny {env.BUNNY_API_KEY}
             # DNS-01 propagation checks must hit public resolvers, not the
             # system ones (resolv.conf -> dnsmasq): dnsmasq hangs on CNAME

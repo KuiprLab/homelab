@@ -7,16 +7,26 @@
 # lineage in early 2026). So the arm image runs under qemu-user binfmt
 # emulation on sorbet.
 #
-# Audio path (upstream targets a HifiBerry DAC on the Pi's own /dev/snd):
-#   container (ALSA hw) -> snd-aloop kernel loopback -> PipeWire loopback
-#   module -> default sink (the BT speaker once connected).
-# The container gets /dev/snd but only plays to the Loopback card, so it does
-# not fight PipeWire for the real hardware.
+# Audio path (upstream targets a HifiBerry DAC on the Pi's own /dev/snd,
+# which is impossible here twice over: sorbet has no such DAC, and kernel
+# ALSA ioctls all fail with ENOTTY under qemu-user emulation):
+#
+#   container (ALSA "pulse" PCM) -> alsa-lib pulse plugin (injected armhf
+#   libs, pkgs/tidal-connect-pulse-libs) -> host PipeWire pulse socket ->
+#   default sink (the Bedroom speaker once bt-speaker has connected it).
+#
+# The pulse PCM comes from an /etc/asound.conf mounted into the container;
+# config-defined devices with a `hint` block are listed by
+# snd_device_name_hint without any kernel ioctls, so the binary's portaudio
+# layer initializes under emulation and opens "pulse".
+#
+# Port 2019: the binary serves its control websocket on 2019 (the port it
+# advertises via mDNS, which the TIDAL app connects to). Caddy's admin API
+# must not use the 2019 default — services/caddy.nix pins it to 2020.
 #
 # Vendored scripts: ../../pkgs/tidal-connect-docker (TonyTromp
 # tidal-connect-docker, adapted). The upstream volume-bridge is not vendored:
-# it syncs phone volume to a hardware ALSA mixer, which the loopback card
-# does not have.
+# it syncs phone volume to a hardware ALSA mixer, which does not exist here.
 {lib, ...}: let
   friendlyName = "Bedroom";
   containerName = "tidal-connect";
@@ -31,7 +41,24 @@ in {
     }: let
       inherit (config.virtualisation.oci-containers) backend;
       scripts = pkgs.callPackage ../../pkgs/tidal-connect-docker {};
+      pulseLibs = pkgs.callPackage ../../pkgs/tidal-connect-pulse-libs {};
       containerUnit = "${backend}-${containerName}";
+      # ALSA config inside the container: redirect the "pulse" PCM to the
+      # plugin (mounted below at alsa-lib's compiled plugin path) and expose
+      # it to snd_device_name_hint. The !pulse override plus a live plugin
+      # definition means portaudio's `pulse` device name resolves.
+      asoundConf = pkgs.writeText "tidal-connect-asound.conf" ''
+        pcm.!pulse {
+          type pulse
+          hint {
+            show on
+            description "PipeWire"
+          }
+        }
+        ctl.!pulse {
+          type pulse
+        }
+      '';
     in {
       # qemu-user emulation for the armhf container. preferStaticEmulators is
       # required, not optional: without a static emulator the binfmt rule
@@ -43,57 +70,43 @@ in {
         preferStaticEmulators = true;
       };
 
-      # Loopback sound card the container plays into. PipeWire captures the
-      # other side of the loopback below.
-      boot.kernelModules = ["snd-aloop"];
-
-      # Bridge the loopback card into PipeWire: capture from the card's ALSA
-      # source node, play to the default sink. No playback target is set on
-      # purpose, so the stream follows the default sink (the Bedroom speaker
-      # when bt-speaker has connected it).
-      services.pipewire.extraConfig.pipewire."10-tidal-connect-loopback" = {
-        "context.modules" = [
-          {
-            "name" = "libpipewire-module-loopback";
-            "args" = {
-              "node.description" = "Tidal Connect";
-              "capture.props" = {
-                "node.name" = "tidal-connect-capture";
-                "node.target" = "alsa_input.platform-snd_aloop.0.analog-stereo";
-                "audio.position" = ["FL" "FR"];
-              };
-              "playback.props" = {
-                "node.name" = "tidal-connect-playback";
-                "audio.position" = ["FL" "FR"];
-              };
-            };
-          }
-        ];
-      };
-
       virtualisation.oci-containers.containers.${containerName} = {
         inherit image;
         autoStart = true;
         environment = {
           FRIENDLY_NAME = friendlyName;
           MODEL_NAME = friendlyName;
-          # Inside the container this is an ALSA device string; the loopback
-          # card is the only thing it is allowed to open.
-          PLAYBACK_DEVICE = "hw:CARD=Loopback,DEV=0";
+          # "pulse" is an ALSA PCM defined in the mounted asound.conf, not a
+          # hardware device.
+          PLAYBACK_DEVICE = "pulse";
           MQA_PASSTHROUGH = "false";
           MQA_CODEC = "false";
+          # The armhf pulse plugin + its dependency closure; alsa-lib 1.1.3
+          # ignores ALSA_PLUGIN_DIR, so the libs must sit at the compiled
+          # plugin path (volume mount below).
+          LD_LIBRARY_PATH = "/usr/lib/arm-linux-gnueabihf/alsa-lib";
+          # Host PipeWire's pulse socket (rootful container, so read through
+          # the bind mount; the socket is world-accessible rw).
+          PULSE_SERVER = "unix:/run/pulse/native";
         };
         volumes = [
           # Vendored entrypoint (same flags as upstream) over the image's copy
           "${scripts}/bin/entrypoint.sh:/entrypoint.sh:ro"
-          # The arm binary talks to the host avahi daemon over its socket for
-          # mDNS registration (host networking alone does not expose it)
-          "/var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket"
+          # Pulse plugin + libs, at alsa-lib's compiled plugin dir
+          "${pulseLibs}/alsa-lib:/usr/lib/arm-linux-gnueabihf/alsa-lib:ro"
+          # "pulse" PCM definition (see asoundConf)
+          "${asoundConf}:/etc/asound.conf:ro"
+          # Host PipeWire pulse socket for audio output
+          "/run/user/1000/pulse:/run/pulse"
+          # avahi announce: the binary registers _tidalconnect._tcp through
+          # the system bus (not the avahi socket directly), so dbus must be
+          # mounted; the daemon socket dir comes along for good measure
+          "/run/dbus:/var/run/dbus"
+          "/run/avahi-daemon:/var/run/avahi-daemon"
         ];
         extraOptions = [
           # mDNS discovery must be visible on the LAN
           "--network=host"
-          "--device=/dev/snd"
         ];
       };
 

@@ -189,6 +189,11 @@ in {
       avahi = {
         enable = true;
         nssmdns4 = true;
+        # Announce only on the LAN NIC. The Tidal Connect binary registers
+        # its mDNS service through avahi on every interface, including the
+        # podman/incus bridges; the phone's TIDAL app then sees unreachable
+        # 10.88.0.1-style addresses and times out during cast.
+        allowInterfaces = ["enp0s31f6"];
         publish = {
           enable = true;
           userServices = true;
