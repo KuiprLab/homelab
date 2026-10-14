@@ -169,6 +169,7 @@ in {
           PermitRootLogin = "prohibit-password";
         };
       };
+      pulseaudio.enable = false;
       pipewire = {
         enable = true;
         alsa = {
@@ -177,17 +178,20 @@ in {
         };
         pulse.enable = true;
         jack.enable = true;
-        wireplumber.extraConfig."10-bluez" = {
-          "monitor.bluez.properties" = {
-            "bluez5.enable-sbc-xq" = true;
-            "bluez5.enable-msbc" = true;
-            "bluez5.enable-hw-volume" = true;
-            "bluez5.roles" = [
-              "hsp_hs"
-              "hsp_ag"
-              "hfp_hf"
-              "hfp_ag"
-            ];
+        wireplumber = {
+          enable = true;
+          extraConfig."10-bluez" = {
+            "monitor.bluez.properties" = {
+              "bluez5.enable-sbc-xq" = true;
+              "bluez5.enable-msbc" = true;
+              "bluez5.enable-hw-volume" = true;
+              "bluez5.roles" = [
+                "hsp_hs"
+                "hsp_ag"
+                "hfp_hf"
+                "hfp_ag"
+              ];
+            };
           };
         };
       };
