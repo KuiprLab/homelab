@@ -29,8 +29,11 @@ in {
       };
     };
 
-    services.hardware.openrgb = {
-      enable = true;
+    hardware = {
+      bluetooth = {
+        enable = true;
+        powerOnBoot = true;
+      };
     };
 
     networking = {
@@ -66,7 +69,19 @@ in {
 
     # Networking
     networking = {
-      firewall.enable = true;
+      firewall = {
+        enable = true;
+        # 5353 = mDNS. AirPlay: 5000 TCP (RTSP control), 6000/6001 UDP
+        # (audio), 319/320 UDP (timing).
+        allowedUDPPorts = [
+          5353
+          6000
+          6001
+          319
+          320
+        ];
+        allowedTCPPorts = [5000];
+      };
       hostName = "sorbet";
       networkmanager.enable = true;
       useDHCP = false; # disable global DHCP
@@ -151,8 +166,54 @@ in {
       "/libexec"
     ];
 
+    security.rtkit.enable = true;
+
+    systemd.user.services = {
+      bt-speaker = {
+        description = "Connect Bluetooth speaker";
+        wantedBy = ["default.target"];
+        wants = ["wireplumber.service"];
+        after = ["wireplumber.service"];
+        path = [pkgs.bluez];
+        serviceConfig.Type = "oneshot";
+        script = ''
+          for i in $(seq 1 20); do
+            if bluetoothctl connect 20:DF:B9:52:66:C3 | grep -q "Connection successful"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          wpctl set-default 59
+          exit 1
+        '';
+      };
+      shairport-sync = {
+        wantedBy = ["default.target"];
+        after = ["pipewire.service" "pipewire-pulse.service"];
+        # the backend is named "pulseaudio"; the "pa" shorthand is not valid
+        serviceConfig.ExecStart = "${pkgs.shairport-sync}/bin/shairport-sync -a 'Home Mini' -o pulseaudio";
+        serviceConfig.Restart = "on-failure";
+      };
+    };
+
     # Services
     services = {
+      avahi = {
+        enable = true;
+        nssmdns4 = true;
+        # Announce only on the LAN NIC. The Tidal Connect binary registers
+        # its mDNS service through avahi on every interface, including the
+        # podman/incus bridges; the phone's TIDAL app then sees unreachable
+        # 10.88.0.1-style addresses and times out during cast.
+        allowInterfaces = ["enp0s31f6"];
+        publish = {
+          enable = true;
+          userServices = true;
+        };
+      };
+      hardware.openrgb = {
+        enable = true;
+      };
       openssh = {
         enable = true;
         settings = {
@@ -161,12 +222,31 @@ in {
           PermitRootLogin = "prohibit-password";
         };
       };
+      pulseaudio.enable = false;
       pipewire = {
         enable = true;
         alsa = {
           enable = true;
+          support32Bit = true;
         };
         pulse.enable = true;
+        jack.enable = true;
+        wireplumber = {
+          enable = true;
+          extraConfig = {
+            "10-bluez" = {
+              "monitor.bluez.properties" = {
+                "bluez5.enable-sbc-xq" = true;
+                "bluez5.enable-msbc" = true;
+                "bluez5.enable-hw-volume" = true;
+                "bluez5.roles" = ["a2dp_sink" "a2dp_source" "hsp_hs" "hfp_hf"];
+              };
+            };
+            "51-bluez-no-seat" = {
+              "wireplumber.profiles".main."monitor.bluez.seat-monitoring" = "disabled";
+            };
+          };
+        };
       };
     };
 
@@ -183,12 +263,14 @@ in {
 
         ${user} = {
           isNormalUser = true;
+          linger = true;
           description = user;
           openssh.authorizedKeys.keys = [
             "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCo089vTmBwFAMv6d7ix3D6gPx0X0DEwOELB0i9AyDpct4kj3II8IjtwovZDalE53CZAlczhae+/9EV+3cn1YwvKMEU9MkY3nY6/HIPqvQaWVNrhLAP7W1JWNMwNl+ndkm+Xa1ZlaYbOJrKED8E63j2j5WNnNN6WUld7d4Nf5oog0YaYYoD22fiMvnTMdFg2pE2lLFZ4mX2NBHU8r/1hcy6XTXdryoZB4KuzvnMOZPb5j48rsH6AZG5i9CMq7iSi3+DeSGzdrxVvJ1HWKTpTlKlvz/7LKhrCwtXrvFwzxh4xxFig/As05LfmxShThUb1QqS874USBwM5lacrZ4lJbIEwbtQ9zJad8p0pVzlby+BwLaQmmljrR9H0AZMagmD0Gv5K/DC035XCI9acSazL84qJ0IfGugfXdFQbT+ViFRrV7+9J5IbulOV40lwHrgnIeFc2Msbe2PelphKIlrx9JqW6ArtT7zbtbG8q+oZSb8TqCdFx5pZuQCA8gtj4Y5wxo0pFhym5qqN6Eh0CbliqYsDwIcUfmkj0omsFXFLN5U9D25jUxPmFZUFU/PJnbWxjfu6835PZtchHozV/vqYqc8WKBis+HWjBM1OH26fbo7FmT60hod8K6fsKV6HN/tpuY9gCQBD/CuVO+nlSBr/kVmO9KGi9jEaPTF2JylnujN1ow=="
           ];
           extraGroups = [
             "networkmanager"
+            "audio"
             "wheel"
             "incus-admin"
           ];
