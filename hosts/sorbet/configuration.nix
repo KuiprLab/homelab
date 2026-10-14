@@ -72,7 +72,7 @@ in {
       firewall.enable = true;
       hostName = "sorbet";
       networkmanager.enable = true;
-      allowedUDPPorts = [5353];
+      firewall.allowedUDPPorts = [5353];
       useDHCP = false; # disable global DHCP
       interfaces."enp0s31f6" = {
         wakeOnLan.enable = true;
