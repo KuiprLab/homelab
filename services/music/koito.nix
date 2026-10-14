@@ -79,7 +79,7 @@ _: {
         # No container-level healthcheck: process-only bot, no HTTP endpoint to probe.
         # Pinned IP + --dns: per-container attribution in Pi-hole (see koito above).
         last-fm-presence = {
-          image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:3a5d5ef12fe869b1787f6794545a097e5f81a2ea3c6d9a2e2a0cfd6fc6ff763e";
+          image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:ba64784e5bdcfd232de2dea7edf36bc7d6dd0929c8b9c23850cb0805dfa32d9a";
           volumes = [];
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
           extraOptions = [
