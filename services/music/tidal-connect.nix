@@ -70,6 +70,10 @@ in {
         preferStaticEmulators = true;
       };
 
+      # The TIDAL app connects to the binary's control websocket on this port
+      # (the one mDNS advertises). Without it the cast attempt times out.
+      networking.firewall.allowedTCPPorts = [2019];
+
       virtualisation.oci-containers.containers.${containerName} = {
         inherit image;
         autoStart = true;
