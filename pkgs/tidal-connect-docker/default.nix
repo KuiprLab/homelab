@@ -23,6 +23,11 @@
 # debian-based container, not on the host. The host-side scripts are
 # patchShebangs'd so systemd can exec them directly.
 stdenvNoCC.mkDerivation {
+  # entrypoint.sh runs inside the debian-based container, so its shebang must
+  # stay #!/bin/bash. The stdenv fixup hook rewrites all shebangs in $out to
+  # nix-store paths; disable it and patch only the host-side scripts below.
+  dontPatchShebangs = true;
+
   pname = "tidal-connect-docker-scripts";
   version = "unstable-2025-12-21";
 
