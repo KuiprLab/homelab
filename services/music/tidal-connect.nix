@@ -93,6 +93,8 @@ in {
 
       systemd.services.${containerUnit} = {
         after = ["avahi-daemon.service"];
+        # wait-for-mdns-clear.sh probes registrations with avahi-browse
+        path = [pkgs.avahi];
         # Vendored guards: don't race avahi at boot and don't collide with a
         # stale mDNS registration after rapid restarts / hard power-offs.
         preStart = ''
