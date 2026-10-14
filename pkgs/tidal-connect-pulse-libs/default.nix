@@ -191,6 +191,26 @@ stdenvNoCC.mkDerivation {
         name = "libgsm1_1.0.13-4+b2_armhf.deb";
         hash = "sha256-LoaWL1gNKKS1Ek5eqd12tkmyHuqTAdZRFUsHFnWvwXE=";
       }
+      {
+        sub = "libi/libice";
+        name = "libice6_1.0.9-2_armhf.deb";
+        hash = "sha256-P+hLIR7YBWCNPMvBhqa5QqQfndz/2caWt68P3eZ4ATs=";
+      }
+      {
+        sub = "libs/libsm";
+        name = "libsm6_1.2.2-1+b3_armhf.deb";
+        hash = "sha256-YDGGdYgVUzMiIieOnz+sl2nyTYYc4gvCvmNQ+2R5FoQ=";
+      }
+      {
+        sub = "libx/libxext";
+        name = "libxext6_1.3.3-1+b2_armhf.deb";
+        hash = "sha256-zt85HTg+JZo0jg10ewAhYFAnC6TnrwtgUf5lyYnoK0U=";
+      }
+      {
+        sub = "libx/libxrender";
+        name = "libxrender1_0.9.10-1_armhf.deb";
+        hash = "sha256-OpDiayRK0RhjzKLCLOcfiPi8cfcA2rStZRcLkeT09Ck=";
+      }
     ];
 
   nativeBuildInputs = [libarchive xz];
