@@ -56,7 +56,7 @@ _: {
       };
 
       virtualisation.oci-containers.containers.multi-scrobbler = {
-        image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:449274cb8b5b855cc361056862aed6a11e5dcc0a72e2acb279ac78edf834a1c7";
+        image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:2a11137663437b5d7c2e24f4d1bfc3ef72ccbeca9e1377e28c72928789236aab";
         volumes = [
           "multi-scrobbler-config:/config"
           "${config.sops.secrets."multi-scrobbler/config".path}:/config/config.json:ro"
