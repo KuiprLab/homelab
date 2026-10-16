@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "discord.js": "^14.16.3",
-    "musicbrainz-api": "^1.2.1"
+    "musicbrainz-api": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
