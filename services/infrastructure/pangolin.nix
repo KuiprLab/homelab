@@ -8,15 +8,15 @@ _: {
         owner = "root";
       };
 
-      "newt/sorbet" = {
+      "newt-sorbet" = {
         sopsFile = ../../secrets/sorbet/newt.env;
         format = "env";
         key = "";
         owner = "root";
       };
 
-      "newt/eclair" = {
-        sopsFile = ../../secrets/eclair/newt-eclair.env;
+      "newt-eclair" = {
+        sopsFile = ../../secrets/eclair/newt.env;
         format = "env";
         key = "";
         owner = "root";
@@ -38,7 +38,7 @@ _: {
     eclairNixosModules.newt = {config, ...}: {
       services.newt = {
         enable = true;
-        environmentFile = config.sops.secrets."newt/eclair".path;
+        environmentFile = config.sops.secrets."newt-eclair".path;
         settings = {
           endpoint = "${config.services.pangolin.dashboardDomain}";
           id = "eclair";
@@ -49,7 +49,7 @@ _: {
     nixosModules.newt = {config, ...}: {
       services.newt = {
         enable = true;
-        environmentFile = config.sops.secrets."newt/sorbet".path;
+        environmentFile = config.sops.secrets."newt-sorbet".path;
         settings = {
           endpoint = "${config.services.pangolin.dashboardDomain}";
           id = "sorbet";
