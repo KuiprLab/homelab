@@ -2,6 +2,13 @@
 # https://koito.io
 _: {
   flake = {
+    pangolinVirtualHosts."koito" = {
+      site = "sorbet";
+      name = "Koito";
+      subdomain = "koito.int.kuipr.de";
+      port = 4110;
+    };
+
     nixosModules.koito = {config, ...}: {
       sops.secrets = {
         "last-fm-presence" = {

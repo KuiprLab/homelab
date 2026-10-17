@@ -3,6 +3,14 @@
 # container (see ../gluetun.nix); caddy proxies it as slskd.int.kuipr.de.
 _: {
   flake = {
+    pangolinVirtualHosts."slskd" = {
+      site = "sorbet";
+      name = "slskd";
+      subdomain = "slskd.int.kuipr.de";
+      # published through the gluetun container's netns; loopback on sorbet
+      port = 5030;
+    };
+
     nixosModules.slskd = {config, ...}: {
       sops.secrets."slskd" = {
         sopsFile = ../../secrets/sorbet/slskd.yml;

@@ -1,5 +1,12 @@
 _: {
   flake = {
+    pangolinVirtualHosts."scrobble" = {
+      site = "sorbet";
+      name = "Multi-scrobbler";
+      subdomain = "scrobble.int.kuipr.de";
+      port = 9078;
+    };
+
     nixosModules.multi-scrobbler = {config, ...}: {
       sops.secrets."multi-scrobbler/config" = {
         sopsFile = ../../secrets/sorbet/multi-scrobbler;

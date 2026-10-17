@@ -1,5 +1,12 @@
 _: {
   flake = {
+    pangolinVirtualHosts."up" = {
+      site = "sorbet";
+      name = "Upsnap";
+      subdomain = "up.int.kuipr.de";
+      port = 8090;
+    };
+
     nixosModules.upsnap = {pkgs, ...}: {
       virtualisation.oci-containers.containers.upsnap = {
         volumes = [

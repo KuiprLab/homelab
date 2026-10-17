@@ -1,5 +1,13 @@
 _: {
   flake = {
+    # Home Assistant on sorbet, reachable via the pangolin tunnel network.
+    pangolinVirtualHosts."has" = {
+      site = "sorbet";
+      name = "Home Assistant";
+      subdomain = "has.int.kuipr.de";
+      port = 8123;
+    };
+
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module
     nixosModules.homeassistant = {config, ...}: {
       # configuration.yaml holds credentials (auth_oidc client secret), so it

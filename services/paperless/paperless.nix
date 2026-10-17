@@ -1,5 +1,12 @@
 _: {
   flake = {
+    pangolinVirtualHosts."paperless" = {
+      site = "sorbet";
+      name = "Paperless";
+      subdomain = "paperless.int.kuipr.de";
+      port = 28981;
+    };
+
     nixosModules.paperless = {config, ...}: {
       # OIDC client secret for Authelia. The allauth provider config has no
       # env-var indirection for the secret, so the whole

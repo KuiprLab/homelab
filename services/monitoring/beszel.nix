@@ -33,6 +33,13 @@
 # token lands (a bad token is a 401, not a crash).
 _: {
   flake = {
+    pangolinVirtualHosts."mon" = {
+      site = "sorbet";
+      name = "Beszel";
+      subdomain = "mon.int.kuipr.de";
+      port = 8091;
+    };
+
     # ----- sorbet: hub + local agent -----
     nixosModules.beszel = {
       config,
