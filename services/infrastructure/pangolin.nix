@@ -31,7 +31,7 @@ _: {
         enable = true;
         environmentFile = config.sops.secrets."newt-eclair".path;
         settings = {
-          endpoint = "${config.services.pangolin.dashboardDomain}";
+          endpoint = "https://${config.services.pangolin.dashboardDomain}";
           id = "eclair";
         };
       };
@@ -51,7 +51,7 @@ _: {
         settings = {
           # The pangolin server runs on eclair; this module is evaluated on
           # sorbet where services.pangolin.dashboardDomain is unset ("").
-          endpoint = "pangolin.kuipr.de";
+          endpoint = "https://pangolin.kuipr.de";
           id = "sorbet";
         };
       };
