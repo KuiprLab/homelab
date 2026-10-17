@@ -62,7 +62,7 @@ _: {
             "${config.sops.secrets."homeassistant/configuration".path}:/config/configuration.yaml:ro"
           ];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0";
+          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:33afb0659d786213264c2211f8d91c5fe87461c56eba6a3a546eb05fc71e89f4";
           # Digest-pinned; renovate bumps the digest.
           # busybox wget ships with the alpine image; probe the frontend root,
           # retrying for up to ~2min: podman's first check fires immediately at
