@@ -6,7 +6,7 @@ _: {
       # PAPERLESS_SOCIALACCOUNT_PROVIDERS JSON (single line, quotes
       # systemd-escaped) lives in this sops file.
       sops.secrets."paperless/oidc" = {
-        sopsFile = ../secrets/sorbet/paperless-oidc;
+        sopsFile = ../../secrets/sorbet/paperless-oidc;
         format = "binary";
         key = "";
         # paperless-manage (run as the paperless user by the exporter)

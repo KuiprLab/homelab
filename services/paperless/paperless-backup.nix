@@ -49,14 +49,14 @@ _: {
       # Same rclone config as navidrome-gdrive-sync, rendered for the
       # paperless user.
       "rclone/paperless" = {
-        sopsFile = ../secrets/sorbet/rclone;
+        sopsFile = ../../secrets/sorbet/rclone;
         format = "binary";
         key = "";
         owner = "paperless";
       };
 
       "healthchecks/paperless-backup" = {
-        sopsFile = ../secrets/sorbet/paperless-backup-ping;
+        sopsFile = ../../secrets/sorbet/paperless-backup-ping;
         format = "binary";
         key = "";
         owner = "paperless";
