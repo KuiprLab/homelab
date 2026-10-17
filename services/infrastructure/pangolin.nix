@@ -242,7 +242,8 @@ in {
               echo "creating site ${v.niceId}"
               curl -sf -b "$JAR" -X PUT ${api}/org/${orgId}/site \
                 -H 'Content-Type: application/json' \
-                -H 'x-csrf-token: x-csrf-protection' \                -d "$(jq -n \
+                -H 'x-csrf-token: x-csrf-protection' \
+                -d "$(jq -n \
                   --arg name ${v.niceId} \
                   --arg niceId ${v.niceId} \
                   --arg newtId ${v.niceId} \
@@ -269,7 +270,8 @@ in {
           echo "logging in as $PANGOLIN_ADMIN_EMAIL"
           curl -sf -c "$JAR" -X POST ${api}/auth/login \
             -H 'Content-Type: application/json' \
-            -H 'x-csrf-token: x-csrf-protection' \            -d "$(jq -n --arg e "$PANGOLIN_ADMIN_EMAIL" \
+            -H 'x-csrf-token: x-csrf-protection' \
+            -d "$(jq -n --arg e "$PANGOLIN_ADMIN_EMAIL" \
                      --arg p "$PANGOLIN_ADMIN_PASSWORD" \
                      '{email: $e, password: $p}')" >/dev/null
 
@@ -279,7 +281,8 @@ in {
             echo "creating org ${orgId}"
             curl -sf -b "$JAR" -X PUT ${api}/org \
               -H 'Content-Type: application/json' \
-              -H 'x-csrf-token: x-csrf-protection' \              -d "$(jq -n \
+              -H 'x-csrf-token: x-csrf-protection' \
+              -d "$(jq -n \
                 --arg orgId ${orgId} \
                 --arg name ${orgName} \
                 --arg subnet ${orgSubnet} \
