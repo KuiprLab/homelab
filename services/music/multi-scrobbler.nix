@@ -1,20 +1,5 @@
 _: {
   flake = {
-    caddyVirtualHosts."scrobble.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:9078
-      '';
-      name = "Multi Scrobbler";
-      authelia = {
-        enable = true;
-        # gatus probes this vhost sessionless; /api/version bypasses forward
-        # auth and is proxied to the app. Deliberately not /api/health — it
-        # answers 500 whenever any source/client is down, which would flap
-        # this alert on broken (not hung) sources.
-        bypassPaths = ["/api/version"];
-      };
-    };
-
     gatusEndpoints = [
       {
         name = "Multi-Scrobbler";

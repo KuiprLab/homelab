@@ -2,21 +2,6 @@
 # https://koito.io
 _: {
   flake = {
-    caddyVirtualHosts = {
-      "koito.int.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:4110
-        '';
-        name = "Koito";
-        authelia = {
-          enable = true;
-          # gatus probes this vhost sessionless; /apis/web/v1/health bypasses
-          # forward auth and is proxied to the app (503 until koito is ready).
-          bypassPaths = ["/apis/web/v1/health"];
-        };
-      };
-    };
-
     gatusEndpoints = [
       {
         name = "Koito";

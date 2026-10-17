@@ -20,9 +20,6 @@ Service modules contribute to the flake via:
 
     flake.nixosModules.* — applied to sorbet
     flake.eclairNixosModules.* — applied to eclair
-    flake.caddyVirtualHosts — Caddy site blocks, also read by haproxy to auto-generate SNI ACLs
-
-Adding a new public service: declare flake.caddyVirtualHosts."myservice.ext.kuipr.de" in the service module — haproxy picks it up automatically on next deploy.
 
 # Architecture
 

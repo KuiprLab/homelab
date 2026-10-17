@@ -1,13 +1,5 @@
 _: {
   flake = {
-    caddyVirtualHosts."auth.ext.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:9091
-      '';
-      name = "Authelia";
-      # PoW challenge in front of the portal, before any authelia logic.
-      anubis.enable = true;
-    };
     nixosModules.authelia = {
       pkgs,
       lib,

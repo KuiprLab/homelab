@@ -129,15 +129,6 @@ _: {
       };
     };
 
-    # Dashboard, not authelia'd — beszel has its own login (PocketBase),
-    # consistent with up.int.kuipr.de's trust model.
-    caddyVirtualHosts."mon.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy 127.0.0.1:8091
-      '';
-      name = "Beszel";
-    };
-
     gatusEndpoints = [
       {
         name = "Beszel";

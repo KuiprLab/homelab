@@ -45,18 +45,6 @@ _: let
   '';
 in {
   flake = {
-    caddyVirtualHosts = {
-      "music.int.kuipr.de" = {
-        extraConfig = navidromeBlock;
-        name = "Navidrome";
-      };
-      "music.ext.kuipr.de" = {
-        extraConfig = navidromeBlock;
-        name = "Navidrome (ext)";
-        anubis.enable = true;
-      };
-    };
-
     gatusEndpoints = [
       {
         name = "Navidrome";

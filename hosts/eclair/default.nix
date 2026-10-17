@@ -5,7 +5,6 @@
   self,
   inputs,
   lib,
-  config,
   ...
 }: let
   collectModules = attrs: lib.attrValues (lib.filterAttrs (_n: v: v != {}) attrs);
@@ -32,8 +31,6 @@ in {
           # Pass flake-level values into nixos modules via _module.args
           _module.args = {
             inherit sorbetTailscaleIp;
-            inherit (config.flake) caddyVirtualHosts;
-            inherit (config.flake) eclairCaddyVirtualHosts;
           };
 
           # Replace upstream crowdsec modules with the PR rewrite (see flake.nix)

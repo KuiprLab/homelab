@@ -1,29 +1,13 @@
 _: {
   flake = {
-    sops.secrets = {
-      "pangolin" = {
+    eclairNixosModules.pangolin-server = {config, ...}: {
+      sops.secrets."pangolin" = {
         sopsFile = ../../secrets/eclair/pangolin.env;
         format = "env";
         key = "";
         owner = "root";
       };
 
-      "newt-sorbet" = {
-        sopsFile = ../../secrets/sorbet/newt.env;
-        format = "env";
-        key = "";
-        owner = "root";
-      };
-
-      "newt-eclair" = {
-        sopsFile = ../../secrets/eclair/newt.env;
-        format = "env";
-        key = "";
-        owner = "root";
-      };
-    };
-
-    eclairNixosModules.pangolin-server = {config, ...}: {
       services.pangolin = {
         enable = true;
         dashboardDomain = "pangolin.kuipr.de";
@@ -36,6 +20,13 @@ _: {
     };
 
     eclairNixosModules.newt = {config, ...}: {
+      sops.secrets."newt-eclair" = {
+        sopsFile = ../../secrets/eclair/newt.env;
+        format = "env";
+        key = "";
+        owner = "root";
+      };
+
       services.newt = {
         enable = true;
         environmentFile = config.sops.secrets."newt-eclair".path;
@@ -47,11 +38,20 @@ _: {
     };
 
     nixosModules.newt = {config, ...}: {
+      sops.secrets."newt-sorbet" = {
+        sopsFile = ../../secrets/sorbet/newt.env;
+        format = "env";
+        key = "";
+        owner = "root";
+      };
+
       services.newt = {
         enable = true;
         environmentFile = config.sops.secrets."newt-sorbet".path;
         settings = {
-          endpoint = "${config.services.pangolin.dashboardDomain}";
+          # The pangolin server runs on eclair; this module is evaluated on
+          # sorbet where services.pangolin.dashboardDomain is unset ("").
+          endpoint = "pangolin.kuipr.de";
           id = "sorbet";
         };
       };

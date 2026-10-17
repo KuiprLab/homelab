@@ -1,19 +1,5 @@
 _: {
   flake = {
-    caddyVirtualHosts = {
-      "paperless.int.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:28981
-        '';
-        name = "Paperless";
-        authelia = {
-          enable = false;
-          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
-          bypassPaths = ["/healthz"];
-        };
-      };
-    };
-
     gatusEndpoints = [
       {
         name = "Paperless";
