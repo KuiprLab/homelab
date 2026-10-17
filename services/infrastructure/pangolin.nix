@@ -331,7 +331,7 @@ in {
         settings = {
           # The pangolin server runs on eclair; this module is evaluated on
           # sorbet where services.pangolin.dashboardDomain is unset ("").
-          endpoint = "https://pangolin.kuipr.de";
+          endpoint = "https://pangolin.ext.kuipr.de";
           id = "sorbet";
         };
         blueprint = {
