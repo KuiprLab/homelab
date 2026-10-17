@@ -149,19 +149,19 @@ in {
           mode = "http";
           "full-domain" = vh.subdomain;
           targets = [
-            ({hostname = vh.hostname;}
+            ({
+                hostname = vh.hostname;
+                port = vh.port;
+                healthcheck = healthcheckFor {
+                  hostname = vh.hostname;
+                  port = vh.port;
+                  protocol = vh.protocol;
+                  hc = vh.healthcheck;
+                };
+              }
               // lib.optionalAttrs (vh.protocol != null) {
                 method = vh.protocol;
               })
-            {
-              port = vh.port;
-              healthcheck = healthcheckFor {
-                hostname = vh.hostname;
-                port = vh.port;
-                protocol = vh.protocol;
-                hc = vh.healthcheck;
-              };
-            }
           ];
         }
         vh.extra)
@@ -311,10 +311,14 @@ in {
           endpoint = "https://pangolin.ext.kuipr.de";
           id = "eclair";
         };
+        blueprint = {
+          client-resources = clientResources "eclair";
+          proxy-resources = proxyResources "eclair";
+        };
       };
 
-      # eclair hosts no tunnel targets itself (pangolin runs here); the site
-      # exists for exit-node/remote-access use.
+      # eclair runs public vhosts of its own (subtidal): its newt applies the
+      # proxy-resources that route back to eclair's loopback services.
     };
 
     nixosModules.newt = {config, ...}: {

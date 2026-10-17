@@ -1,5 +1,15 @@
 _: {
   flake = {
+    # Expose the authelia portal publicly via pangolin — resources that use
+    # its login/oidc flows hit it directly.
+    pangolinVirtualHosts."auth" = {
+      site = "sorbet";
+      name = "Authelia";
+      subdomain = "auth.ext.kuipr.de";
+      port = 9091;
+      private = false;
+    };
+
     nixosModules.authelia = {
       pkgs,
       lib,

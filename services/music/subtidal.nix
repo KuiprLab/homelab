@@ -3,6 +3,14 @@
 # never touches sorbet.
 _: {
   flake = {
+    pangolinVirtualHosts."subtidal" = {
+      site = "eclair";
+      name = "Subtidal";
+      subdomain = "subtidal.ext.kuipr.de";
+      port = 4234;
+      private = false;
+    };
+
     eclairCaddyVirtualHosts."subtidal.ext.kuipr.de" = {
       extraConfig = ''
         reverse_proxy localhost:4234
