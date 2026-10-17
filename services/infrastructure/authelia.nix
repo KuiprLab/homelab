@@ -8,7 +8,7 @@ _: {
     }: {
       sops.secrets = {
         "authelia/authelia.env" = {
-          sopsFile = ../secrets/sorbet/authelia/authelia.env;
+          sopsFile = ../../secrets/sorbet/authelia/authelia.env;
           format = "dotenv";
           owner = "daniel";
           key = "";
@@ -16,7 +16,7 @@ _: {
         };
 
         "authelia/configuration.yml" = {
-          sopsFile = ../secrets/sorbet/authelia/configuration.yml;
+          sopsFile = ../../secrets/sorbet/authelia/configuration.yml;
           owner = "daniel";
           format = "yaml";
           key = "";
@@ -24,7 +24,7 @@ _: {
         };
 
         "authelia/authelia-users.yaml" = {
-          sopsFile = ../secrets/sorbet/authelia/users.yaml;
+          sopsFile = ../../secrets/sorbet/authelia/users.yaml;
           owner = "daniel";
           key = "";
           restartUnits = ["podman-authelia.service"];
