@@ -325,7 +325,7 @@
         # no shell, wget, or curl to probe with. Availability is covered by
         # eclair's gatus instance and the healthchecks.io heartbeat.
         virtualisation.oci-containers.containers.gatus = {
-          image = "ghcr.io/twin/gatus:latest@sha256:49612466499ea56047637776b9974ab91d11c0084a2aa728a16db01e93654952";
+          image = "ghcr.io/twin/gatus:latest@sha256:26321a6c9767538622eccf478d30ad05e170eb3ff4fdfb8af6abc5a55bf54b5c";
           volumes = [
             "${(pkgs.formats.yaml {}).generate "gatus.yaml" gatusConfig}:/config/config.yaml:ro"
             "gatus-data:/data"
@@ -406,7 +406,7 @@
             backend = lib.mkDefault "podman";
             # No healthcheck: scratch image, no probe binary (see sorbet gatus).
             containers.gatus = {
-              image = "ghcr.io/twin/gatus:latest@sha256:49612466499ea56047637776b9974ab91d11c0084a2aa728a16db01e93654952";
+              image = "ghcr.io/twin/gatus:latest@sha256:26321a6c9767538622eccf478d30ad05e170eb3ff4fdfb8af6abc5a55bf54b5c";
               volumes = [
                 "${(pkgs.formats.yaml {}).generate "gatus.yaml" gatusConfig}:/config/config.yaml:ro"
                 "gatus-data:/data"
