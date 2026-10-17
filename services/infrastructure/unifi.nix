@@ -30,7 +30,7 @@ _: {
     };
 
     nixosModules.unifi = _: {
-      imports = [../pkgs/unifi-os-server-image/module.nix];
+      imports = [../../pkgs/unifi-os-server-image/module.nix];
 
       # services.unifi-os-server = {
       #   enable = true;
