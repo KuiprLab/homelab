@@ -21,6 +21,10 @@ _: {
         enable = true;
         # haproxy: HTTP redirect + HTTPS passthrough
         allowedTCPPorts = [80 443];
+        # gerbil: 51820 (wireguard) via pangolin module; 21820 is
+        # clients_start_port used by newt UDP hole punch / relay —
+        # without it sites behind NAT cannot register an endpoint.
+        allowedUDPPorts = [21820];
       };
       hostName = "eclair";
     };
