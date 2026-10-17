@@ -9,7 +9,7 @@ _: {
       };
 
       "newt/sorbet" = {
-        sopsFile = ../../secrets/soeclairrbet/newt.env;
+        sopsFile = ../../secrets/sorbet/newt.env;
         format = "env";
         key = "";
         owner = "root";
