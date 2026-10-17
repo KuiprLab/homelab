@@ -247,7 +247,7 @@ in {
                   --arg name ${v.niceId} \
                   --arg niceId ${v.niceId} \
                   --arg newtId ${v.niceId} \
-                  --arg secret "''${!${v.secretEnv}}" \
+                  --arg secret "${"$"}${v.secretEnv}" \
                   '{name: $name, niceId: $niceId, newtId: $newtId,
                     secret: $secret, type: "newt"}')" >/dev/null
             fi
