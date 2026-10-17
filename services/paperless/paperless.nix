@@ -1,18 +1,5 @@
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "Paperless";
-        group = "Home";
-        url = "https://paperless.int.kuipr.de/healthz";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
     nixosModules.paperless = {config, ...}: {
       # OIDC client secret for Authelia. The allauth provider config has no
       # env-var indirection for the secret, so the whole

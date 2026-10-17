@@ -40,7 +40,7 @@ _: {
       ...
     }: {
       sops.secrets."beszel/agent" = {
-        sopsFile = ../secrets/sorbet/beszel-agent;
+        sopsFile = ../../secrets/sorbet/beszel-agent;
         format = "binary";
         key = "";
         owner = "root";
@@ -49,7 +49,7 @@ _: {
       # Hub's ed25519 signing key. Pre-generated (see header) so agents can
       # verify the hub without a key handover through the UI.
       sops.secrets."beszel/hub-key" = {
-        sopsFile = ../secrets/sorbet/beszel-hub-key;
+        sopsFile = ../../secrets/sorbet/beszel-hub-key;
         format = "binary";
         key = "";
         owner = "root";
@@ -110,7 +110,7 @@ _: {
     # ----- eclair: agent only -----
     eclairNixosModules.beszelAgent = {config, ...}: {
       sops.secrets."beszel/agent" = {
-        sopsFile = ../secrets/eclair/beszel-agent;
+        sopsFile = ../../secrets/eclair/beszel-agent;
         format = "binary";
         key = "";
         owner = "root";
@@ -128,21 +128,5 @@ _: {
         environmentFile = config.sops.secrets."beszel/agent".path;
       };
     };
-
-    gatusEndpoints = [
-      {
-        name = "Beszel";
-        group = "Monitoring";
-        # PocketBase health endpoint, public — no authelia to bypass.
-        url = "https://mon.int.kuipr.de/api/health";
-        interval = "60s";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-          "[RESPONSE_TIME] < 1500"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
   };
 }

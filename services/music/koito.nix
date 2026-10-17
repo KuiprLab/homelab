@@ -2,19 +2,6 @@
 # https://koito.io
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "Koito";
-        group = "Music";
-        url = "https://koito.int.kuipr.de/apis/web/v1/health";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
     nixosModules.koito = {config, ...}: {
       sops.secrets = {
         "last-fm-presence" = {

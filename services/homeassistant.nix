@@ -1,18 +1,5 @@
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "Home Assistant";
-        group = "Home";
-        url = "https://has.int.kuipr.de";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module
     nixosModules.homeassistant = {config, ...}: {
       # configuration.yaml holds credentials (auth_oidc client secret), so it

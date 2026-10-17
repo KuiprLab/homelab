@@ -1,18 +1,4 @@
 _: {
-  flake.gatusEndpoints = [
-    {
-      name = "DNS";
-      group = "Network";
-      url = "192.168.0.85";
-      dns = {
-        query-name = "has.int.kuipr.de";
-        query-type = "A";
-      };
-      conditions = ["[DNS_RCODE] == NOERROR"];
-      alerts = [{type = "discord";}];
-    }
-  ];
-
   flake.nixosModules.dnsDhcp = {
     lib,
     pkgs,

@@ -1,18 +1,5 @@
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "UniFi";
-        url = "https://unifi.int.kuipr.de";
-        group = "Home";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
     nixosModules.unifi = _: {
       imports = [../../pkgs/unifi-os-server-image/module.nix];
 

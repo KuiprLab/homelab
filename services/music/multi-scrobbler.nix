@@ -1,18 +1,5 @@
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "Multi-Scrobbler";
-        group = "Music";
-        url = "https://scrobble.int.kuipr.de/api/version";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
     nixosModules.multi-scrobbler = {config, ...}: {
       sops.secrets."multi-scrobbler/config" = {
         sopsFile = ../../secrets/sorbet/multi-scrobbler;

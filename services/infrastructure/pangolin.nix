@@ -3,7 +3,7 @@ _: {
     eclairNixosModules.pangolin-server = {config, ...}: {
       sops.secrets."pangolin" = {
         sopsFile = ../../secrets/eclair/pangolin.env;
-        format = "env";
+        format = "dotenv";
         key = "";
         owner = "root";
       };
@@ -22,7 +22,7 @@ _: {
     eclairNixosModules.newt = {config, ...}: {
       sops.secrets."newt-eclair" = {
         sopsFile = ../../secrets/eclair/newt.env;
-        format = "env";
+        format = "dotenv";
         key = "";
         owner = "root";
       };
@@ -40,7 +40,7 @@ _: {
     nixosModules.newt = {config, ...}: {
       sops.secrets."newt-sorbet" = {
         sopsFile = ../../secrets/sorbet/newt.env;
-        format = "env";
+        format = "dotenv";
         key = "";
         owner = "root";
       };
