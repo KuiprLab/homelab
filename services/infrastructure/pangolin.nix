@@ -1,6 +1,10 @@
 _: {
   flake = {
-    eclairNixosModules.pangolin-server = {config, ...}: {
+    eclairNixosModules.pangolin-server = {
+      config,
+      pkgs,
+      ...
+    }: {
       sops.secrets."pangolin" = {
         sopsFile = ../../secrets/eclair/pangolin.env;
         format = "dotenv";
@@ -10,6 +14,11 @@ _: {
 
       services.pangolin = {
         enable = true;
+        # nixpkgs ships the wrapper with NODE_ENV=development, which breaks
+        # prod SSR (renderToPipeableStream is not implemented -> 500).
+        package = pkgs.fosrl-pangolin.override {
+          environmentVariables = {NODE_ENV = "production";};
+        };
         dashboardDomain = "pangolin.ext.kuipr.de";
         baseDomain = "kuipr.de";
         dnsProvider = "bunny";
