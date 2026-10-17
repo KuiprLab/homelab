@@ -10,7 +10,7 @@ _: {
 
       services.pangolin = {
         enable = true;
-        dashboardDomain = "pangolin.kuipr.de";
+        dashboardDomain = "pangolin.ext.kuipr.de";
         baseDomain = "kuipr.de";
         dnsProvider = "bunny";
         letsEncryptEmail = "62436912+frostplexx@users.noreply.github.com";
