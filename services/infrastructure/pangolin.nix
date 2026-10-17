@@ -1,10 +1,26 @@
 _: {
   flake = {
-    sops.secrets."pangolin" = {
-      sopsFile = ../../secrets/eclair/pangolin.env;
-      format = "env";
-      key = "";
-      owner = "root";
+    sops.secrets = {
+      "pangolin" = {
+        sopsFile = ../../secrets/eclair/pangolin.env;
+        format = "env";
+        key = "";
+        owner = "root";
+      };
+
+      "newt/sorbet" = {
+        sopsFile = ../../secrets/soeclairrbet/newt.env;
+        format = "env";
+        key = "";
+        owner = "root";
+      };
+
+      "newt/eclair" = {
+        sopsFile = ../../secrets/eclair/newt-eclair.env;
+        format = "env";
+        key = "";
+        owner = "root";
+      };
     };
 
     eclairNixosModules.pangolin-server = {config, ...}: {
@@ -22,6 +38,7 @@ _: {
     eclairNixosModules.newt = {config, ...}: {
       services.newt = {
         enable = true;
+        environmentFile = config.sops.secrets."newt/eclair".path;
         settings = {
           endpoint = "${config.services.pangolin.dashboardDomain}";
           id = "eclair";
@@ -32,6 +49,7 @@ _: {
     nixosModules.newt = {config, ...}: {
       services.newt = {
         enable = true;
+        environmentFile = config.sops.secrets."newt/sorbet".path;
         settings = {
           endpoint = "${config.services.pangolin.dashboardDomain}";
           id = "sorbet";
