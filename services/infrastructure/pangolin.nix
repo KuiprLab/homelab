@@ -99,10 +99,55 @@ in {
     default = {};
   };
 
+  options.flake.pangolinExitNodes = lib.mkOption {
+    description = ''
+      Declarative Pangolin exit-node client-resources (full-tunnel mode):
+      outlines one resource per attribute; its site's newt creates it in the
+      blueprint, giving authorized pangolin clients a wireguard peer that
+      routes their entire traffic through the site. Replaces tailscale's
+      subnet-router role. Toggle per-client in the pangolin client app.
+    '';
+    type = lib.types.attrsOf (lib.types.submodule {
+      options = {
+        site = lib.mkOption {
+          type = lib.types.str;
+          description = "Pangolin site whose network the client tunnels into.";
+        };
+        name = lib.mkOption {
+          type = lib.types.str;
+          description = "Human readable resource name.";
+        };
+        users = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [];
+          description = "Pangolin user emails allowed to use this exit node.";
+        };
+        roles = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [];
+          description = "Pangolin role ids allowed to use this exit node.";
+        };
+        extra = lib.mkOption {
+          type = lib.types.attrsOf lib.types.raw;
+          default = {};
+          description = "Escape hatch: merged into the blueprint resource entry verbatim.";
+        };
+      };
+    });
+    default = {};
+  };
+
   config.flake = let
     vhosts = config.flake.pangolinVirtualHosts;
+    exitNodes = config.flake.pangolinExitNodes;
 
     forSite = site: lib.filterAttrs (_nick: v: v.site == site) vhosts;
+
+    # exit-node client-resources for a site: full-tunnel access for pangolin
+    # clients (replaces a tailscale subnet router). Schema: mode "exit-node"
+    # (server.mjs PrivateResourceSchema, alias of "gateway") — no destination
+    # required, all TCP/UDP ports + ICMP always allowed; users are email
+    # addresses, roles are org role ids. Admins always have access.
 
     # Shared rendering bits
     healthcheckFor = {
@@ -166,6 +211,18 @@ in {
         }
         vh.extra)
       (lib.filterAttrs (_: vh: !vh.private) (forSite site));
+
+    exitNodeResources = site:
+      lib.mapAttrs (_nick: en:
+        {
+          inherit (en) name;
+          mode = "exit-node";
+          sites = [site];
+          inherit (en) users;
+          roles = en.roles or [];
+        }
+        // (en.extra or {}))
+      (lib.filterAttrs (_: en: en.site == site) exitNodes);
   in {
     eclairNixosModules.pangolin-server = {
       config,
@@ -338,7 +395,7 @@ in {
           id = "eclair";
         };
         blueprint = {
-          client-resources = clientResources "eclair";
+          client-resources = (clientResources "eclair") // (exitNodeResources "eclair");
           proxy-resources = proxyResources "eclair";
         };
       };
@@ -365,7 +422,7 @@ in {
           id = "sorbet";
         };
         blueprint = {
-          client-resources = clientResources "sorbet";
+          client-resources = (clientResources "sorbet") // (exitNodeResources "sorbet");
           proxy-resources = proxyResources "sorbet";
         };
       };
