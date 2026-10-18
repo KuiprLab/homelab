@@ -34,6 +34,25 @@ in {
     port = 18089;
   };
 
+  # SSH into sorbet from pangolin clients off-LAN. TCP client-resource:
+  # the client's pangolin app proxies raw TCP (full-domain resolves to the
+  # resource's alias IP inside the client tunnel) to the site's sshd.
+  # The edge proxy-port must be unique per protocol; 2222 is taken by
+  # eclair's break-glass SSH, so this is 2223.
+  flake.pangolinVirtualHosts."ssh-sorbet" = {
+    site = "sorbet";
+    name = "Sorbet SSH";
+    subdomain = "ssh-sorbet.int.kuipr.de";
+    port = 22;
+    extra = {
+      mode = "tcp";
+      # scheme is meaningless for tcp; nullable per blueprint schema.
+      scheme = null;
+      "proxy-port" = 2223;
+      users = ["admin@kuipr.de"];
+    };
+  };
+
   flake.nixosModules.pihole = {
     lib,
     pkgs,

@@ -23,7 +23,7 @@ Service modules contribute to the flake via:
 
 # Architecture
 
-Eclair is a VPS running CrowdSec, HAProxy and Tailscale with its main purpose being a proxy for external domains
+Eclair is a VPS running Pangolin (with Traefik/Gerbil) with its main purpose being a proxy for external domains
 (`*.ext.kuipr.de`). While sorbet is the main homelab server serving most of the services and tools. Stuff that should
 only be accessible from inside the LAN (or through VPN) lives on the (`*.int.kuipr.de`) subdomain.
 
