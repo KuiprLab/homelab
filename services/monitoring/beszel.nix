@@ -49,6 +49,10 @@ _: {
       site = "sorbet";
       name = "Beszel (agent endpoint)";
       subdomain = "monitoring.ext.kuipr.de";
+      # proxy-resource, not a client-resource: eclair's agent is no pangolin
+      # client; the agent path must be edge-routed (traefik → sorbet's newt
+      # → 127.0.0.1:8091).
+      private = false;
       port = 8091;
     };
 
