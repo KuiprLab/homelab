@@ -1,9 +1,10 @@
 # Beszel — lightweight server monitoring (hub + agents).
 #
 # Topology — all-WebSocket token mode, so no agent ever listens on a port:
-#   sorbet: hub on 0.0.0.0:8091 (caddy → mon.int.kuipr.de, loopback for the
-#           local agent, tailscale0 for eclair — firewall-limited) + agent
-#   eclair: agent only, dials the hub over the tailnet
+#   sorbet: hub on 127.0.0.1:8091 (mon.int.kuipr.de client-resource for the
+#           UI, monitoring.ext.kuipr.de public proxy-resource for eclair's
+#           agent) + local agent (loopback)
+#   eclair: agent only, dials the hub through pangolin's public edge
 #
 # Hub DISABLE_SSH=true → it never dials agents; a disconnected system is
 # marked down and waits for the agent to reconnect. Agent DISABLE_SSH=true →
@@ -37,6 +38,17 @@ _: {
       site = "sorbet";
       name = "Beszel";
       subdomain = "mon.int.kuipr.de";
+      port = 8091;
+    };
+
+    # Eclair's agent has no tunnel entry into sorbet (site tunnels are
+    # userspace proxies; eclair's own newt is not a pangolin client), so
+    # the hub is additionally exposed as a public proxy-resource — the
+    # agent dials wss through pangolin's edge (wildcard cert, ws passes).
+    pangolinVirtualHosts."monitoring" = {
+      site = "sorbet";
+      name = "Beszel (agent endpoint)";
+      subdomain = "monitoring.ext.kuipr.de";
       port = 8091;
     };
 
@@ -79,17 +91,12 @@ _: {
         ];
       };
 
-      # Hub must be reachable from eclair over the tailnet (agent WS +
-      # gatus cross-probe). interfaces-scoped, so the LAN can't hit 8091;
-      # caddy talks to it over loopback, which nftables doesn't filter.
-      networking.firewall.interfaces."tailscale0".allowedTCPPorts = [8091];
-
+      # Hub is loopback-only: the UI resource proxies to 127.0.0.1 and the
+      # public ws endpoint does too — nothing binds the LAN beyond that.
       services.beszel = {
         hub = {
           enable = true;
-          # Bind all interfaces: loopback for caddy + the local agent,
-          # tailscale0 for eclair. Firewall keeps the LAN out.
-          host = "0.0.0.0";
+          host = "127.0.0.1";
           port = 8091;
           environment = {
             APP_URL = "https://mon.int.kuipr.de";
@@ -126,9 +133,9 @@ _: {
       services.beszel.agent = {
         enable = true;
         environment = {
-          # Direct tailnet path to the hub — eclair's dnsmasq-less VPS
-          # can't resolve *.int.kuipr.de, and this skips caddy entirely.
-          HUB_URL = "http://100.120.32.9:8091";
+          # Through pangolin's public proxy-resource (TLS terminated by
+          # pangolin; agent verifies the wildcard cert, then dials wss).
+          HUB_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
         };
         # KEY + TOKEN (both required — see sorbet module header).
