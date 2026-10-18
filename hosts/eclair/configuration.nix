@@ -1,5 +1,5 @@
 # eclair base configuration
-# Minimal VPS: SSH, tailscale, sops age key, system packages.
+# Minimal VPS: SSH, pangolin, sops age key, system packages.
 _: {
   flake.eclairNixosModules.eclairConfiguration = {pkgs, ...}: {
     system.stateVersion = "25.05";
@@ -26,11 +26,6 @@ _: {
         # clients_start_port used by newt UDP hole punch / relay —
         # without it sites behind NAT cannot register an endpoint.
         allowedUDPPorts = [21820];
-        # Tailscale's ts-input chain drops all traffic sourced from
-        # 100.64.0.0/10 unless it arrives on tailscale0 — and pangolin
-        # site subnets (100.89.x.x) fall into that range. Accept wg0
-        # traffic first, or every wireguard reply gets silently dropped.
-        extraCommands = "iptables -I INPUT 1 -i wg0 -s 100.89.0.0/14 -j ACCEPT";
       };
       hostName = "eclair";
     };

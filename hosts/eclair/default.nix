@@ -1,6 +1,6 @@
 # eclair — tiny public VPS
-# Runs haproxy (TCP SNI proxy) + CrowdSec, connected via tailnet.
-# Routes *.ext.kuipr.de → sorbet's tailscale IP (caddy terminates TLS).
+# Runs pangolin + haproxy + crowdsec; pangolin covers cross-host overlay.
+# Routes *.ext.kuipr.de and *.int.kuipr.de wildcard resources.
 {
   self,
   inputs,
@@ -9,7 +9,7 @@
 }: let
   collectModules = attrs: lib.attrValues (lib.filterAttrs (_n: v: v != {}) attrs);
 
-  # Set this to the output of `tailscale ip -4` on sorbet after eclair joins the tailnet.
+  # Legacy arg, unused since the tailscale removal; can be dropped with callers.
   sorbetTailscaleIp = "100.120.32.9";
 in {
   options.flake.eclairNixosModules = lib.mkOption {

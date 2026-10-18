@@ -97,8 +97,6 @@ _: {
           67
           68
         ];
-        interfaces."tailscale0".allowedTCPPorts = [53];
-        interfaces."tailscale0".allowedUDPPorts = [53];
       };
     };
 

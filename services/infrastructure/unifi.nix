@@ -32,9 +32,9 @@ _: {
             "127.0.0.1:11443:443"
             # Device/portal ports: bound to the LAN IP, not 0.0.0.0. APs and
             # other devices talk to UOS_SYSTEM_IP (192.168.0.85, see the
-            # set-inform note above), so LAN-side behavior is unchanged — but
-            # tailscale0 is a trusted interface, so a 0.0.0.0 bind would make
-            # every port tailnet-wide. (Loopback-only would break device
+            # set-inform note above), so LAN-side behavior is unchanged —
+            # and LAN-local bindings keep the ports off any overlay network
+            # that gets added later. (Loopback-only would break device
             # adoption, which is why these aren't 127.0.0.1 like the UI.)
             "192.168.0.85:5005:5005"
             "192.168.0.85:9543:9543"
