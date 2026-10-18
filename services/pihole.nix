@@ -8,7 +8,7 @@
 #
 # Consumers:
 #   1. LAN dnsmasq (dns-dhcp module) forwards unresolved names to
-#      127.0.0.1#5353 → every LAN lookup gets ad blocking + FTL query log.
+#      127.0.0.1#1053 → every LAN lookup gets ad blocking + FTL query log.
 #   2. LAN rules resolve *.int.kuipr.de via the wildcard address line
 #      below (single authority, same as before the tailscale migration).
 {lib, ...}: let
@@ -173,10 +173,10 @@ in {
         ];
         ports = [
           # DNS + dashboard: loopback only. dnsmasq (enp0s31f6:53) is the
-          # LAN frontend and forwards to 127.0.0.1#5353; nothing on the
+          # LAN frontend and forwards to 127.0.0.1#1053; nothing on the
           # LAN talks to FTL directly.
-          "127.0.0.1:5353:53/tcp"
-          "127.0.0.1:5353:53/udp"
+          "127.0.0.1:1053:53/tcp"
+          "127.0.0.1:1053:53/udp"
           # Dashboard: loopback only — the convergence script and local
           # debugging. 8090 is taken (upsnap).
           "127.0.0.1:8081:80/tcp"
