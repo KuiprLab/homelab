@@ -11,7 +11,9 @@
     port = 22;
     extra = {
       mode = "ssh";
-      alias = "sorbet";
+      # alias must be a FQDN per blueprint schema; users call
+      # `pangolin ssh ssh-sorbet` with it.
+      alias = "ssh-sorbet.int.kuipr.de";
       # scheme is meaningless for ssh; nullable per blueprint schema.
       scheme = null;
       users = ["admin@kuipr.de"];
