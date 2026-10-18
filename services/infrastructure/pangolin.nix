@@ -212,23 +212,19 @@ in {
       # Upstream creates the letsencrypt dir as 0700 and traefik writes
       # acme.json as 0600, both owned by traefik. pangolin (user pangolin,
       # group fossorial) must read acme.json for acmeCertSync, which flips
-      # cert status pending -> done. Grant fossorial read via ACLs; the
-      # default ACL covers files traefik recreates on renewal.
+      # cert status pending -> done. The dir is therefore made pangolin-owned
+      # (traefik keeps write access via the fossorial group) — systemd-tmpfiles
+      # skips ACL ops on paths with mixed ownership ("unsafe path transition").
+      # The default ACL makes files traefik creates/renews in this dir
+      # group-readable.
       systemd.tmpfiles.settings."10-fossorial-paths" = {
         "/var/lib/pangolin/config/letsencrypt".d = {
-          user = "traefik";
+          user = lib.mkForce "pangolin";
           group = "fossorial";
-          mode = lib.mkForce "0750";
+          mode = lib.mkForce "0770";
         };
-        "/var/lib/pangolin/config/letsencrypt"."-a+" = {
-          user = "-";
-          group = "-";
+        "/var/lib/pangolin/config/letsencrypt"."a+" = {
           argument = "g:fossorial:r-x,default:g:fossorial:r-x";
-        };
-        "/var/lib/pangolin/config/letsencrypt/acme.json"."-a+" = {
-          user = "-";
-          group = "-";
-          argument = "g:fossorial:r--";
         };
       };
 
