@@ -49,13 +49,13 @@ in {
 
       # Wait for FTL's webserver (container may still be starting).
       for _ in $(${pkgs.coreutils}/bin/seq 1 30); do
-        if ${pkgs.curl}/bin/curl -fsS -o /dev/null http://127.0.0.1:8081/api/lists; then
+        if ${pkgs.curl}/bin/curl -fsS -o /dev/null http://127.0.0.1:18089/api/lists; then
           break
         fi
         sleep 2
       done
 
-      CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8081/api/lists)"
+      CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:18089/api/lists)"
 
       # Remove block-type lists that are not in the declarative set
       # (UI-added adlists are removed on the next run).
@@ -67,7 +67,7 @@ in {
       if [[ "$TO_DELETE" != "[]" ]]; then
         # FTL's batch operations are colon-routed (/api/lists:batchDelete);
         # a slash is parsed as /api/lists/<item> and rejected with a 400.
-        ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8081/api/lists:batchDelete \
+        ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:18089/api/lists:batchDelete \
           -H 'Content-Type: application/json' -d "$TO_DELETE" >/dev/null
       fi
 
@@ -78,7 +78,7 @@ in {
             '.lists[] | select(.type == "block" and .address == $a)' <<<"$CUR" >/dev/null; then
           COMMENT="$(${pkgs.jq}/bin/jq -r --arg a "$ADDR" \
             '[.[] | select(.address == $a)][0].comment' ${blocklistsFile})"
-          ${pkgs.curl}/bin/curl -fsS -X POST 'http://127.0.0.1:8081/api/lists?type=block' \
+          ${pkgs.curl}/bin/curl -fsS -X POST 'http://127.0.0.1:18089/api/lists?type=block' \
             -H 'Content-Type: application/json' \
             -d "$(${pkgs.jq}/bin/jq -n --arg a "$ADDR" --arg c "$COMMENT" \
               '{address: $a, comment: $c}')" >/dev/null
@@ -178,8 +178,10 @@ in {
           "127.0.0.1:1053:53/tcp"
           "127.0.0.1:1053:53/udp"
           # Dashboard: loopback only — the convergence script and local
-          # debugging. 8090 is taken (upsnap).
-          "127.0.0.1:8081:80/tcp"
+          # debugging. 8090 = upsnap, 8081 = gluetun (qBittorrent UI).
+          # (DNS must be a split port (1053) anyway: dnsmasq itself binds
+          # loopback:53, so :53 is unavailable to the publish.)
+          "127.0.0.1:18089:80/tcp"
         ];
         # Podman does not inherit image HEALTHCHECKs — mirror the
         # upstream one (dig pi.hole, no recursion needed). The command
