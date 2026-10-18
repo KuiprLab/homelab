@@ -115,10 +115,10 @@ in {
       inherit hostname;
       inherit port;
       scheme = protocol;
-      path = hc.path;
+      inherit (hc) path;
       mode = "http";
       method = "GET";
-      interval = hc.interval;
+      inherit (hc) interval;
       "unhealthy-interval" = hc."unhealthy-interval";
       "follow-redirects" = true;
     };
@@ -126,10 +126,10 @@ in {
     # > private: moderately-documented client-resources; applied through the
     # newt of the site listed in vh.site.
     clientResources = site:
-      lib.mapAttrs (nick: vh:
+      lib.mapAttrs (_nick: vh:
         lib.recursiveUpdate
         {
-          name = vh.name;
+          inherit (vh) name;
           # client (site) resources in http mode: pangolin terminates TLS for
           # the full domain and forwards through the site's newt connection.
           mode = "http";
@@ -142,20 +142,20 @@ in {
       (lib.filterAttrs (_: vh: vh.private) (forSite site));
 
     proxyResources = site:
-      lib.mapAttrs (nick: vh:
+      lib.mapAttrs (_nick: vh:
         lib.recursiveUpdate
         {
-          name = vh.name;
+          inherit (vh) name;
           mode = "http";
           "full-domain" = vh.subdomain;
           targets = [
             ({
-                hostname = vh.hostname;
-                port = vh.port;
+                inherit (vh) hostname;
+                inherit (vh) port;
                 healthcheck = healthcheckFor {
-                  hostname = vh.hostname;
-                  port = vh.port;
-                  protocol = vh.protocol;
+                  inherit (vh) hostname;
+                  inherit (vh) port;
+                  inherit (vh) protocol;
                   hc = vh.healthcheck;
                 };
               }
@@ -200,6 +200,36 @@ in {
         letsEncryptEmail = "62436912+frostplexx@users.noreply.github.com";
         environmentFile = config.sops.secrets."pangolin".path;
         openFirewall = true;
+        # Certificates are wildcard entries (*.int.kuipr.de, *.ext.kuipr.de);
+        # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
+        settings.domains.domain1.prefer_wildcard_cert = true;
+      };
+
+      # traefik performs the DNS-01 challenge and therefore needs
+      # BUNNY_API_KEY, which lives in the shared pangolin dotenv.
+      services.traefik.environmentFiles = [config.sops.secrets."pangolin".path];
+
+      # Upstream creates the letsencrypt dir as 0700 and traefik writes
+      # acme.json as 0600, both owned by traefik. pangolin (user pangolin,
+      # group fossorial) must read acme.json for acmeCertSync, which flips
+      # cert status pending -> done. Grant fossorial read via ACLs; the
+      # default ACL covers files traefik recreates on renewal.
+      systemd.tmpfiles.settings."10-fossorial-paths" = {
+        "/var/lib/pangolin/config/letsencrypt".d = {
+          user = "traefik";
+          group = "fossorial";
+          mode = lib.mkForce "0750";
+        };
+        "/var/lib/pangolin/config/letsencrypt"."-a+" = {
+          user = "-";
+          group = "-";
+          argument = "g:fossorial:r-x,default:g:fossorial:r-x";
+        };
+        "/var/lib/pangolin/config/letsencrypt/acme.json"."-a+" = {
+          user = "-";
+          group = "-";
+          argument = "g:fossorial:r--";
+        };
       };
 
       # One-shot idempotent bootstrap after pangolin is up:
@@ -235,7 +265,7 @@ in {
               secretEnv = "NEWT_SECRET_SORBET";
             };
           };
-          ensureSite = id: v: ''
+          ensureSite = _: v: ''
             code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
               ${api}/org/${orgId}/site/${v.niceId} || true)
             if [ "$code" != "200" ]; then
