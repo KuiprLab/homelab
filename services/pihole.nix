@@ -1,24 +1,17 @@
-# Minimal Pi-hole (DNS + ad blocking) on eclair.
+# Minimal Pi-hole (DNS + ad blocking) on sorbet.
 #
-# Restored in a stripped-down form after the earlier pi-hole/doh module was
-# removed (caddy was dropped from the repo). No DoH shim, no caddy vhost,
-# no tailscale publish. Two consumers:
-#   1. sorbet's LAN dnsmasq (dns-dhcp module) forwards unresolved names to
-#      100.89.128.1:53 — eclair's gerbil wg0 address, reachable over sorbet's
-#      site tunnel (newt), independent of tailscale.
-#   2. on-tunnel clients resolve *.int.kuipr.de via the wildcard address
-#      line below (single authority now).
+# Stripped-down successor of the removed pihole/doh module (caddy gone, no
+# DoH shim): one container, published on loopback only, LAN dnsmasq
+# forwards to it. Everything is LAN-local — nothing depends on tailscale
+# or the pangolin tunnel (site tunnels are userspace proxies, no L3 route,
+# so a pihole on eclair is unreachable from here).
 #
-# The blocklist set and gravity maintenance are declarative: same
-# convergence approach as the original module, minus the dashboard vhost
-# (FTL listens on loopback only, for the convergence script and debugging).
+# Consumers:
+#   1. LAN dnsmasq (dns-dhcp module) forwards unresolved names to
+#      127.0.0.1#5353 → every LAN lookup gets ad blocking + FTL query log.
+#   2. LAN rules resolve *.int.kuipr.de via the wildcard address line
+#      below (single authority, same as before the tailscale migration).
 {lib, ...}: let
-  # eclair's gerbil wireguard address — the pangolin exit-node 1 endpoint
-  # on wg0. Sorbet's site tunnel (peer in exit node 1) reaches the host at
-  # this IP; the site's exitNodeSubnet (100.89.128.12/30 for sorbet) is a
-  # /30 carved from the same 100.89.128.0/22 that wg0 carries.
-  gerbilIp = "100.89.128.1";
-
   # Declarative blocklist set. Edit here and redeploy.
   blocklists = [
     {
@@ -31,7 +24,7 @@
     }
   ];
 in {
-  flake.eclairNixosModules.pihole = {
+  flake.nixosModules.pihole = {
     lib,
     pkgs,
     ...
@@ -134,27 +127,6 @@ in {
       tmpfiles.rules = ["d /var/lib/pihole 0700 root root -"];
     };
 
-    # Keep the box's own resolver independent of the Pi-hole stack: a
-    # plain resolv.conf pointing at 127.0.0.1 would deadlock at first
-    # boot (podman image pull needs DNS, the podman DNS path needs
-    # the pihole image). Use the provider's resolvers.
-    networking.nameservers = lib.mkOverride 50 [
-      "46.38.225.230"
-      "46.38.252.230"
-    ];
-
-    # The container publishes on wg0, but gerbil inserts catch-all rules
-    # for wg0 (accept http/https, then DROP) at the top of the INPUT
-    # chain — nixos-fw never sees wg0 packets. The rule must therefore
-    # be inserted BEFORE gerbil's, idempotently (-C check, so repeated
-    # activations don't stack duplicates).
-    networking.firewall.extraCommands = ''
-      iptables -C INPUT -i wg0 -p udp --dport 53 -s 100.88.0.0/14 -j ACCEPT \
-        || iptables -I INPUT 1 -i wg0 -p udp --dport 53 -s 100.88.0.0/14 -j ACCEPT
-      iptables -C INPUT -i wg0 -p tcp --dport 53 -s 100.88.0.0/14 -j ACCEPT \
-        || iptables -I INPUT 1 -i wg0 -p tcp --dport 53 -s 100.88.0.0/14 -j ACCEPT
-    '';
-
     virtualisation = {
       podman.enable = true;
       oci-containers.backend = "podman";
@@ -178,8 +150,13 @@ in {
           FTLCONF_dns_upstreams = "1.1.1.1;9.9.9.9";
 
           # ALL: the published-port path forwards to the container's eth0,
-          # "local-only" listening mode refuses. Required for wg0:53.
+          # "local-only" listening mode refuses. Required even for the
+          # loopback publish.
           FTLCONF_dns_listeningMode = "ALL";
+
+          # Names for every client that can reach FTL, so the dashboard
+          # shows hosts instead of bare addresses. Local host services
+          # bypass FTL (sorbet resolves via 9.9.9.9, see configuration.nix).
 
           # Names for every client that can reach FTL, so the dashboard
           # shows hosts instead of bare addresses.
@@ -195,15 +172,11 @@ in {
           "/var/lib/pihole:/etc/pihole:rw"
         ];
         ports = [
-          # DNS: loopback (blocklist health probes) plus the gerbil wg0
-          # address — sorbet's LAN dnsmasq upstream over the site's
-          # pangolin tunnel (see module header).
-          "127.0.0.1:53:53/tcp"
-          "127.0.0.1:53:53/udp"
-          "${gerbilIp}:53:53/tcp"
-          "${gerbilIp}:53:53/udp"
-          # Dashboard: loopback only — the convergence script and local
-          # debugging. Not reachable through the tunnel network.
+          # DNS + dashboard: loopback only. dnsmasq (enp0s31f6:53) is the
+          # LAN frontend and forwards to 127.0.0.1#5353; nothing on the
+          # LAN talks to FTL directly.
+          "127.0.0.1:5353:53/tcp"
+          "127.0.0.1:5353:53/udp"
           "127.0.0.1:8090:80/tcp"
         ];
         # Podman does not inherit image HEALTHCHECKs — mirror the
