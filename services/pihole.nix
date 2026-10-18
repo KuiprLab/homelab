@@ -12,10 +12,7 @@
 # The blocklist set and gravity maintenance are declarative: same
 # convergence approach as the original module, minus the dashboard vhost
 # (FTL listens on loopback only, for the convergence script and debugging).
-{
-  lib,
-  ...
-}: let
+{lib, ...}: let
   # eclair's gerbil wireguard address — the pangolin exit-node 1 endpoint
   # on wg0. Sorbet's site tunnel (peer in exit node 1) reaches the host at
   # this IP; the site's exitNodeSubnet (100.89.128.12/30 for sorbet) is a
@@ -34,7 +31,7 @@
     }
   ];
 in {
-  eclairNixosModules.pihole = {
+  flake.eclairNixosModules.pihole = {
     lib,
     pkgs,
     ...
@@ -45,62 +42,62 @@ in {
 
     # Script: converge gravity.db's list set to the declarative one, then
     # refresh. Runs only when the set's content hash changes.
-  applyBlocklists = pkgs.writeShellScript "pihole-apply-blocklists" ''
-    set -euo pipefail
+    applyBlocklists = pkgs.writeShellScript "pihole-apply-blocklists" ''
+      set -euo pipefail
 
-    STATE_DIR=/var/lib/pihole
-    HASH_FILE="$STATE_DIR/.blocklists.hash"
-    NEW_HASH="$(${pkgs.coreutils}/bin/sha256sum ${blocklistsFile} | ${pkgs.coreutils}/bin/cut -d' ' -f1)"
+      STATE_DIR=/var/lib/pihole
+      HASH_FILE="$STATE_DIR/.blocklists.hash"
+      NEW_HASH="$(${pkgs.coreutils}/bin/sha256sum ${blocklistsFile} | ${pkgs.coreutils}/bin/cut -d' ' -f1)"
 
-    if [[ -f "$HASH_FILE" && "$(< "$HASH_FILE")" == "$NEW_HASH" ]]; then
-      echo "blocklist set unchanged"
-      exit 0
-    fi
-
-    # Wait for FTL's webserver (container may still be starting).
-    for _ in $(${pkgs.coreutils}/bin/seq 1 30); do
-      if ${pkgs.curl}/bin/curl -fsS -o /dev/null http://127.0.0.1:8090/api/lists; then
-        break
+      if [[ -f "$HASH_FILE" && "$(< "$HASH_FILE")" == "$NEW_HASH" ]]; then
+        echo "blocklist set unchanged"
+        exit 0
       fi
-      sleep 2
-    done
 
-    CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8090/api/lists)"
+      # Wait for FTL's webserver (container may still be starting).
+      for _ in $(${pkgs.coreutils}/bin/seq 1 30); do
+        if ${pkgs.curl}/bin/curl -fsS -o /dev/null http://127.0.0.1:8090/api/lists; then
+          break
+        fi
+        sleep 2
+      done
 
-    # Remove block-type lists that are not in the declarative set
-    # (UI-added adlists are removed on the next run).
-    TO_DELETE="$(${pkgs.jq}/bin/jq -c --slurpfile want ${blocklistsFile} '
-      [.lists[]
-        | select(.type == "block")
-        | select(.address as $a | $want[0] | map(.address) | index($a) | not)
-        | {item: .address, type: "block"}]' <<<"$CUR")"
-    if [[ "$TO_DELETE" != "[]" ]]; then
-      # FTL's batch operations are colon-routed (/api/lists:batchDelete);
-      # a slash is parsed as /api/lists/<item> and rejected with a 400.
-      ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/lists:batchDelete \
-        -H 'Content-Type: application/json' -d "$TO_DELETE" >/dev/null
-    fi
+      CUR="$(${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8090/api/lists)"
 
-    # Add missing declarative lists (POST is idempotent-checked against
-    # the set we just fetched — no duplicate-list 400s).
-    ${pkgs.jq}/bin/jq -r '.[].address' ${blocklistsFile} | while read -r ADDR; do
-      if ! ${pkgs.jq}/bin/jq -e --arg a "$ADDR" \
-          '.lists[] | select(.type == "block" and .address == $a)' <<<"$CUR" >/dev/null; then
-        COMMENT="$(${pkgs.jq}/bin/jq -r --arg a "$ADDR" \
-          '[.[] | select(.address == $a)][0].comment' ${blocklistsFile})"
-        ${pkgs.curl}/bin/curl -fsS -X POST 'http://127.0.0.1:8090/api/lists?type=block' \
-          -H 'Content-Type: application/json' \
-          -d "$(${pkgs.jq}/bin/jq -n --arg a "$ADDR" --arg c "$COMMENT" \
-            '{address: $a, comment: $c}')" >/dev/null
+      # Remove block-type lists that are not in the declarative set
+      # (UI-added adlists are removed on the next run).
+      TO_DELETE="$(${pkgs.jq}/bin/jq -c --slurpfile want ${blocklistsFile} '
+        [.lists[]
+          | select(.type == "block")
+          | select(.address as $a | $want[0] | map(.address) | index($a) | not)
+          | {item: .address, type: "block"}]' <<<"$CUR")"
+      if [[ "$TO_DELETE" != "[]" ]]; then
+        # FTL's batch operations are colon-routed (/api/lists:batchDelete);
+        # a slash is parsed as /api/lists/<item> and rejected with a 400.
+        ${pkgs.curl}/bin/curl -fsS -X POST http://127.0.0.1:8090/api/lists:batchDelete \
+          -H 'Content-Type: application/json' -d "$TO_DELETE" >/dev/null
       fi
-    done
 
-    echo "$NEW_HASH" > "$HASH_FILE"
+      # Add missing declarative lists (POST is idempotent-checked against
+      # the set we just fetched — no duplicate-list 400s).
+      ${pkgs.jq}/bin/jq -r '.[].address' ${blocklistsFile} | while read -r ADDR; do
+        if ! ${pkgs.jq}/bin/jq -e --arg a "$ADDR" \
+            '.lists[] | select(.type == "block" and .address == $a)' <<<"$CUR" >/dev/null; then
+          COMMENT="$(${pkgs.jq}/bin/jq -r --arg a "$ADDR" \
+            '[.[] | select(.address == $a)][0].comment' ${blocklistsFile})"
+          ${pkgs.curl}/bin/curl -fsS -X POST 'http://127.0.0.1:8090/api/lists?type=block' \
+            -H 'Content-Type: application/json' \
+            -d "$(${pkgs.jq}/bin/jq -n --arg a "$ADDR" --arg c "$COMMENT" \
+              '{address: $a, comment: $c}')" >/dev/null
+        fi
+      done
 
-    # Pull the (possibly new) lists into the blocking table now instead
-    # of waiting for the weekly gravity timer.
-    ${pkgs.podman}/bin/podman exec pihole pihole -g
-  '';
+      echo "$NEW_HASH" > "$HASH_FILE"
+
+      # Pull the (possibly new) lists into the blocking table now instead
+      # of waiting for the weekly gravity timer.
+      ${pkgs.podman}/bin/podman exec pihole pihole -g
+    '';
   in {
     systemd = {
       services = {
