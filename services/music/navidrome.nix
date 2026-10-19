@@ -57,6 +57,9 @@ _: {
       services.navidrome = {
         enable = true;
         settings = {
+          # eclair caddy (music.ext.kuipr.de) proxies to 192.168.0.85:4533
+          # over the NetBird overlay — loopback is not reachable.
+          "Address" = "0.0.0.0";
           MusicFolder = musicFolder;
           "Plugins.Enabled" = true;
           "Backup.Path" = "/var/lib/navidrome/backups";
