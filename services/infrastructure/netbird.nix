@@ -81,7 +81,82 @@ _: {
             encryptionKey: "''${NB_DATASTORE_KEY}"
         EOF
       '';
+      # Declarative control-plane state (GitOps): groups, the home-LAN
+      # route, and the int.kuipr.de DNS zone are converged by
+      # netbird-apply from the Management REST API. One-time imperative
+      # bits stay manual: admin account (dashboard) and the PAT
+      # (NB_PAT in sops, created in dashboard → Access Tokens).
+      applyScript = pkgs.writeShellScript "netbird-apply" ''
+        set -euo pipefail
+        . "${config.sops.secrets."netbird/env".path}"
+        API="https://${nbDomain}/api"
+        req() { curl -sSf -H "Authorization: Token $NB_PAT" -H "Content-Type: application/json" "$@"; }
+        block() { set +e; out=$(req "$@" 2>&1); rc=$?; set -e; echo "$out"; return $rc; }
+
+        gid() { req "$API/groups" | jq -r --arg n "$1" 'first(.[]|select(.name==$n)|.id) // empty'; }
+
+        # --- groups (create-if-missing; membership is setup-key driven) ---
+        for g in servers clients router; do
+          [ -n "$(gid "$g")" ] || req -X POST -d "{\"name\":\"$g\",\"peers\":[]}" "$API/groups"
+        done
+
+        cid=$(gid clients)
+        rgid=$(gid router)
+
+        # --- legacy API route home-lan (192.168.0.0/24 via router group) ---
+        # NOTE: route.`groups` are DISTRIBUTION groups (who gets the route);
+        # route.`peer_groups` name the routing peer (sorbet). The v2
+        # /api/networks objects do not distribute without a destination-
+        # resource policy, so we use the legacy route API instead.
+        route_body="{\"network_id\":\"home-lan\",\"network\":\"192.168.0.0/24\",\"description\":\"declarative home LAN route\",\"groups\":[\"$cid\"],\"peer_groups\":[\"$rgid\"],\"masquerade\":true,\"metric\":9999,\"enabled\":true}"
+        rid=$(req "$API/routes" | jq -r 'first(.[]|select(.network_id=="home-lan")|.id) // empty')
+        if [ -n "$rid" ]; then
+          req -X PUT -d "$route_body" "$API/routes/$rid"
+        else
+          req -X POST -d "$route_body" "$API/routes"
+        fi
+
+        # --- nameserver group int-domains -> sorbet/pihole ---
+        ns_body="{\"name\":\"int-domains\",\"description\":\"*.int.kuipr.de -> sorbet\",\"nameservers\":[{\"ip\":\"192.168.0.85\",\"ns_type\":\"udp\",\"port\":53}],\"enabled\":true,\"groups\":[\"$cid\"],\"primary\":false,\"domains\":[\"int.kuipr.de\"],\"search_domains_enabled\":true}"
+        nsid=$(req "$API/dns/nameservers" | jq -r 'first(.[]|select(.name=="int-domains")|.id) // empty')
+        if [ -n "$nsid" ]; then
+          req -X PUT -d "$ns_body" "$API/dns/nameservers/$nsid"
+        else
+          req -X POST -d "$ns_body" "$API/dns/nameservers"
+        fi
+
+        # --- router group membership pinned to sorbet ---
+        sorbet=$(req "$API/peers" | jq -r 'first(.[]|select(.hostname=="sorbet")|.id) // empty')
+        if [ -n "$sorbet" ]; then
+          cur=$(req "$API/groups/$rgid" | jq -c '(.peers // [] | map(.id // .)) | sort')
+          want=$(printf '["%s"]' "$sorbet")
+          if [ "$cur" != "$want" ]; then
+            req -X PUT -d "{\"name\":\"router\",\"peers\":[\"$sorbet\"]}" "$API/groups/$rgid"
+          fi
+        fi
+      '';
     in {
+      systemd.services.netbird-apply = {
+        description = "NetBird: converge control-plane state from nix spec";
+        after = ["podman-netbird-server.service" "sops-nix.service"];
+        wants = ["sops-nix.service"];
+        serviceConfig = {
+          Type = "oneshot";
+          # sops-nix secret: a set; `.path` coerces to the installed file.
+          EnvironmentFile = toString config.sops.secrets."netbird/env".path;
+          RuntimeMaxSec = "5min";
+        };
+        path = with pkgs; [curl jq];
+        script = toString applyScript;
+      };
+      systemd.timers.netbird-apply = {
+        wantedBy = ["timers.target"];
+        timerConfig = {
+          OnBootSec = "2min";
+          OnUnitActiveSec = "1h";
+          RandomizedDelaySec = "60";
+        };
+      };
       sops.secrets."netbird/env" = {
         sopsFile = ../../secrets/eclair/netbird.env;
         format = "dotenv";
