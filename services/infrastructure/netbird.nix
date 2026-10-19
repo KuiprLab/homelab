@@ -55,7 +55,7 @@ _: {
         cat > /var/lib/netbird/config/config.yaml <<EOF
         server:
           listenAddress: ":80"
-          exposedAddress: "https://:443"
+          exposedAddress: "https://${nbDomain}:443"
           stunPorts:
             - 3478
           metricsPort: 9090
