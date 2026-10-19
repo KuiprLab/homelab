@@ -110,13 +110,13 @@ _: {
         backend = "podman";
         containers = {
           "netbird-dashboard" = {
-            image = "netbirdio/dashboard:latest";
+            image = "docker.io/netbirdio/dashboard:latest";
             autoStart = true;
             environmentFiles = [dashboardEnv];
             ports = ["127.0.0.1:8080:80/tcp"];
           };
           "netbird-server" = {
-            image = "netbirdio/netbird-server:latest";
+            image = "docker.io/netbirdio/netbird-server:latest";
             autoStart = true;
             ports = [
               "127.0.0.1:8081:80/tcp"
