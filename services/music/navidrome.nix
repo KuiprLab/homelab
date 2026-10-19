@@ -1,15 +1,14 @@
 # Navidrome service, plugins, tmpfiles, and music-tagger
 _: {
   flake = {
-    # External: proxied publicly by pangolin (music.ext.kuipr.de). Note
-    # Navidrome's Externalized Authentication header injection no longer
-    # works through pangolin — use pangolin's native dashboard accounts.
-    pangolinVirtualHosts."music" = {
-      site = "sorbet";
+    # External: served by eclair's caddy (music.ext.kuipr.de), which
+    # reverse-proxies to navidrome over the NetBird overlay (normal proxy,
+    # no auth gate — access is controlled by navidrome accounts).
+    eclairCaddyVirtualHosts."music.ext.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 192.168.0.85:4533
+      '';
       name = "Navidrome (ext)";
-      subdomain = "music.ext.kuipr.de";
-      port = 4533;
-      private = false;
     };
 
     nixosModules.navidrome = {

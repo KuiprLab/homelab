@@ -1,10 +1,10 @@
 _: {
   flake = {
-    pangolinVirtualHosts."scrobble" = {
-      site = "sorbet";
+    caddyVirtualHosts."scrobble.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:9078
+      '';
       name = "Multi-scrobbler";
-      subdomain = "scrobble.int.kuipr.de";
-      port = 9078;
     };
 
     nixosModules.multi-scrobbler = {config, ...}: {

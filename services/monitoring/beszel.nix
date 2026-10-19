@@ -34,26 +34,21 @@
 # token lands (a bad token is a 401, not a crash).
 _: {
   flake = {
-    pangolinVirtualHosts."mon" = {
-      site = "sorbet";
+    caddyVirtualHosts."mon.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:8091
+      '';
       name = "Beszel";
-      subdomain = "mon.int.kuipr.de";
-      port = 8091;
     };
 
-    # Eclair's agent has no tunnel entry into sorbet (site tunnels are
-    # userspace proxies; eclair's own newt is not a pangolin client), so
-    # the hub is additionally exposed as a public proxy-resource — the
-    # agent dials wss through pangolin's edge (wildcard cert, ws passes).
-    pangolinVirtualHosts."monitoring" = {
-      site = "sorbet";
+    flake.eclairCaddyVirtualHosts."monitoring.ext.kuipr.de" = {
+      # Eclair's beszel agent dials the hub over the NetBird overlay: the hub
+      # binds the LAN address (beszel.nix), and eclair's caddy reaches it via
+      # the masqueraded home-lan network route.
+      extraConfig = ''
+        reverse_proxy 192.168.0.85:8091
+      '';
       name = "Beszel (agent endpoint)";
-      subdomain = "monitoring.ext.kuipr.de";
-      # proxy-resource, not a client-resource: eclair's agent is no pangolin
-      # client; the agent path must be edge-routed (traefik → sorbet's newt
-      # → 127.0.0.1:8091).
-      private = false;
-      port = 8091;
     };
 
     # ----- sorbet: hub + local agent -----
@@ -97,10 +92,14 @@ _: {
 
       # Hub is loopback-only: the UI resource proxies to 127.0.0.1 and the
       # public ws endpoint does too — nothing binds the LAN beyond that.
+      # Bind the LAN address: eclair's caddy (beszel.nix) reaches the hub
+      # through the NetBird overlay via the masqueraded home-lan route — for
+      # the wss agent endpoint and the mon UI path. Loopback is no longer
+      # enough since the pangolin tunnel is gone.
       services.beszel = {
         hub = {
           enable = true;
-          host = "127.0.0.1";
+          host = "192.168.0.85";
           port = 8091;
           environment = {
             APP_URL = "https://mon.int.kuipr.de";
@@ -108,6 +107,8 @@ _: {
             USER_CREATION = "true";
           };
         };
+        # Local agent still talks to the loopback endpoint (the hub binds
+        # the LAN address too, so the port is the same, only the bind differs).
         agent = {
           enable = true;
           # S.M.A.R.T. data for the NVMe + btrfs disks. Grants the agent

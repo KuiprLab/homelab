@@ -1,10 +1,10 @@
 _: {
   flake = {
-    pangolinVirtualHosts."up" = {
-      site = "sorbet";
+    caddyVirtualHosts."up.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:8090
+      '';
       name = "Upsnap";
-      subdomain = "up.int.kuipr.de";
-      port = 8090;
     };
 
     nixosModules.upsnap = {pkgs, ...}: {

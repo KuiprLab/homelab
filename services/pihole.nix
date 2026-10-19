@@ -11,9 +11,8 @@
 #      127.0.0.1#1053 → every LAN lookup gets ad blocking + FTL query log.
 #   2. LAN rules resolve *.int.kuipr.de via the wildcard address line
 #      below (single authority, same as before the tailscale migration).
-#   3. Dashboard off-LAN: pangolinVirtualHosts."pihole" makes the FTL UI
-#      reachable at pihole.int.kuipr.de through sorbet's pangolin site newt
-#      (private client-resource; LAN rules also hit it via 192.168.0.85).
+#   3. Dashboard off-LAN: caddyVirtualHosts."pihole" serves the FTL UI at
+#      pihole.int.kuipr.de on sorbet's caddy (LAN direct / NetBird overlay).
 {lib, ...}: let
   # Declarative blocklist set. Edit here and redeploy.
   blocklists = [
@@ -27,11 +26,11 @@
     }
   ];
 in {
-  flake.pangolinVirtualHosts."pihole" = {
-    site = "sorbet";
+  flake.caddyVirtualHosts."pihole.int.kuipr.de" = {
+    extraConfig = ''
+      reverse_proxy 127.0.0.1:18089
+    '';
     name = "Pi-hole";
-    subdomain = "pihole.int.kuipr.de";
-    port = 18089;
   };
 
   flake.nixosModules.pihole = {

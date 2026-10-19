@@ -1,10 +1,10 @@
 _: {
   flake = {
-    pangolinVirtualHosts."paperless" = {
-      site = "sorbet";
+    caddyVirtualHosts."paperless.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:28981
+      '';
       name = "Paperless";
-      subdomain = "paperless.int.kuipr.de";
-      port = 28981;
     };
 
     nixosModules.paperless = {config, ...}: {

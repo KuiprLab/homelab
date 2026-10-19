@@ -1,14 +1,9 @@
 _: {
   flake = {
-    # Expose the authelia portal publicly via pangolin — resources that use
-    # its login/oidc flows hit it directly.
-    pangolinVirtualHosts."auth" = {
-      site = "sorbet";
-      name = "Authelia";
-      subdomain = "auth.ext.kuipr.de";
-      port = 9091;
-      private = false;
-    };
+    # The Authelia portal (OIDC issuer + authelia_url in the sops
+    # configuration.yml) stays served at https://auth.ext.kuipr.de by
+    # eclair's caddy, which reaches the container through the NetBird
+    # overlay (ports below bind the LAN IP for that).
 
     nixosModules.authelia = {
       pkgs,
@@ -53,9 +48,11 @@ _: {
             "${config.sops.secrets."authelia/authelia-users.yaml".path}:/config/users_database.yaml:ro"
           ];
           ports = [
-            # loopback only: caddy (host) proxies auth.ext.kuipr.de -> here;
-            # never expose the auth service to LAN/tailnet directly
-            "127.0.0.1:9091:9091/tcp"
+            # Bind the LAN address: eclair's caddy reaches authelia through
+            # the NetBird overlay (masqueraded home-lan route), so the
+            # public auth portal keeps working with authelia on sorbet.
+            # Never expose it wider than that.
+            "192.168.0.85:9091:9091/tcp"
           ];
           environmentFiles = [
             "${config.sops.secrets."authelia/authelia.env".path}"

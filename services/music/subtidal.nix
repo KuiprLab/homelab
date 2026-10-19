@@ -1,16 +1,7 @@
 # Subtidal — hosted on eclair (public VPS) for faster connection speeds.
-# Traffic terminates on eclair (haproxy SNI → local caddy → container) and
-# never touches sorbet.
+# Traffic terminates locally (caddy → container) and never touches sorbet.
 _: {
   flake = {
-    pangolinVirtualHosts."subtidal" = {
-      site = "eclair";
-      name = "Subtidal";
-      subdomain = "subtidal.ext.kuipr.de";
-      port = 4234;
-      private = false;
-    };
-
     eclairCaddyVirtualHosts."subtidal.ext.kuipr.de" = {
       extraConfig = ''
         reverse_proxy localhost:4234

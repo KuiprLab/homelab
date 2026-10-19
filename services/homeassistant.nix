@@ -1,11 +1,11 @@
 _: {
   flake = {
     # Home Assistant on sorbet, reachable via the pangolin tunnel network.
-    pangolinVirtualHosts."has" = {
-      site = "sorbet";
+    caddyVirtualHosts."has.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:8123
+      '';
       name = "Home Assistant";
-      subdomain = "has.int.kuipr.de";
-      port = 8123;
     };
 
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module

@@ -2,11 +2,11 @@
 # https://koito.io
 _: {
   flake = {
-    pangolinVirtualHosts."koito" = {
-      site = "sorbet";
+    caddyVirtualHosts."koito.int.kuipr.de" = {
+      extraConfig = ''
+        reverse_proxy 127.0.0.1:4110
+      '';
       name = "Koito";
-      subdomain = "koito.int.kuipr.de";
-      port = 4110;
     };
 
     nixosModules.koito = {config, ...}: {
