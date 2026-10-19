@@ -66,7 +66,7 @@
           enableReload = false;
           package = pkgs.caddy.withPlugins {
             plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
-            hash = "sha256-MSUCHg7Ej7xSmfn5Y5JZtttOWOHcXqnrpmHlhoS4KLQ=";
+            hash = "sha256-92prKdGudX4MAEfUjyCrtpWoy6p5rwYxEEDnzLg2fmI=";
           };
           globalConfig = ''
             # Bunny DNS-01 for the ext wildcard; no HTTP listener needed.
