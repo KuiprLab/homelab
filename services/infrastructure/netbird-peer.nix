@@ -27,9 +27,12 @@ _: {
       allowedTCPPorts = [
         80
         443
-        4533
-        8091
-        9091
+        # services whose `.ext` vhosts (eclair caddy) and roaming peers reach
+        # over the overlay
+        4110 # koito
+        4533 # navidrome
+        8091 # beszel hub
+        9091 # authelia
       ];
       allowedUDPPorts = [53];
     };
