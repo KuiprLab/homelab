@@ -45,20 +45,14 @@
       lib.mkIf (virtualHosts != {}) {
         networking.firewall.allowedTCPPorts = [80 443];
 
-        # Bunny API key for DNS-01. Kept in the old pangolin dotenv (same key
-        # pangolin's traefik used for the *.ext wildcard); rendered into a
-        # caddy-owned env file via sops.templates.
-        sops = {
-          secrets."pangolin/BUNNY_API_KEY" = {
-            sopsFile = ../secrets/eclair/pangolin.env;
-            format = "dotenv";
-            key = "BUNNY_API_KEY";
-            owner = "root";
-          };
-          templates."caddy/env" = {
-            content = "BUNNY_API_KEY=${config.sops.secrets."pangolin/BUNNY_API_KEY".path}";
-            owner = "caddy";
-          };
+        # Bunny API key for DNS-01. The old pangolin dotenv is decrypted as
+        # a whole (key = "") so the file itself is the BUNNY_API_KEY=...
+        # dotenv, consumed directly as caddy's EnvironmentFile.
+        sops.secrets."pangolin/BUNNY_API_KEY" = {
+          sopsFile = ../secrets/eclair/pangolin.env;
+          format = "dotenv";
+          key = "";
+          owner = "caddy";
         };
 
         services.caddy = {
@@ -90,7 +84,7 @@
         # The Caddyfile expands {$BUNNY_API_KEY} at parse time, so the env
         # file must exist before caddy starts.
         systemd.services.caddy.serviceConfig.EnvironmentFile = [
-          config.sops.templates."caddy/env".path
+          config.sops.secrets."pangolin/BUNNY_API_KEY".path
         ];
       };
 }
