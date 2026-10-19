@@ -88,7 +88,7 @@ _: {
       # (NB_PAT in sops, created in dashboard → Access Tokens).
       applyScript = pkgs.writeShellScript "netbird-apply" ''
         set -euo pipefail
-        . "${config.sops.secrets."netbird/env".path}"
+        . "$NB_ENV_FILE"
         API="https://${nbDomain}/api"
         req() { curl -sSf -H "Authorization: Token $NB_PAT" -H "Content-Type: application/json" "$@"; }
         block() { set +e; out=$(req "$@" 2>&1); rc=$?; set -e; echo "$out"; return $rc; }
@@ -136,33 +136,38 @@ _: {
         fi
       '';
     in {
-      systemd.services.netbird-apply = {
-        description = "NetBird: converge control-plane state from nix spec";
-        after = ["podman-netbird-server.service" "sops-nix.service"];
-        wants = ["sops-nix.service"];
-        serviceConfig = {
-          Type = "oneshot";
+      systemd = {
+        services.netbird-apply = {
+          description = "NetBird: converge control-plane state from nix spec";
+          after = ["podman-netbird-server.service" "sops-nix.service"];
+          wants = ["sops-nix.service"];
+          serviceConfig = {
+            Type = "oneshot";
+            RuntimeMaxSec = "5min";
+          };
+          path = with pkgs; [curl jq];
           # sops-nix secret: a set; `.path` coerces to the installed file.
-          EnvironmentFile = toString config.sops.secrets."netbird/env".path;
-          RuntimeMaxSec = "5min";
+          environment.NB_ENV_FILE = toString config.sops.secrets."netbird/env".path;
+          script = toString applyScript;
         };
-        path = with pkgs; [curl jq];
-        script = toString applyScript;
-      };
-      systemd.timers.netbird-apply = {
-        wantedBy = ["timers.target"];
-        timerConfig = {
-          OnBootSec = "2min";
-          OnUnitActiveSec = "1h";
-          RandomizedDelaySec = "60";
+
+        timers.netbird-apply = {
+          wantedBy = ["timers.target"];
+          timerConfig = {
+            OnBootSec = "2min";
+            OnUnitActiveSec = "1h";
+            RandomizedDelaySec = "60";
+          };
         };
       };
+
       sops.secrets."netbird/env" = {
         sopsFile = ../../secrets/eclair/netbird.env;
         format = "dotenv";
         key = "";
         owner = "root";
       };
+
       sops.templates."netbird/dashboard.env" = {
         content = ''
           NETBIRD_MGMT_API_ENDPOINT=https://${nbDomain}
@@ -221,6 +226,8 @@ _: {
         clients.default = {
           interface = "wt0";
           port = 51820;
+          # not hardened: daemon needs root to apply resolv.conf (netbird DNS)
+          hardened = false;
         };
         useRoutingFeatures = "client";
       };

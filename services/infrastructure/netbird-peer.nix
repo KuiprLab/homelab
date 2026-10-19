@@ -13,6 +13,8 @@ _: {
   flake.nixosModules.netbirdClient = _: {
     services.netbird = {
       clients.default = {
+        # not hardened: daemon needs root to apply resolv.conf (netbird DNS)
+        hardened = false;
         interface = "wt0";
         port = 51820;
       };
