@@ -1,10 +1,9 @@
 # Minimal Pi-hole (DNS + ad blocking) on sorbet.
 #
-# Stripped-down successor of the removed pihole/doh module (caddy gone, no
-# DoH shim): one container, published on loopback only, LAN dnsmasq
-# forwards to it. Everything is LAN-local — nothing depends on tailscale
-# or the pangolin tunnel (site tunnels are userspace proxies, no L3 route,
-# so a pihole on eclair is unreachable from here).
+# Stripped-down container-only pihole: published on loopback only, LAN
+# dnsmasq forwards to it. Everything is LAN-local — nothing depends on
+# old pangolin tunnel (site tunnels were userspace proxies, no L3 route).
+# Off-LAN access: sorbet's caddy (pihole.int) over the NetBird overlay.
 #
 # Consumers:
 #   1. LAN dnsmasq (dns-dhcp module) forwards unresolved names to
@@ -13,7 +12,7 @@
 #      below (single authority, same as before the tailscale migration).
 #   3. Dashboard off-LAN: caddyVirtualHosts."pihole" serves the FTL UI at
 #      pihole.int.kuipr.de on sorbet's caddy (LAN direct / NetBird overlay).
-{lib, ...}: let
+_: let
   # Declarative blocklist set. Edit here and redeploy.
   blocklists = [
     {
@@ -33,11 +32,7 @@ in {
     name = "Pi-hole";
   };
 
-  flake.nixosModules.pihole = {
-    lib,
-    pkgs,
-    ...
-  }: let
+  flake.nixosModules.pihole = {pkgs, ...}: let
     blocklistsFile = pkgs.writeText "pihole-blocklists.json" (
       builtins.toJSON blocklists
     );
@@ -169,7 +164,7 @@ in {
 
           # Names for every client that can reach FTL, so the dashboard
           # shows hosts instead of bare addresses.
-          FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu;10.88.0.1 pangolin-clients;100.89.128.1 eclair-gerbil;100.89.128.12 sorbet-newt";
+          FTLCONF_dns_hosts = "192.168.0.85 sorbet;192.168.0.5 tiramisu";
 
           # Split horizon: *.int.kuipr.de (and the domain itself) answer
           # with sorbet from anywhere. This is the single wildcard
@@ -211,7 +206,7 @@ in {
           # container's /etc/hosts, which beats FTLCONF_dns_hosts in FTL's
           # reverse lookup — the published-port client would stay named
           # host.containers.internal. --no-hosts drops podman's entries;
-          # FTL then names the client from FTLCONF_dns_hosts (pangolin-clients).
+          # FTL then names the client from FTLCONF_dns_hosts.
           # The healthcheck and FTL only use numeric addresses, so nothing
           # inside the container needs name resolution.
           "--no-hosts"

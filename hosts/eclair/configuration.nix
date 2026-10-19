@@ -1,5 +1,5 @@
 # eclair base configuration
-# Minimal VPS: SSH, pangolin, sops age key, system packages.
+# Minimal VPS: SSH, sops age key, caddy edge + netbird control plane.
 _: {
   flake.eclairNixosModules.eclairConfiguration = {pkgs, ...}: {
     system.stateVersion = "25.05";
@@ -19,13 +19,11 @@ _: {
     networking = {
       firewall = {
         enable = true;
-        # haproxy: HTTP redirect + HTTPS passthrough; 2222 is the public
-        # break-glass SSH port (sshd listens on all interfaces).
+        # 2222 is the public break-glass SSH port (sshd listens on all
+        # interfaces). Caddy owns 80/443 (services/eclair-caddy.nix); the
+        # netbird control plane adds STUN 3478/udp (services/infrastructure/
+        # netbird.nix) and the local peer opens 51820/udp itself.
         allowedTCPPorts = [80 443 2222];
-        # gerbil: 51820 (wireguard) via pangolin module; 21820 is
-        # clients_start_port used by newt UDP hole punch / relay —
-        # without it sites behind NAT cannot register an endpoint.
-        allowedUDPPorts = [21820];
       };
       hostName = "eclair";
     };

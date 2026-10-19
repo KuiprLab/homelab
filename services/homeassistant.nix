@@ -1,6 +1,7 @@
 _: {
   flake = {
-    # Home Assistant on sorbet, reachable via the pangolin tunnel network.
+    # Home Assistant on sorbet, reachable via the NetBird overlay (off-LAN
+    # peers resolve *.int.kuipr.de → 192.168.0.85).
     caddyVirtualHosts."has.int.kuipr.de" = {
       extraConfig = ''
         reverse_proxy 127.0.0.1:8123

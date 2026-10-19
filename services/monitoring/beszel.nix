@@ -41,7 +41,7 @@ _: {
       name = "Beszel";
     };
 
-    flake.eclairCaddyVirtualHosts."monitoring.ext.kuipr.de" = {
+    eclairCaddyVirtualHosts."monitoring.ext.kuipr.de" = {
       # Eclair's beszel agent dials the hub over the NetBird overlay: the hub
       # binds the LAN address (beszel.nix), and eclair's caddy reaches it via
       # the masqueraded home-lan network route.

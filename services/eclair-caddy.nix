@@ -48,14 +48,18 @@
         # Bunny API key for DNS-01. Kept in the old pangolin dotenv (same key
         # pangolin's traefik used for the *.ext wildcard); rendered into a
         # caddy-owned env file via sops.templates.
-        sops.secrets."pangolin/BUNNY_API_KEY" = {
-          sopsFile = ../secrets/eclair/pangolin.env;
-          format = "dotenv";
-          key = "BUNNY_API_KEY";
-          owner = "root";
+        sops = {
+          secrets."pangolin/BUNNY_API_KEY" = {
+            sopsFile = ../secrets/eclair/pangolin.env;
+            format = "dotenv";
+            key = "BUNNY_API_KEY";
+            owner = "root";
+          };
+          templates."caddy/env" = {
+            content = "BUNNY_API_KEY=${config.sops.secrets."pangolin/BUNNY_API_KEY".path}";
+            owner = "caddy";
+          };
         };
-        sops.templates."caddy/env".content = "BUNNY_API_KEY=${config.sops.secrets."pangolin/BUNNY_API_KEY".path}";
-        sops.templates."caddy/env".owner = "caddy";
 
         services.caddy = {
           enable = true;
@@ -71,7 +75,7 @@
             tls_resolvers 1.1.1.1 8.8.8.8
           '';
           virtualHosts =
-            lib.mapAttrs (host: v: {
+            lib.mapAttrs (_: v: {
               extraConfig = ''
                 log {
                   output stderr

@@ -1,6 +1,6 @@
 # eclair — tiny public VPS
-# Runs pangolin + haproxy + crowdsec; pangolin covers cross-host overlay.
-# Routes *.ext.kuipr.de and *.int.kuipr.de wildcard resources.
+# Runs the caddy edge (*.ext.kuipr.de, *.int wildcard cert via SO), the
+# NetBird control plane (netbird.kuipr.de) and crowdsec.
 {
   self,
   inputs,

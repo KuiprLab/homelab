@@ -130,7 +130,7 @@
               tls_resolvers 1.1.1.1 8.8.8.8
             '';
             virtualHosts =
-              lib.mapAttrs (host: v: {
+              lib.mapAttrs (_: v: {
                 extraConfig = ''
                   log {
                     output stderr
