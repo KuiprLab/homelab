@@ -204,6 +204,50 @@ in {
       });
       default = {};
     };
+
+    pangolinGeoAllow = lib.mkOption {
+      description = ''
+        Country allow-list (ISO 3166-1 alpha-2) enforced on every public
+        (traefik) resource through blueprint resource rules: listed countries
+        get a `pass` rule (normal auth checks continue), everything else hits a
+        final catch-all `deny`. Local, private and CGNAT sources are exempt in
+        the engine itself, so LAN hairpin traffic is never blocked.
+
+        Rules are only emitted when server.maxmind_db_path exists (see
+        services/infrastructure/geoip-db.nix). Set to [] to disable, or
+        override per resource via `extra.rules`.
+      '';
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "AT"
+        "BE"
+        "BG"
+        "HR"
+        "CY"
+        "CZ"
+        "DK"
+        "EE"
+        "FI"
+        "FR"
+        "DE"
+        "GR"
+        "HU"
+        "IE"
+        "IT"
+        "LV"
+        "LT"
+        "LU"
+        "MT"
+        "NL"
+        "PL"
+        "PT"
+        "RO"
+        "SK"
+        "SI"
+        "ES"
+        "SE"
+      ];
+    };
   };
 
   config.flake = let
@@ -212,6 +256,29 @@ in {
     exitNodes = config.flake.pangolinExitNodes;
 
     forSite = site: lib.filterAttrs (_nick: v: v.site == site) vhosts;
+
+    # Country allow-list as blueprint resource rules: `pass` keeps the normal
+    # auth flow for allowed countries, the trailing `deny` catches the rest.
+    # Priorities must be unique; 1000 leaves room for hand-written rules.
+    geoRules =
+      lib.imap0 (i: cc: {
+        action = "pass";
+        match = "country";
+        value = cc;
+        priority = i + 1;
+      })
+      config.flake.pangolinGeoAllow
+      ++ [
+        {
+          action = "deny";
+          match = "country";
+          value = "ALL";
+          priority = 1000;
+        }
+      ];
+
+    # Dashboard labels, so resources can be filtered/grouped in pangolin's UI.
+    labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
 
     # exit-node client-resources for a site: full-tunnel access for pangolin
     # clients (replaces a tailscale subnet router). Schema: mode "exit-node"
@@ -250,6 +317,7 @@ in {
           "tcp-ports" = r.tcpPorts;
           "udp-ports" = r.udpPorts;
           "disable-icmp" = !r.icmp;
+          labels = labelsFor "int" r.site;
         }
         // lib.optionalAttrs (r.alias != null) {inherit (r) alias;}
         // r.extra)
@@ -272,6 +340,7 @@ in {
           "destination-port" = vh.port;
           scheme = vh.protocol;
           "full-domain" = vh.subdomain;
+          labels = labelsFor "int" vh.site;
         }
         vh.extra)
       (lib.filterAttrs (_: vh: vh.private && vh.extra ? mode) (forSite site))
@@ -280,26 +349,30 @@ in {
     proxyResources = site:
       lib.mapAttrs (_nick: vh:
         lib.recursiveUpdate
-        {
-          inherit (vh) name;
-          mode = "http";
-          "full-domain" = vh.subdomain;
-          targets = [
-            ({
-                inherit (vh) hostname;
-                inherit (vh) port;
-                healthcheck = healthcheckFor {
+        ({
+            inherit (vh) name;
+            mode = "http";
+            "full-domain" = vh.subdomain;
+            labels = labelsFor "public" vh.site;
+            targets = [
+              ({
                   inherit (vh) hostname;
                   inherit (vh) port;
-                  inherit (vh) protocol;
-                  hc = vh.healthcheck;
-                };
-              }
-              // lib.optionalAttrs (vh.protocol != null) {
-                method = vh.protocol;
-              })
-          ];
-        }
+                  healthcheck = healthcheckFor {
+                    inherit (vh) hostname;
+                    inherit (vh) port;
+                    inherit (vh) protocol;
+                    hc = vh.healthcheck;
+                  };
+                }
+                // lib.optionalAttrs (vh.protocol != null) {
+                  method = vh.protocol;
+                })
+            ];
+          }
+          // lib.optionalAttrs (config.flake.pangolinGeoAllow != []) {
+            rules = geoRules;
+          })
         vh.extra)
       (lib.filterAttrs (_: vh: !vh.private) (forSite site));
 
@@ -311,6 +384,7 @@ in {
           sites = [site];
           inherit (en) users;
           roles = en.roles or [];
+          labels = labelsFor "exit" site;
         }
         // (en.extra or {}))
       (lib.filterAttrs (_: en: en.site == site) exitNodes);
@@ -348,14 +422,48 @@ in {
         letsEncryptEmail = "62436912+frostplexx@users.noreply.github.com";
         environmentFile = config.sops.secrets."pangolin".path;
         openFirewall = true;
-        # Certificates are wildcard entries (*.int.kuipr.de, *.ext.kuipr.de);
-        # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
-        settings.domains.domain1.prefer_wildcard_cert = true;
+        settings = {
+          # Certificates are wildcard entries (*.int.kuipr.de, *.ext.kuipr.de);
+          # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
+          domains.domain1.prefer_wildcard_cert = true;
+
+          # GeoIP database for country rules (see flake.pangolinGeoAllow and
+          # services/infrastructure/geoip-db.nix). Read at import time, so
+          # geoip-db.service runs before pangolin.service.
+          server.maxmind_db_path = "/var/lib/geoip/dbip-country-lite.mmdb";
+
+          # Raw resources allow full domains outside baseDomain, bypassing the
+          # wildcard certificate and the blueprint. Nothing here uses them.
+          flags.allow_raw_resources = false;
+        };
       };
 
-      # traefik performs the DNS-01 challenge and therefore needs
-      # BUNNY_API_KEY, which lives in the shared pangolin dotenv.
-      services.traefik.environmentFiles = [config.sops.secrets."pangolin".path];
+      # Access log to stdout -> journald, where crowdsec's traefik parser picks
+      # it up (services/infrastructure/crowdsec.nix). No file, no rotation, no
+      # permissions for the agent's user to work around.
+      #
+      # sec-headers is attached to the websecure entrypoint instead of each
+      # resource router: pangolin renders its routers from the database, so
+      # there is no per-router hook to attach it to.
+      services.traefik = {
+        # traefik performs the DNS-01 challenge and therefore needs
+        # BUNNY_API_KEY, which lives in the shared pangolin dotenv.
+        environmentFiles = [config.sops.secrets."pangolin".path];
+        staticConfigOptions = {
+          accessLog = {};
+          entryPoints.websecure.http.middlewares = ["sec-headers@file"];
+        };
+        dynamicConfigOptions.http.middlewares.sec-headers.headers = {
+          stsSeconds = 31536000;
+          stsIncludeSubdomains = true;
+          contentTypeNosniff = true;
+          referrerPolicy = "strict-origin-when-cross-origin";
+          # Deny framing outright on the public edge: no public resource is
+          # meant to be embedded, and clickjacking on the pangolin dashboard
+          # or authelia login is the interesting attack.
+          customFrameOptionsValue = "DENY";
+        };
+      };
 
       # Upstream creates the letsencrypt dir as 0700 and traefik writes
       # acme.json as 0600, both owned by traefik. pangolin (user pangolin,
