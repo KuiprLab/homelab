@@ -10,8 +10,8 @@
 #     source address, which is what CrowdSec's api.server.trusted_ips gates
 #     alert deletion on (upstream README: "Trusted IPs for Alert Deletion" —
 #     a machine registration authenticates, it does not grant deletion).
-# Port 3000 is deliberately absent from networking.firewall: the only way in
-# is pangolin's traefik → eclair's newt → 127.0.0.1:3000.
+# Port 3010 is deliberately absent from networking.firewall: the only way in
+# is pangolin's traefik → eclair's newt → 127.0.0.1:3010.
 #
 # Auth — Pangolin's SSO (`auth.sso-enabled` on the resource) is the only
 # gate, via its Authelia IdP. The app's own login is off (`auth.enabled`),
