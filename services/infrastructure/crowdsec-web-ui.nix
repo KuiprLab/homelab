@@ -104,7 +104,10 @@ _: {
 
       systemd = {
         tmpfiles.rules = [
-          # Container runs as the image's node user (uid/gid 1000).
+          # Container runs as the image's node user (uid/gid 1000). On eclair
+          # uid 1000 is the unrelated `subtidal` account (services/music/
+          # subtidal.nix) — the shared number is the container's, not a
+          # grant of any kind.
           "d /var/lib/crowdsec-web-ui 0755 1000 100 -"
         ];
 
