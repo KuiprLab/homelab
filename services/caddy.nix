@@ -155,6 +155,9 @@
           systemd.services.caddy.serviceConfig.EnvironmentFile = [
             config.sops.secrets."caddy/bunny_api_key".path
           ];
+          # with the layer4 SNI passthrough, caddy stop waits on draining
+          # long-lived gRPC streams; give it time so activation doesn't abort
+          systemd.services.caddy.serviceConfig.TimeoutStopSec = 30;
         };
   };
 }
