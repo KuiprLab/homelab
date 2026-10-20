@@ -43,6 +43,7 @@ _: {
     eclairNixosModules.netbird = {
       config,
       pkgs,
+      lib,
       ...
     }: let
       nbDomain = "netbird.kuipr.de";
@@ -248,6 +249,14 @@ _: {
             volumes = ["${proxyCertDir}:${proxyCertDir}:rw"];
           };
         };
+      };
+
+      # a failing proxy container must not abort deploy activation; restart
+      # policy is deliberately lenient so deploys stick
+      systemd.services."podman-netbird-reverse-proxy" = {
+        serviceConfig.Restart = lib.mkForce "on-failure";
+        serviceConfig.RestartSec = 10;
+        unitConfig.StartLimitIntervalSec = 0;
       };
 
       # TLS for *.ext.kuipr.de is terminated by the reverse proxy with a
