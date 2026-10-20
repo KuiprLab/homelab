@@ -17,128 +17,198 @@
   # become the resource niceIds on the pangolin server. NiceIds are the key
   # the blueprint upsert matches on, so renaming an attribute = new resource.
 in {
-  options.flake.pangolinVirtualHosts = lib.mkOption {
-    description = ''
-      Declarative Pangolin proxy resources. Each entry declares one resource
-      served through the pangolin tunnel network. Attribute names become the
-      blueprint niceIds (the key blueprint application upserts on), so treat
-      them as stable identifiers.
+  options.flake = {
+    pangolinVirtualHosts = lib.mkOption {
+      description = ''
+        Declarative Pangolin proxy resources. Each entry declares one resource
+        served through the pangolin tunnel network. Attribute names become the
+        blueprint niceIds (the key blueprint application upserts on), so treat
+        them as stable identifiers.
 
-      Apply happens without any eclair-side code: the nixosModules.newt /
-      eclairNixosModules.newt definitions below turn matching entries into
-      services.newt.blueprint attrsets, which the nixpkgs newt module renders
-      to a blueprint.yml. Newt watches that file and pushes the blueprint to
-      pangolin over its websocket (source NEWT) whenever it changes.
-    '';
-    type = lib.types.attrsOf (lib.types.submodule {
-      options = {
-        site = lib.mkOption {
-          type = lib.types.str;
-          description = "Pangolin site (newt) this resource belongs to.";
-        };
-        name = lib.mkOption {
-          type = lib.types.str;
-          description = "Human readable resource name.";
-        };
-        subdomain = lib.mkOption {
-          type = lib.types.str;
-          description = "Full domain to route through pangolin (e.g. paperless.int.kuipr.de).";
-        };
-        private = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = ''
-            true  -> client-resource under the site (pangolin generates a site
-                     resource with certs on pangolin; only reachable through
-                     the tunnel network / VPN clients).
-            false -> public proxy-resource routed by pangolin's traefik.
-          '';
-        };
-        protocol = lib.mkOption {
-          type = lib.types.enum ["http" "https"];
-          default = "http";
-          description = "Scheme used for the connection from the tunnel endpoint to the backend.";
-        };
-        port = lib.mkOption {
-          type = lib.types.port;
-          description = "Backend port on the site's host.";
-        };
-        hostname = lib.mkOption {
-          type = lib.types.str;
-          default = "127.0.0.1";
-          description = "Backend host as seen from the site's newt.";
-        };
-        healthcheck = lib.mkOption {
-          type = lib.types.submodule {
-            options = {
-              path = lib.mkOption {
-                type = lib.types.str;
-                default = "/";
-              };
-              interval = lib.mkOption {
-                type = lib.types.int;
-                default = 30;
-                description = "Seconds between successful health probes.";
-              };
-              "unhealthy-interval" = lib.mkOption {
-                type = lib.types.int;
-                default = 30;
-                description = "Seconds between failed health probes.";
+        Apply happens without any eclair-side code: the nixosModules.newt /
+        eclairNixosModules.newt definitions below turn matching entries into
+        services.newt.blueprint attrsets, which the nixpkgs newt module renders
+        to a blueprint.yml. Newt watches that file and pushes the blueprint to
+        pangolin over its websocket (source NEWT) whenever it changes.
+      '';
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          site = lib.mkOption {
+            type = lib.types.str;
+            description = "Pangolin site (newt) this resource belongs to.";
+          };
+          name = lib.mkOption {
+            type = lib.types.str;
+            description = "Human readable resource name.";
+          };
+          subdomain = lib.mkOption {
+            type = lib.types.str;
+            description = "Full domain to route through pangolin (e.g. paperless.int.kuipr.de).";
+          };
+          private = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = ''
+              true  -> int service: served by caddy on sorbet
+                       (services/caddy.nix), reached through the wildcard
+                       flake.pangolinHostResources route and, on the LAN,
+                       directly. `site` must be "sorbet" unless `extra.mode`
+                       is set.
+              false -> public proxy-resource routed by pangolin's traefik.
+              Either way, an explicit `extra.mode` (ssh, exit-node) makes it a
+              pangolin client-resource instead of a caddy vhost.
+            '';
+          };
+          protocol = lib.mkOption {
+            type = lib.types.enum ["http" "https"];
+            default = "http";
+            description = "Scheme used for the connection from the tunnel endpoint to the backend.";
+          };
+          port = lib.mkOption {
+            type = lib.types.port;
+            description = "Backend port on the site's host.";
+          };
+          hostname = lib.mkOption {
+            type = lib.types.str;
+            default = "127.0.0.1";
+            description = "Backend host as seen from the site's newt.";
+          };
+          healthcheck = lib.mkOption {
+            type = lib.types.submodule {
+              options = {
+                path = lib.mkOption {
+                  type = lib.types.str;
+                  default = "/";
+                };
+                interval = lib.mkOption {
+                  type = lib.types.int;
+                  default = 30;
+                  description = "Seconds between successful health probes.";
+                };
+                "unhealthy-interval" = lib.mkOption {
+                  type = lib.types.int;
+                  default = 30;
+                  description = "Seconds between failed health probes.";
+                };
               };
             };
+            description = "Per-target health check passed to pangolin.";
           };
-          description = "Per-target health check passed to pangolin.";
+          extra = lib.mkOption {
+            type = lib.types.attrsOf lib.types.raw;
+            default = {};
+            description = "Escape hatch: merged into the blueprint resource entry verbatim.";
+          };
         };
-        extra = lib.mkOption {
-          type = lib.types.attrsOf lib.types.raw;
-          default = {};
-          description = "Escape hatch: merged into the blueprint resource entry verbatim.";
-        };
-      };
-    });
-    default = {};
-  };
+      });
+      default = {};
+    };
 
-  options.flake.pangolinExitNodes = lib.mkOption {
-    description = ''
-      Declarative Pangolin exit-node client-resources (full-tunnel mode):
-      outlines one resource per attribute; its site's newt creates it in the
-      blueprint, giving authorized pangolin clients a wireguard peer that
-      routes their entire traffic through the site. Replaces tailscale's
-      subnet-router role. Toggle per-client in the pangolin client app.
-    '';
-    type = lib.types.attrsOf (lib.types.submodule {
-      options = {
-        site = lib.mkOption {
-          type = lib.types.str;
-          description = "Pangolin site whose network the client tunnels into.";
+    pangolinExitNodes = lib.mkOption {
+      description = ''
+        Declarative Pangolin exit-node client-resources (full-tunnel mode):
+        outlines one resource per attribute; its site's newt creates it in the
+        blueprint, giving authorized pangolin clients a wireguard peer that
+        routes their entire traffic through the site. Replaces tailscale's
+        subnet-router role. Toggle per-client in the pangolin client app.
+      '';
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          site = lib.mkOption {
+            type = lib.types.str;
+            description = "Pangolin site whose network the client tunnels into.";
+          };
+          name = lib.mkOption {
+            type = lib.types.str;
+            description = "Human readable resource name.";
+          };
+          users = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+            description = "Pangolin user emails allowed to use this exit node.";
+          };
+          roles = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+            description = "Pangolin role ids allowed to use this exit node.";
+          };
+          extra = lib.mkOption {
+            type = lib.types.attrsOf lib.types.raw;
+            default = {};
+            description = "Escape hatch: merged into the blueprint resource entry verbatim.";
+          };
         };
-        name = lib.mkOption {
-          type = lib.types.str;
-          description = "Human readable resource name.";
+      });
+      default = {};
+    };
+
+    pangolinHostResources = lib.mkOption {
+      description = ''
+        Declarative Pangolin host client-resources: one single-host route per
+        attribute, optionally carrying a (wildcard) alias. Used to funnel a
+        whole hostname range into one LAN TLS edge instead of enumerating a
+        pangolin resource per service. Aliases support wildcards but CIDRs do
+        not, so a wildcard alias must sit on a host resource
+        (PrivateResourceSchema, mode "host").
+      '';
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          site = lib.mkOption {
+            type = lib.types.str;
+            description = "Pangolin site whose newt applies the resource.";
+          };
+          name = lib.mkOption {
+            type = lib.types.str;
+            description = "Human readable resource name.";
+          };
+          destination = lib.mkOption {
+            type = lib.types.str;
+            description = ''
+              Single IP or FQDN as seen from the site. 127.0.0.1 means the site
+              host itself (requires an alias, since loopback on the client
+              would mean the client's own machine).
+            '';
+          };
+          alias = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              FQDN handed out to clients through pangolin's DNS. Wildcards
+              allowed (e.g. *.int.kuipr.de); never matches the apex itself.
+            '';
+          };
+          tcpPorts = lib.mkOption {
+            type = lib.types.str;
+            default = "443";
+            description = ''
+              Allowed TCP ports: "443", "80,443,8000-9000" or "*" for all.
+              Empty string allows none.
+            '';
+          };
+          udpPorts = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = "Allowed UDP ports, same syntax as tcpPorts.";
+          };
+          icmp = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Allow ICMP to the destination.";
+          };
+          extra = lib.mkOption {
+            type = lib.types.attrsOf lib.types.raw;
+            default = {};
+            description = "Escape hatch: merged into the blueprint resource entry verbatim.";
+          };
         };
-        users = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [];
-          description = "Pangolin user emails allowed to use this exit node.";
-        };
-        roles = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [];
-          description = "Pangolin role ids allowed to use this exit node.";
-        };
-        extra = lib.mkOption {
-          type = lib.types.attrsOf lib.types.raw;
-          default = {};
-          description = "Escape hatch: merged into the blueprint resource entry verbatim.";
-        };
-      };
-    });
-    default = {};
+      });
+      default = {};
+    };
   };
 
   config.flake = let
     vhosts = config.flake.pangolinVirtualHosts;
+    hostRoutes = config.flake.pangolinHostResources;
     exitNodes = config.flake.pangolinExitNodes;
 
     forSite = site: lib.filterAttrs (_nick: v: v.site == site) vhosts;
@@ -168,8 +238,28 @@ in {
       "follow-redirects" = true;
     };
 
+    # host client-resources: raw L4 routes to one machine on the site's
+    # network. The alias (wildcards allowed) is what clients resolve; the
+    # wildcard route into caddy is the reason these exist.
+    hostResourcesFor = site:
+      lib.mapAttrs (_nick: r:
+        {
+          inherit (r) name;
+          mode = "host";
+          inherit (r) destination;
+          "tcp-ports" = r.tcpPorts;
+          "udp-ports" = r.udpPorts;
+          "disable-icmp" = !r.icmp;
+        }
+        // lib.optionalAttrs (r.alias != null) {inherit (r) alias;}
+        // r.extra)
+      (lib.filterAttrs (_: r: r.site == site) hostRoutes);
+
     # > private: moderately-documented client-resources; applied through the
-    # newt of the site listed in vh.site.
+    # newt of the site listed in vh.site. Plain private vhosts are not
+    # included: caddy on sorbet serves those (services/caddy.nix) and the
+    # wildcard host resource above routes them. Only entries with an explicit
+    # pangolin mode (ssh) remain real client-resources.
     clientResources = site:
       lib.mapAttrs (_nick: vh:
         lib.recursiveUpdate
@@ -184,7 +274,8 @@ in {
           "full-domain" = vh.subdomain;
         }
         vh.extra)
-      (lib.filterAttrs (_: vh: vh.private) (forSite site));
+      (lib.filterAttrs (_: vh: vh.private && vh.extra ? mode) (forSite site))
+      // hostResourcesFor site;
 
     proxyResources = site:
       lib.mapAttrs (_nick: vh:
