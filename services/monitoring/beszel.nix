@@ -41,17 +41,10 @@ _: {
       name = "Beszel";
     };
 
-    eclairCaddyVirtualHosts."monitoring.ext.kuipr.de" = {
-      # Eclair's beszel agent dials the hub over the NetBird overlay: the hub
-      # binds the LAN address (beszel.nix), and eclair's caddy reaches it via
-      # the masqueraded home-lan network route.
-      extraConfig = ''
-        reverse_proxy 192.168.0.85:8091
-      '';
-      name = "Beszel (agent endpoint)";
-    };
+    # monitoring.ext.kuipr.de is served by the NetBird reverse proxy
+    # (netbird.nix); it dials 192.168.0.85:8091 via direct_upstream and
+    # OIDC-gates access.
 
-    # ----- sorbet: hub + local agent -----
     nixosModules.beszel = {
       config,
       pkgs,

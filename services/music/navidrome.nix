@@ -1,15 +1,9 @@
 # Navidrome service, plugins, tmpfiles, and music-tagger
 _: {
   flake = {
-    # External: served by eclair's caddy (music.ext.kuipr.de), which
-    # reverse-proxies to navidrome over the NetBird overlay (normal proxy,
-    # no auth gate — access is controlled by navidrome accounts).
-    eclairCaddyVirtualHosts."music.ext.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy 192.168.0.85:4533
-      '';
-      name = "Navidrome (ext)";
-    };
+    # External: music.ext.kuipr.de is served by the NetBird reverse proxy
+    # (netbird.nix), which OIDC-gates it to NetBird groups and dials
+    # 192.168.0.85:4533 via direct_upstream (kernel route through wt0).
 
     nixosModules.navidrome = {
       lib,

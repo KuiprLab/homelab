@@ -48,6 +48,8 @@ _: {
       nbDomain = "netbird.kuipr.de";
       dashboardEnv = config.sops.templates."netbird/dashboard.env".path;
       configDir = "/var/lib/netbird/config";
+      extApex = "ext.kuipr.de";
+      proxyCertDir = "/var/lib/netbird-proxy/certs";
       renderConfig = pkgs.writeShellScript "netbird-render-config" ''
         set -euo pipefail
         . "${config.sops.secrets."netbird/env".path}"
@@ -124,6 +126,22 @@ _: {
         else
           req -X POST -d "$ns_body" "$API/dns/nameservers"
         fi
+
+        # --- curl-create-as-needed helper for reverse-proxy services ---
+        cgid2=$(gid clients)
+        svc_body() { # name domain host port -> JSON on stdout
+          printf '{"name":"%s","domain":"%s","enabled":true,"pass_host_header":true,"auth":{"bearer_auth":{"enabled":true,"distribution_groups":["%s"]}},"targets":[{"target_id":"t1","target_type":"host","host":"%s","port":%s,"protocol":"http","enabled":true,"options":{"direct_upstream":true}}]}' "$1" "$2" "$cgid2" "$3" "$4"
+        }
+        svcs=("music-ext|music.${extApex}|192.168.0.85|4533" "subtidal-ext|subtidal.${extApex}|127.0.0.1|4234" "monitoring-ext|monitoring.${extApex}|192.168.0.85|8091")
+        existing=$(req "$API/reverse-proxies/services")
+        for s in "''${svcs[@]}"; do
+          IFS='|' read -r sname sdomain shost sport <<< "$s"
+          if echo "$existing" | jq -e --arg d "$sdomain" '.[]|select(.domain==$d)' >/dev/null; then
+            :
+          else
+            req -X POST -d "$(svc_body "$sname" "$sdomain" "$shost" "$sport")" "$API/reverse-proxies/services" || echo "svc $sname failed"
+          fi
+        done
 
         # --- router group membership pinned to sorbet ---
         sorbet=$(req "$API/peers" | jq -r 'first(.[]|select(.hostname=="sorbet")|.id) // empty')
@@ -209,7 +227,68 @@ _: {
             ];
             dependsOn = ["netbird-dashboard"];
           };
+          "netbird-reverse-proxy" = {
+            image = "docker.io/netbirdio/reverse-proxy:0.81.2";
+            autoStart = true;
+            # host network: dials management gRPC on 127.0.0.1:8081, binds
+            # the SNI-passthrough listener on loopback:8443, and lets the
+            # embedded WireGuard client reach the overlay.
+            extraOptions = ["--network=host"];
+            environment = {
+              NB_PROXY_MANAGEMENT_ADDRESS = "http://127.0.0.1:8081";
+              NB_PROXY_ALLOW_INSECURE = "true";
+              NB_PROXY_ADDRESS = "127.0.0.1:8443";
+              NB_PROXY_DOMAIN = extApex;
+              NB_PROXY_CERTIFICATE_DIRECTORY = proxyCertDir;
+            };
+            volumes = ["${proxyCertDir}:${proxyCertDir}:rw"];
+          };
         };
+      };
+
+      # TLS for *.ext.kuipr.de is terminated by the reverse proxy with a
+      # static wildcard cert (bunny DNS-01, same key material as caddy).
+      # Files are copied into the proxy's fsnotify-watched cert dir for
+      # hot reload; no container restart needed on renewal.
+      security.acme = {
+        defaults.email = "admin@kuipr.de";
+        acceptTerms = true;
+        certs."${extApex}" = {
+          domain = "*.${extApex}";
+          extraDomains."${extApex}" = null;
+          dnsProvider = "bunny";
+          # credentialFiles maps systemd-credential env vars to files (must be
+          # _FILE/_PATH-suffixed); lego reads BUNNY_API_KEY_FILE transparently.
+          credentialFiles.BUNNY_API_KEY_FILE = config.sops.secrets."pangolin/BUNNY_API_KEY".path;
+          # Hot-swap into the watched cert dir on issuance and renewal.
+          postRun = let
+            swap = pkgs.writeShellScript "netbird-proxy-cert-sync" ''
+              install -d -m 700 ${proxyCertDir}
+              install -m 644 /var/lib/acme/${extApex}/fullchain.pem ${proxyCertDir}/tls.crt
+              install -m 600 /var/lib/acme/${extApex}/key.pem                ${proxyCertDir}/tls.key
+            '';
+          in
+            toString swap;
+          # also covers first issuance? only renewal — seed explicitly below.
+        };
+      };
+
+      systemd.services.netbird-proxy-cert-seed = {
+        after = ["acme-${extApex}.service"];
+        wants = ["acme-${extApex}.service"];
+        before = ["podman-netbird-reverse-proxy.service"];
+        serviceConfig = {Type = "oneshot";};
+        script = ''
+          install -d -m 700 ${proxyCertDir}
+          install -m 644 /var/lib/acme/${extApex}/fullchain.pem ${proxyCertDir}/tls.crt
+          install -m 600 /var/lib/acme/${extApex}/key.pem                ${proxyCertDir}/tls.key
+        '';
+      };
+
+      systemd.services."podman-netbird-reverse-proxy" = {
+        after = ["netbird-proxy-cert-seed.service" "podman-netbird-server.service"];
+        wants = ["netbird-proxy-cert-seed.service"];
+        serviceConfig.EnvironmentFile = [config.sops.secrets."netbird/env".path];
       };
 
       # Render config.yaml from the sops env file before the container

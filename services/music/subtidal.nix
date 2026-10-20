@@ -2,12 +2,9 @@
 # Traffic terminates locally (caddy → container) and never touches sorbet.
 _: {
   flake = {
-    eclairCaddyVirtualHosts."subtidal.ext.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:4234
-      '';
-      name = "Subtidal";
-    };
+    # subtidal.ext.kuipr.de is served by the NetBird reverse proxy
+    # (netbird.nix); it dials the eclair-local container on 127.0.0.1:4234
+    # via direct_upstream and OIDC-gates access.
 
     eclairNixosModules.subtidal = {config, ...}: {
       # Host identity matching the container's `user = "1000:100"`: the
