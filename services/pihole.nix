@@ -14,7 +14,7 @@
 #   3. Dashboard off-LAN: pangolinVirtualHosts."pihole" makes the FTL UI
 #      reachable at pihole.int.kuipr.de through sorbet's pangolin site newt
 #      (private client-resource; LAN rules also hit it via 192.168.0.85).
-{lib, ...}: let
+_: let
   # Declarative blocklist set. Edit here and redeploy.
   blocklists = [
     {
@@ -34,11 +34,7 @@ in {
     port = 18089;
   };
 
-  flake.nixosModules.pihole = {
-    lib,
-    pkgs,
-    ...
-  }: let
+  flake.nixosModules.pihole = {pkgs, ...}: let
     blocklistsFile = pkgs.writeText "pihole-blocklists.json" (
       builtins.toJSON blocklists
     );
