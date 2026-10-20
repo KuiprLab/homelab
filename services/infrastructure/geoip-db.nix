@@ -37,6 +37,8 @@ _: {
         done
 
         test -s "$tmp"
+        # mktemp creates 0600 root; pangolin (user pangolin) must read it.
+        chmod 0644 "$tmp"
         mv "$tmp" /var/lib/geoip/dbip-country-lite.mmdb
       '';
     };
