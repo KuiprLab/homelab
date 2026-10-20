@@ -33,10 +33,15 @@ _: {
       subdomain = "crowdsec.ext.kuipr.de";
       port = 3010;
       private = false;
-      # Pangolin gates the browser through its Authelia IdP. The resource is
-      # unreachable until pangolin-apply links an org role to it — see
-      # ssoResources in services/infrastructure/pangolin.nix.
-      extra.auth."sso-enabled" = true;
+      # Pangolin gates the browser through its Authelia IdP. `sso-roles` is
+      # what makes the resource reachable at all: badger's access check needs
+      # a role linked to the resource or its inline policy (pangolin source,
+      # server/routers/badger/verifySession.ts:1363-1435). Admin roles are
+      # linked implicitly and skipped by the blueprint sync.
+      extra.auth = {
+        "sso-enabled" = true;
+        "sso-roles" = ["Member"];
+      };
     };
 
     eclairNixosModules.crowdsecWebUi = {config, ...}: let
