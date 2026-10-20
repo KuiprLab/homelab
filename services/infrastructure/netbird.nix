@@ -282,6 +282,9 @@ _: {
           # credentialFiles maps systemd-credential env vars to files (must be
           # _FILE/_PATH-suffixed); lego reads BUNNY_API_KEY_FILE transparently.
           credentialFiles.BUNNY_API_KEY_FILE = config.sops.secrets."pangolin/BUNNY_API_KEY_FILE".path;
+          # eclair resolves via netbird-mapped servers (100.x) which never see
+          # the TXT record; use a public resolver for the propagation check
+          dnsResolver = "1.1.1.1:53";
           # Hot-swap into the watched cert dir on issuance and renewal.
           postRun = let
             swap = pkgs.writeShellScript "netbird-proxy-cert-sync" ''
