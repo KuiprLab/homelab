@@ -517,6 +517,42 @@ in {
               secretEnv = "NEWT_SECRET_SORBET";
             };
           };
+          # Authelia (services/infrastructure/authelia.nix) is the OIDC issuer.
+          # Its `pangolin` client hardcodes the redirect URL, which embeds the
+          # idpId assigned here (1 on a fresh DB).
+          oidcIssuer = "https://auth.ext.kuipr.de";
+          expectedRedirect = "https://pangolin.ext.kuipr.de/auth/idp/1/oidc/callback";
+          ensureIdp = ''
+            if curl -sf -b "$JAR" ${api}/idp \
+                | jq -e --arg n "$PANGOLIN_IDP_NAME" \
+                    '[.data.idps[]? | select(.name == $n)] | length > 0' >/dev/null; then
+              echo "idp $PANGOLIN_IDP_NAME already registered"
+            else
+              echo "registering idp $PANGOLIN_IDP_NAME"
+              created=$(curl -sf -b "$JAR" -X PUT ${api}/idp/oidc \
+                -H 'Content-Type: application/json' \
+                -H 'x-csrf-token: x-csrf-protection' \
+                -d "$(jq -n \
+                  --arg name "$PANGOLIN_IDP_NAME" \
+                  --arg clientId "$PANGOLIN_IDP_CLIENT_ID" \
+                  --arg clientSecret "$PANGOLIN_IDP_CLIENT_SECRET" \
+                  '{name: $name, clientId: $clientId,
+                    clientSecret: $clientSecret,
+                    authUrl: "${oidcIssuer}/api/oidc/authorization",
+                    tokenUrl: "${oidcIssuer}/api/oidc/token",
+                    identifierPath: "sub",
+                    emailPath: "email",
+                    namePath: "name",
+                    scopes: "openid profile email",
+                    autoProvision: true,
+                    variant: "oidc"}')")
+              redirect=$(printf '%s' "$created" | jq -r '.data.redirectUrl')
+              echo "registered idp $(printf '%s' "$created" | jq -r '.data.idpId'), redirect $redirect"
+              if [ "$redirect" != "${expectedRedirect}" ]; then
+                echo "WARNING: redirect $redirect != authelia redirect_uris ${expectedRedirect}" >&2
+              fi
+            fi
+          '';
           ensureSite = _: v: ''
             code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
               ${api}/org/${orgId}/site/${v.niceId} || true)
@@ -574,6 +610,7 @@ in {
           fi
 
           ${lib.concatStringsSep "\n" (lib.mapAttrsToList ensureSite siteIds)}
+          ${ensureIdp}
         '';
       };
     };
