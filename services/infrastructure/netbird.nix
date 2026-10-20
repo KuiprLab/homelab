@@ -189,9 +189,10 @@ _: {
 
       # lego's BUNNY_API_KEY_FILE must be the raw key, not the dotenv file
       sops.secrets."pangolin/BUNNY_API_KEY_FILE" = {
-        sopsFile = ../../secrets/eclair/pangolin.env;
-        format = "dotenv";
-        key = "BUNNY_API_KEY";
+        sopsFile = ../../secrets/eclair/bunny_acme;
+        # binary format: file must contain the raw key only (lego reads it via
+        # its <VAR>_FILE convention and passes it straight into an HTTP header)
+        format = "binary";
         owner = "acme";
       };
 

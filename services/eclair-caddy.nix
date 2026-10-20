@@ -49,7 +49,7 @@
         # a whole (key = "") so the file itself is the BUNNY_API_KEY=...
         # dotenv, consumed directly as caddy's EnvironmentFile.
         sops.secrets."pangolin/BUNNY_API_KEY" = {
-          sopsFile = ../secrets/eclair/pangolin.env;
+          sopsFile = ../secrets/eclair/bunny.env;
           format = "dotenv";
           key = "";
           owner = "caddy";
