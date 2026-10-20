@@ -230,6 +230,9 @@ _: {
           "netbird-reverse-proxy" = {
             image = "docker.io/netbirdio/reverse-proxy:0.81.2";
             autoStart = true;
+            # image default User is "netbird:netbird" which cannot traverse the
+            # root-owned cert dir; run as root (container intenna, host net).
+            user = "0:0";
             # host network: dials management gRPC on 127.0.0.1:8081, binds
             # the SNI-passthrough listener on loopback:8443, and lets the
             # embedded WireGuard client reach the overlay.
