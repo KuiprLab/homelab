@@ -187,6 +187,14 @@ _: {
         owner = "root";
       };
 
+      # lego's BUNNY_API_KEY_FILE must be the raw key, not the dotenv file
+      sops.secrets."pangolin/BUNNY_API_KEY_FILE" = {
+        sopsFile = ../../secrets/eclair/pangolin.env;
+        format = "dotenv";
+        key = "BUNNY_API_KEY";
+        owner = "acme";
+      };
+
       sops.templates."netbird/dashboard.env" = {
         content = ''
           NETBIRD_MGMT_API_ENDPOINT=https://${nbDomain}
@@ -272,7 +280,7 @@ _: {
           dnsProvider = "bunny";
           # credentialFiles maps systemd-credential env vars to files (must be
           # _FILE/_PATH-suffixed); lego reads BUNNY_API_KEY_FILE transparently.
-          credentialFiles.BUNNY_API_KEY_FILE = config.sops.secrets."pangolin/BUNNY_API_KEY".path;
+          credentialFiles.BUNNY_API_KEY_FILE = config.sops.secrets."pangolin/BUNNY_API_KEY_FILE".path;
           # Hot-swap into the watched cert dir on issuance and renewal.
           postRun = let
             swap = pkgs.writeShellScript "netbird-proxy-cert-sync" ''
