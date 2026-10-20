@@ -579,16 +579,22 @@ in {
                     '[.data.roles[]? | select(.name == $n)][0].roleId // empty')
               if [ -z "$roleId" ]; then
                 echo "WARNING: role ${roleName} absent, cannot grant ${niceId}" >&2
-              elif curl -sf -b "$JAR" ${api}/resource/"$rid"/roles \
-                  | jq -e --argjson r "$roleId" \
-                      '[.data.roles[]? | select(.roleId == $r)] | length > 0' >/dev/null; then
-                echo "role ${roleName} already has access to ${niceId}"
               else
-                curl -sf -b "$JAR" -X POST ${api}/resource/"$rid"/roles/add \
-                  -H 'Content-Type: application/json' \
-                  -H 'x-csrf-token: x-csrf-protection' \
-                  -d "$(jq -n --argjson r "$roleId" '{roleId: $r}')" >/dev/null
-                echo "granted role ${roleName} access to ${niceId}"
+                current=$(curl -sf -b "$JAR" ${api}/resource/"$rid"/roles \
+                  | jq -c '[.data.roles[]?.roleId]')
+                if printf '%s' "$current" \
+                    | jq -e --argjson r "$roleId" 'index($r) != null' >/dev/null; then
+                  echo "role ${roleName} already has access to ${niceId}"
+                else
+                  # The only session route is the replacing POST; keep the
+                  # roles already linked (createResource grants Admin).
+                  curl -sf -b "$JAR" -X POST ${api}/resource/"$rid"/roles \
+                    -H 'Content-Type: application/json' \
+                    -H 'x-csrf-token: x-csrf-protection' \
+                    -d "$(printf '%s' "$current" \
+                      | jq -c --argjson r "$roleId" '. + [$r] | {roleIds: .}')" >/dev/null
+                  echo "granted role ${roleName} access to ${niceId}"
+                fi
               fi
             fi
           '';
