@@ -57,11 +57,17 @@ _: {
 
         hub.collections = [
           "crowdsecurity/linux"
+          # sshd acquisition below is useless without the ssh scenarios.
+          "crowdsecurity/sshd"
           # Parses traefik's CLF access log lines.
           "crowdsecurity/traefik"
           # Scan/probe/brute-force scenarios for http (the traefik collection
           # only ships the parser + a few app-specific scenarios).
           "crowdsecurity/base-http-scenarios"
+          # Never ban well-known crawlers/monitoring services: they are noisy
+          # but legitimate, and a crawl ban on the public edge is a false
+          # positive more often than not.
+          "crowdsecurity/whitelist-good-actors"
         ];
 
         settings = {
