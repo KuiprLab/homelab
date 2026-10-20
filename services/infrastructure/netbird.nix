@@ -27,7 +27,7 @@ _: {
       # Routing per the upstream "Combined container" template:
       # gRPC (h2c), then management/signal/relay/api/oauth2, then dashboard
       # catch-all. All upstream traffic targets the combined container; the
-      # dashboard listens separately on 8080.
+      # dashboard listens separately on 8085.
       extraConfig = ''
         @grpc header Content-Type application/grpc*
         reverse_proxy @grpc h2c://127.0.0.1:8081
@@ -35,7 +35,7 @@ _: {
         @backend path /relay* /ws-proxy/* /api/* /oauth2/*
         reverse_proxy @backend 127.0.0.1:8081
 
-        reverse_proxy /* 127.0.0.1:8080
+        reverse_proxy /* 127.0.0.1:8085
       '';
       name = "NetBird";
     };
@@ -211,7 +211,7 @@ _: {
             image = "docker.io/netbirdio/dashboard:latest";
             autoStart = true;
             environmentFiles = [dashboardEnv];
-            ports = ["127.0.0.1:8080:80/tcp"];
+            ports = ["127.0.0.1:8085:80/tcp"];
           };
           "netbird-server" = {
             image = "docker.io/netbirdio/netbird-server:latest";
