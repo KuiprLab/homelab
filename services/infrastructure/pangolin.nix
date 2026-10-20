@@ -580,14 +580,15 @@ in {
               if [ -z "$roleId" ]; then
                 echo "WARNING: role ${roleName} absent, cannot grant ${niceId}" >&2
               else
+                # Admin roles are implicit and rejected by the endpoint
+                # ("Admin role cannot be assigned to resources"), so only
+                # non-admin roles go into the replacing payload.
                 current=$(curl -sf -b "$JAR" ${api}/resource/"$rid"/roles \
-                  | jq -c '[.data.roles[]?.roleId]')
+                  | jq -c '[.data.roles[]? | select(.isAdmin != true) | .roleId]')
                 if printf '%s' "$current" \
                     | jq -e --argjson r "$roleId" 'index($r) != null' >/dev/null; then
                   echo "role ${roleName} already has access to ${niceId}"
                 else
-                  # The only session route is the replacing POST; keep the
-                  # roles already linked (createResource grants Admin).
                   curl -sf -b "$JAR" -X POST ${api}/resource/"$rid"/roles \
                     -H 'Content-Type: application/json' \
                     -H 'x-csrf-token: x-csrf-protection' \
