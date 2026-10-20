@@ -487,6 +487,8 @@ in {
       # One-shot idempotent bootstrap after pangolin is up:
       #   1. ensure the org exists (create-if-missing, never BatchUpdate)
       #   2. ensure the sites exist, with our pinned newtId + fresh secret
+      #   3. ensure the Authelia IdP is registered
+      #   4. ensure SSO-only resources are reachable (role grant)
       # Safely re-runs: everything it creates already returns real statuses
       # if it already exists. Secrets come from sops, and the admin password
       # is only ever used for a localhost login.
@@ -553,6 +555,43 @@ in {
               fi
             fi
           '';
+          # A resource whose blueprint entry sets `auth.sso-enabled` is
+          # unreachable until an org role is linked to it: badger's access
+          # check requires a role->resource row (pangolin source,
+          # server/routers/badger/verifySession.ts:1363-1435). Authelia-
+          # provisioned users arrive in the org's default role.
+          ssoRoleName = "Member";
+          ssoResources = ["crowdsec"];
+          ensureRoleAccess = niceId: roleName: ''
+            rid=""
+            for i in $(seq 1 30); do
+              rid=$(curl -sf -b "$JAR" \
+                ${api}/org/${orgId}/resource/${niceId} \
+                | jq -r '.data.resourceId // empty' || true)
+              if [ -n "$rid" ]; then break; fi
+              sleep 2
+            done
+            if [ -z "$rid" ]; then
+              echo "WARNING: resource ${niceId} absent, cannot grant ${roleName}" >&2
+            else
+              roleId=$(curl -sf -b "$JAR" ${api}/org/${orgId}/roles \
+                | jq -r --arg n "${roleName}" \
+                    '[.data.roles[]? | select(.name == $n)][0].roleId // empty')
+              if [ -z "$roleId" ]; then
+                echo "WARNING: role ${roleName} absent, cannot grant ${niceId}" >&2
+              elif curl -sf -b "$JAR" ${api}/resource/"$rid"/roles \
+                  | jq -e --argjson r "$roleId" \
+                      '[.data.roles[]? | select(.roleId == $r)] | length > 0' >/dev/null; then
+                echo "role ${roleName} already has access to ${niceId}"
+              else
+                curl -sf -b "$JAR" -X POST ${api}/resource/"$rid"/roles/add \
+                  -H 'Content-Type: application/json' \
+                  -H 'x-csrf-token: x-csrf-protection' \
+                  -d "$(jq -n --argjson r "$roleId" '{roleId: $r}')" >/dev/null
+                echo "granted role ${roleName} access to ${niceId}"
+              fi
+            fi
+          '';
           ensureSite = _: v: ''
             code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
               ${api}/org/${orgId}/site/${v.niceId} || true)
@@ -611,6 +650,9 @@ in {
 
           ${lib.concatStringsSep "\n" (lib.mapAttrsToList ensureSite siteIds)}
           ${ensureIdp}
+          ${lib.concatMapStringsSep "\n" (niceId:
+            ensureRoleAccess niceId ssoRoleName)
+          ssoResources}
         '';
       };
     };

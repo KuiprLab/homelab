@@ -13,13 +13,12 @@
 # Port 3000 is deliberately absent from networking.firewall: the only way in
 # is pangolin's traefik → eclair's newt → 127.0.0.1:3000.
 #
-# Auth — OIDC against Authelia, plus the local password login as a fallback.
-# Authelia runs on sorbet, so OIDC-only would lock us out of the dashboard of
-# the edge box that is still up. Authelia's group `admin` grants dashboard
-# administrator, unmatched users are denied. The Authelia client
-# (`crowdsec-web-ui` in secrets/sorbet/authelia/configuration.yml) must stay
-# in sync with the CONFIG_AUTH_OIDC_* values below, including the redirect
-# URI, which the app derives from X-Forwarded-Proto/-Host.
+# Auth — Pangolin's SSO (`auth.sso-enabled` on the resource) is the only
+# gate, via its Authelia IdP. The app's own login is off (`auth.enabled`),
+# so there is no local account, no setup wizard, and no second factor to
+# maintain. Consequence to remember: every request that reaches the
+# container is fully privileged — the last line of defence is eclair's
+# firewall (3010 is not open) plus the loopback bind.
 #
 # LAPI credentials — one sops dotenv file feeds both the container
 # (`--env-file`) and the registration oneshot, which sources the same
@@ -34,6 +33,10 @@ _: {
       subdomain = "crowdsec.ext.kuipr.de";
       port = 3010;
       private = false;
+      # Pangolin gates the browser through its Authelia IdP. The resource is
+      # unreachable until pangolin-apply links an org role to it — see
+      # ssoResources in services/infrastructure/pangolin.nix.
+      extra.auth."sso-enabled" = true;
     };
 
     eclairNixosModules.crowdsecWebUi = {config, ...}: let
@@ -54,6 +57,11 @@ _: {
         # Non-secret config. The LAPI password and the OIDC client secret are
         # the only CONFIG_ secrets and arrive through environmentFiles below.
         environment = {
+          # Pangolin is the only gate (see the header). The dashboard's own
+          # login stays off, so there is no second account to create or
+          # rotate.
+          CONFIG_AUTH_ENABLED = "false";
+
           # 3000 belongs to pangolin's own server on this host; anything
           # sharing the host network namespace has to pick its own port.
           CONFIG_SERVER_PORT = "3010";
@@ -67,17 +75,6 @@ _: {
           CONFIG_INSTANCES_0_METRICS_0_ID = "lapi";
           CONFIG_INSTANCES_0_METRICS_0_NAME = "Eclair LAPI";
           CONFIG_INSTANCES_0_METRICS_0_URL = "http://127.0.0.1:6060/metrics";
-
-          CONFIG_AUTH_OIDC_ISSUER_URL = "https://auth.ext.kuipr.de";
-          CONFIG_AUTH_OIDC_CLIENT_ID = "crowdsec-web-ui";
-          # `groups` is an Authelia scope that emits the groups claim; without
-          # it every user would resolve to unmatchedRole.
-          CONFIG_AUTH_OIDC_SCOPE = "openid profile email groups";
-          CONFIG_AUTH_OIDC_GROUPS_CLAIM = "groups";
-          # YAML array, not a bare string — the app parses CONFIG_ values as
-          # YAML and rejects a scalar here.
-          CONFIG_AUTH_OIDC_ADMIN_GROUPS = "[admin]";
-          CONFIG_AUTH_OIDC_UNMATCHED_ROLE = "deny";
         };
 
         environmentFiles = [
