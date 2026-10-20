@@ -241,6 +241,7 @@ _: {
               NB_PROXY_DOMAIN = extApex;
               NB_PROXY_CERTIFICATE_DIRECTORY = proxyCertDir;
             };
+            environmentFiles = [config.sops.secrets."netbird/env".path];
             volumes = ["${proxyCertDir}:${proxyCertDir}:rw"];
           };
         };
