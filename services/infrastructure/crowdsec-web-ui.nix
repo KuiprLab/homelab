@@ -32,7 +32,7 @@ _: {
       site = "eclair";
       name = "CrowdSec";
       subdomain = "crowdsec.ext.kuipr.de";
-      port = 3000;
+      port = 3010;
       private = false;
     };
 
@@ -54,10 +54,19 @@ _: {
         # Non-secret config. The LAPI password and the OIDC client secret are
         # the only CONFIG_ secrets and arrive through environmentFiles below.
         environment = {
+          # 3000 belongs to pangolin's own server on this host; anything
+          # sharing the host network namespace has to pick its own port.
+          CONFIG_SERVER_PORT = "3010";
+
           CONFIG_INSTANCES_0_ID = "eclair";
           CONFIG_INSTANCES_0_NAME = "Eclair";
           CONFIG_INSTANCES_0_LAPI_URL = "http://127.0.0.1:9090";
           CONFIG_INSTANCES_0_LAPI_AUTH_USERNAME = "crowdsec-web-ui";
+          # CrowdSec already scrapes itself (prometheus.enabled, level full in
+          # /etc/crowdsec/config.yaml) — this is what fills the Metrics tab.
+          CONFIG_INSTANCES_0_METRICS_0_ID = "lapi";
+          CONFIG_INSTANCES_0_METRICS_0_NAME = "Eclair LAPI";
+          CONFIG_INSTANCES_0_METRICS_0_URL = "http://127.0.0.1:6060/metrics";
 
           CONFIG_AUTH_OIDC_ISSUER_URL = "https://auth.ext.kuipr.de";
           CONFIG_AUTH_OIDC_CLIENT_ID = "crowdsec-web-ui";
@@ -84,7 +93,7 @@ _: {
           # curl — mirror the upstream probe with node. Retry inside the
           # command: podman's first check fires immediately at start, and a
           # failed transient-unit check aborts NixOS activations.
-          "--health-cmd=node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3000/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\""
+          "--health-cmd=node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3010/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\""
           "--health-interval=30s"
           "--health-on-failure=kill"
           "--health-retries=3"
