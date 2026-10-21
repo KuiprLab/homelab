@@ -248,6 +248,41 @@ in {
         "SE"
       ];
     };
+
+    pangolinAsnDeny = lib.mkOption {
+      description = ''
+        ASN deny-list enforced on every public (traefik) resource through
+        blueprint resource rules: one `deny` rule per ASN, evaluated ahead of
+        the country catch-all. Blocking is exact — the engine compares the
+        looked-up ASN to one value, so there is no wildcard. Hosting, cloud and
+        VPN providers live here: they are never residential clients, and
+        scanners/credential stuffers run from them. Local, private and CGNAT
+        sources are unaffected.
+
+        Requires server.maxmind_asn_path (see
+        services/infrastructure/geoip-db.nix). Set to [] to disable, or
+        override per resource via `extra.rules`. Clients that browse through a
+        commercial VPN match these ASNs and lose access to public resources;
+        the dashboard is not a blueprint resource and stays reachable.
+      '';
+      type = lib.types.listOf lib.types.ints.positive;
+      default = [
+        9009 # M247 Europe — VPN/anti-detect hosting
+        60068 # Datacamp (CDN77)
+        136787 # PacketHub (NordVPN)
+        212238 # Datacamp (NordVPN/ExpressVPN ranges)
+        62240 # Clouvider — VPN-friendly hosting
+        210644 # AEZA — bulletproof hosting
+        197068 # HLL (Qrator) — abuse host
+        14061 # DigitalOcean
+        63949 # Akamai (Linode)
+        20473 # The Constant Company (Vultr)
+        51167 # Contabo
+        12876 # Scaleway
+        16276 # OVH
+        24940 # Hetzner
+      ];
+    };
   };
 
   config.flake = let
@@ -268,14 +303,25 @@ in {
         priority = i + 1;
       })
       config.flake.pangolinGeoAllow
-      ++ [
-        {
-          action = "deny";
-          match = "country";
-          value = "ALL";
-          priority = 1000;
-        }
-      ];
+      ++ lib.optional (config.flake.pangolinGeoAllow != []) {
+        action = "deny";
+        match = "country";
+        value = "ALL";
+        priority = 1000;
+      };
+
+    # ASN deny-list as blueprint resource rules. One rule per ASN: the engine
+    # compares the looked-up ASN against a single value
+    # (isIpInAsn in server/routers/badger/verifySession.ts), so there is no
+    # wildcard. 500+ keeps these ahead of the country catch-all.
+    asnRules =
+      lib.imap0 (i: asn: {
+        action = "deny";
+        match = "asn";
+        value = "AS${toString asn}";
+        priority = 500 + i;
+      })
+      config.flake.pangolinAsnDeny;
 
     # Dashboard labels, so resources can be filtered/grouped in pangolin's UI.
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
@@ -370,8 +416,8 @@ in {
                 })
             ];
           }
-          // lib.optionalAttrs (config.flake.pangolinGeoAllow != []) {
-            rules = geoRules;
+          // lib.optionalAttrs (asnRules != [] || geoRules != []) {
+            rules = asnRules ++ geoRules;
           })
         vh.extra)
       (lib.filterAttrs (_: vh: !vh.private) (forSite site));
@@ -427,10 +473,12 @@ in {
           # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
           domains.domain1.prefer_wildcard_cert = true;
 
-          # GeoIP database for country rules (see flake.pangolinGeoAllow and
-          # services/infrastructure/geoip-db.nix). Read at import time, so
-          # geoip-db.service runs before pangolin.service.
+          # GeoIP/ASN databases for country and ASN rules (see
+          # flake.pangolinGeoAllow and services/infrastructure/geoip-db.nix).
+          # Opened at import time, so geoip-db.service runs before
+          # pangolin.service.
           server.maxmind_db_path = "/var/lib/geoip/dbip-country-lite.mmdb";
+          server.maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
 
           # Raw resources allow full domains outside baseDomain, bypassing the
           # wildcard certificate and the blueprint. Nothing here uses them.
@@ -487,6 +535,7 @@ in {
       # One-shot idempotent bootstrap after pangolin is up:
       #   1. ensure the org exists (create-if-missing, never BatchUpdate)
       #   2. ensure the sites exist, with our pinned newtId + fresh secret
+      #   3. ensure the Authelia IdP is registered
       # Safely re-runs: everything it creates already returns real statuses
       # if it already exists. Secrets come from sops, and the admin password
       # is only ever used for a localhost login.
