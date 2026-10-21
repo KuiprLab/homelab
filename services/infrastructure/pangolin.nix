@@ -427,10 +427,12 @@ in {
           # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
           domains.domain1.prefer_wildcard_cert = true;
 
-          # GeoIP database for country rules (see flake.pangolinGeoAllow and
-          # services/infrastructure/geoip-db.nix). Read at import time, so
-          # geoip-db.service runs before pangolin.service.
+          # GeoIP/ASN databases for country and ASN rules (see
+          # flake.pangolinGeoAllow and services/infrastructure/geoip-db.nix).
+          # Opened at import time, so geoip-db.service runs before
+          # pangolin.service.
           server.maxmind_db_path = "/var/lib/geoip/dbip-country-lite.mmdb";
+          server.maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
 
           # Raw resources allow full domains outside baseDomain, bypassing the
           # wildcard certificate and the blueprint. Nothing here uses them.
