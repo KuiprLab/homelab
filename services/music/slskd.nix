@@ -3,14 +3,12 @@
 # container (see ../gluetun.nix); caddy proxies it as slskd.int.kuipr.de.
 _: {
   flake = {
-    caddyVirtualHosts."slskd.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy 127.0.0.1:5030
-      '';
-      name = "SLSKD";
-      # slskd has no SSO of its own; authelia gates the vhost and slskd's
-      # built-in login is disabled in slskd.yml (web.authentication.disabled).
-      authelia.enable = true;
+    pangolinVirtualHosts."slskd" = {
+      site = "sorbet";
+      name = "slskd";
+      subdomain = "slskd.int.kuipr.de";
+      # published through the gluetun container's netns; loopback on sorbet
+      port = 5030;
     };
 
     nixosModules.slskd = {config, ...}: {

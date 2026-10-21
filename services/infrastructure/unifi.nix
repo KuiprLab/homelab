@@ -1,36 +1,7 @@
 _: {
   flake = {
-    gatusEndpoints = [
-      {
-        name = "UniFi";
-        url = "https://unifi.int.kuipr.de";
-        group = "Home";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
-
-    caddyVirtualHosts."unifi.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy https://localhost:11443 {
-          transport http {
-            tls_insecure_skip_verify
-          }
-          # Required for UniFi WebSocket connections
-          header_up Host {host}
-          header_up X-Real-IP {remote_host}
-          header_up X-Forwarded-For {remote_host}
-          header_up X-Forwarded-Proto {scheme}
-        }
-      '';
-      name = "UniFi";
-    };
-
     nixosModules.unifi = _: {
-      imports = [../pkgs/unifi-os-server-image/module.nix];
+      imports = [../../pkgs/unifi-os-server-image/module.nix];
 
       # services.unifi-os-server = {
       #   enable = true;
@@ -61,9 +32,9 @@ _: {
             "127.0.0.1:11443:443"
             # Device/portal ports: bound to the LAN IP, not 0.0.0.0. APs and
             # other devices talk to UOS_SYSTEM_IP (192.168.0.85, see the
-            # set-inform note above), so LAN-side behavior is unchanged — but
-            # tailscale0 is a trusted interface, so a 0.0.0.0 bind would make
-            # every port tailnet-wide. (Loopback-only would break device
+            # set-inform note above), so LAN-side behavior is unchanged —
+            # and LAN-local bindings keep the ports off any overlay network
+            # that gets added later. (Loopback-only would break device
             # adoption, which is why these aren't 127.0.0.1 like the UI.)
             "192.168.0.85:5005:5005"
             "192.168.0.85:9543:9543"

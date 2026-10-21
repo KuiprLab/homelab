@@ -2,33 +2,12 @@
 # https://koito.io
 _: {
   flake = {
-    caddyVirtualHosts = {
-      "koito.int.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:4110
-        '';
-        name = "Koito";
-        authelia = {
-          enable = true;
-          # gatus probes this vhost sessionless; /apis/web/v1/health bypasses
-          # forward auth and is proxied to the app (503 until koito is ready).
-          bypassPaths = ["/apis/web/v1/health"];
-        };
-      };
+    pangolinVirtualHosts."koito" = {
+      site = "sorbet";
+      name = "Koito";
+      subdomain = "koito.int.kuipr.de";
+      port = 4110;
     };
-
-    gatusEndpoints = [
-      {
-        name = "Koito";
-        group = "Music";
-        url = "https://koito.int.kuipr.de/apis/web/v1/health";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
 
     nixosModules.koito = {config, ...}: {
       sops.secrets = {

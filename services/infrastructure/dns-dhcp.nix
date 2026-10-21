@@ -1,18 +1,4 @@
 _: {
-  flake.gatusEndpoints = [
-    {
-      name = "DNS";
-      group = "Network";
-      url = "192.168.0.85";
-      dns = {
-        query-name = "has.int.kuipr.de";
-        query-type = "A";
-      };
-      conditions = ["[DNS_RCODE] == NOERROR"];
-      alerts = [{type = "discord";}];
-    }
-  ];
-
   flake.nixosModules.dnsDhcp = {
     lib,
     pkgs,
@@ -52,9 +38,10 @@ _: {
         interface = [networkInterface];
         bind-interfaces = true;
         dns-forward-max = 300;
-        # Single upstream: the Pi-hole on eclair (tailnet), so every
-        # LAN lookup gets ad blocking and query logging.
-        server = ["100.99.168.34"];
+        # Single upstream: the local Pi-hole container (published on
+        # loopback:1053). Every LAN lookup gets ad blocking and query
+        # logging. Loopback publish keeps the stack private to the host.
+        server = ["127.0.0.1#1053"];
         # Pi-hole is the only caching layer, so repeated
         # lookups stay visible (and attributable) in the FTL query log
         # instead of being absorbed by dnsmasq.
@@ -110,8 +97,6 @@ _: {
           67
           68
         ];
-        interfaces."tailscale0".allowedTCPPorts = [53];
-        interfaces."tailscale0".allowedUDPPorts = [53];
       };
     };
 

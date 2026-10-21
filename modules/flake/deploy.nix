@@ -17,9 +17,11 @@
     };
 
     eclair = {
-      # Tailnet IP — the public IP refuses port 22 (provider firewall).
-      # Set to the output of `tailscale ip -4 eclair`.
-      hostname = "100.99.168.34";
+      # Deploy straight to the public IP. Port 2222 is the break-glass
+      # non-standard SSH port (see eclair configuration.nix); until the
+      # provider panel rule for 2222 is added we deploy on the default port,
+      # after which flip sshOpts to ["-p" "2222"] and close public :22.
+      hostname = "46.38.236.192";
       profiles.system = {
         inherit user;
         sshUser = user;

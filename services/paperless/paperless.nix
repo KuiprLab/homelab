@@ -1,31 +1,11 @@
 _: {
   flake = {
-    caddyVirtualHosts = {
-      "paperless.int.kuipr.de" = {
-        extraConfig = ''
-          reverse_proxy localhost:28981
-        '';
-        name = "Paperless";
-        authelia = {
-          enable = false;
-          # gatus probes this vhost sessionless; /healthz bypasses forward auth.
-          bypassPaths = ["/healthz"];
-        };
-      };
+    pangolinVirtualHosts."paperless" = {
+      site = "sorbet";
+      name = "Paperless";
+      subdomain = "paperless.int.kuipr.de";
+      port = 28981;
     };
-
-    gatusEndpoints = [
-      {
-        name = "Paperless";
-        group = "Home";
-        url = "https://paperless.int.kuipr.de/healthz";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
 
     nixosModules.paperless = {config, ...}: {
       # OIDC client secret for Authelia. The allauth provider config has no
@@ -33,7 +13,7 @@ _: {
       # PAPERLESS_SOCIALACCOUNT_PROVIDERS JSON (single line, quotes
       # systemd-escaped) lives in this sops file.
       sops.secrets."paperless/oidc" = {
-        sopsFile = ../secrets/sorbet/paperless-oidc;
+        sopsFile = ../../secrets/sorbet/paperless-oidc;
         format = "binary";
         key = "";
         # paperless-manage (run as the paperless user by the exporter)

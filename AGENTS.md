@@ -20,13 +20,10 @@ Service modules contribute to the flake via:
 
     flake.nixosModules.* — applied to sorbet
     flake.eclairNixosModules.* — applied to eclair
-    flake.caddyVirtualHosts — Caddy site blocks, also read by haproxy to auto-generate SNI ACLs
-
-Adding a new public service: declare flake.caddyVirtualHosts."myservice.ext.kuipr.de" in the service module — haproxy picks it up automatically on next deploy.
 
 # Architecture
 
-Eclair is a VPS running CrowdSec, HAProxy and Tailscale with its main purpose being a proxy for external domains
+Eclair is a VPS running Pangolin (with Traefik/Gerbil) with its main purpose being a proxy for external domains
 (`*.ext.kuipr.de`). While sorbet is the main homelab server serving most of the services and tools. Stuff that should
 only be accessible from inside the LAN (or through VPN) lives on the (`*.int.kuipr.de`) subdomain.
 

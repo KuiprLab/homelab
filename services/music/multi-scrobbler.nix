@@ -1,32 +1,11 @@
 _: {
   flake = {
-    caddyVirtualHosts."scrobble.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:9078
-      '';
-      name = "Multi Scrobbler";
-      authelia = {
-        enable = true;
-        # gatus probes this vhost sessionless; /api/version bypasses forward
-        # auth and is proxied to the app. Deliberately not /api/health — it
-        # answers 500 whenever any source/client is down, which would flap
-        # this alert on broken (not hung) sources.
-        bypassPaths = ["/api/version"];
-      };
+    pangolinVirtualHosts."scrobble" = {
+      site = "sorbet";
+      name = "Multi-scrobbler";
+      subdomain = "scrobble.int.kuipr.de";
+      port = 9078;
     };
-
-    gatusEndpoints = [
-      {
-        name = "Multi-Scrobbler";
-        group = "Music";
-        url = "https://scrobble.int.kuipr.de/api/version";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
 
     nixosModules.multi-scrobbler = {config, ...}: {
       sops.secrets."multi-scrobbler/config" = {

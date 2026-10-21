@@ -1,5 +1,5 @@
 # eclair base configuration
-# Minimal VPS: SSH, tailscale, sops age key, system packages.
+# Minimal VPS: SSH, pangolin, sops age key, system packages.
 _: {
   flake.eclairNixosModules.eclairConfiguration = {pkgs, ...}: {
     system.stateVersion = "25.05";
@@ -19,8 +19,13 @@ _: {
     networking = {
       firewall = {
         enable = true;
-        # haproxy: HTTP redirect + HTTPS passthrough
-        allowedTCPPorts = [80 443];
+        # haproxy: HTTP redirect + HTTPS passthrough; 2222 is the public
+        # break-glass SSH port (sshd listens on all interfaces).
+        allowedTCPPorts = [80 443 2222];
+        # gerbil: 51820 (wireguard) via pangolin module; 21820 is
+        # clients_start_port used by newt UDP hole punch / relay —
+        # without it sites behind NAT cannot register an endpoint.
+        allowedUDPPorts = [21820];
       };
       hostName = "eclair";
     };

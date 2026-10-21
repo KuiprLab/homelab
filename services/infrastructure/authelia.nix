@@ -1,13 +1,15 @@
 _: {
   flake = {
-    caddyVirtualHosts."auth.ext.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:9091
-      '';
+    # Expose the authelia portal publicly via pangolin — resources that use
+    # its login/oidc flows hit it directly.
+    pangolinVirtualHosts."auth" = {
+      site = "sorbet";
       name = "Authelia";
-      # PoW challenge in front of the portal, before any authelia logic.
-      anubis.enable = true;
+      subdomain = "auth.ext.kuipr.de";
+      port = 9091;
+      private = false;
     };
+
     nixosModules.authelia = {
       pkgs,
       lib,
@@ -16,7 +18,7 @@ _: {
     }: {
       sops.secrets = {
         "authelia/authelia.env" = {
-          sopsFile = ../secrets/sorbet/authelia/authelia.env;
+          sopsFile = ../../secrets/sorbet/authelia/authelia.env;
           format = "dotenv";
           owner = "daniel";
           key = "";
@@ -24,7 +26,7 @@ _: {
         };
 
         "authelia/configuration.yml" = {
-          sopsFile = ../secrets/sorbet/authelia/configuration.yml;
+          sopsFile = ../../secrets/sorbet/authelia/configuration.yml;
           owner = "daniel";
           format = "yaml";
           key = "";
@@ -32,7 +34,7 @@ _: {
         };
 
         "authelia/authelia-users.yaml" = {
-          sopsFile = ../secrets/sorbet/authelia/users.yaml;
+          sopsFile = ../../secrets/sorbet/authelia/users.yaml;
           owner = "daniel";
           key = "";
           restartUnits = ["podman-authelia.service"];

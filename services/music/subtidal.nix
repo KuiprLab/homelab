@@ -3,6 +3,14 @@
 # never touches sorbet.
 _: {
   flake = {
+    pangolinVirtualHosts."subtidal" = {
+      site = "eclair";
+      name = "Subtidal";
+      subdomain = "subtidal.ext.kuipr.de";
+      port = 4234;
+      private = false;
+    };
+
     eclairCaddyVirtualHosts."subtidal.ext.kuipr.de" = {
       extraConfig = ''
         reverse_proxy localhost:4234
@@ -22,7 +30,7 @@ _: {
       };
 
       sops.secrets."subtidal" = {
-        sopsFile = ../secrets/eclair/subtidal.toml;
+        sopsFile = ../../secrets/eclair/subtidal.toml;
         format = "binary";
         key = "";
         # 0400 + owner: readable only by the container user (uid 1000),

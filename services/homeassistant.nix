@@ -1,29 +1,12 @@
 _: {
   flake = {
-    caddyVirtualHosts."has.int.kuipr.de" = {
-      extraConfig = ''
-        reverse_proxy localhost:8123 {
-          header_up Host {host}
-          header_up X-Real-IP {remote_host}
-          header_up X-Forwarded-For {remote_host}
-          header_up X-Forwarded-Proto {scheme}
-        }
-      '';
+    # Home Assistant on sorbet, reachable via the pangolin tunnel network.
+    pangolinVirtualHosts."has" = {
+      site = "sorbet";
       name = "Home Assistant";
+      subdomain = "has.int.kuipr.de";
+      port = 8123;
     };
-
-    gatusEndpoints = [
-      {
-        name = "Home Assistant";
-        group = "Home";
-        url = "https://has.int.kuipr.de";
-        conditions = [
-          "[STATUS] == 200"
-          "[CERTIFICATE_EXPIRATION] > 168h"
-        ];
-        alerts = [{type = "discord";}];
-      }
-    ];
 
     # https://nixos.wiki/wiki/Home_Assistant#NixOS_Module
     nixosModules.homeassistant = {config, ...}: {
