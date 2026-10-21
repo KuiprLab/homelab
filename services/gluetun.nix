@@ -19,7 +19,12 @@ _: {
             serviceConfig = {
               Type = "oneshot";
               RemainAfterExit = true;
-              ExecStart = "/bin/sh -c 'podman network exists proxy || podman network create proxy'";
+              # --ip-range keeps dynamic allocation away from gluetun's pinned
+              # 10.89.0.20: without it, a container created while gluetun is down
+              # (e.g. authelia during activation) takes .20 and gluetun can never
+              # start again ("IPAM error: requested ip address ... is already
+              # allocated").
+              ExecStart = "/bin/sh -c 'podman network exists proxy || podman network create --subnet 10.89.0.0/24 --ip-range 10.89.0.128/25 proxy'";
             };
             path = ["/run/current-system/sw"];
           };
