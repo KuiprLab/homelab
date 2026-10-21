@@ -137,7 +137,7 @@ in {
       podman.enable = true;
       oci-containers.backend = "podman";
       oci-containers.containers.pihole = {
-        image = "docker.io/pihole/pihole:2026.09.0@sha256:bd3fc82ee1b1473a45fc074379dcd9fd7ce3e933809c44e10c0df9b22fd5de63";
+        image = "docker.io/pihole/pihole:2026.10.0@sha256:d8d848307ffe7f8c4b42be423b33295d6a45282215eb5a96fe25e05fa39b1abc";
         autoStart = true;
         environment = {
           TZ = "Europe/Berlin";
