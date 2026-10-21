@@ -487,6 +487,7 @@ in {
       # One-shot idempotent bootstrap after pangolin is up:
       #   1. ensure the org exists (create-if-missing, never BatchUpdate)
       #   2. ensure the sites exist, with our pinned newtId + fresh secret
+      #   3. ensure the Authelia IdP is registered
       # Safely re-runs: everything it creates already returns real statuses
       # if it already exists. Secrets come from sops, and the admin password
       # is only ever used for a localhost login.
