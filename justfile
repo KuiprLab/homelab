@@ -36,10 +36,15 @@ deploy-local host mode="test":
       --build-host root@sorbet \
       --target-host root@{{host}}
 
-deploy-status:
-    @ssh sorbet comin status
-    @echo ------------------
-    @ssh eclair comin status
+deploy-status host="":
+    #!/usr/bin/env bash
+    if [[ -z "{{host}}" ]]; then
+        ssh sorbet comin status
+        echo ------------------
+        ssh eclair comin status
+    else
+        ssh {{host}} comin status
+    fi
 
 
 # Format all Nix files
