@@ -21,12 +21,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Temporary: kept for the bootstrap deploy of phase 1. Removed in phase 2.
-    deploy-rs = {
-      url = "github:serokell/deploy-rs";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Pull-based GitOps deployment. Both hosts run the comin agent and
     # poll this repository; no inbound deploy path or deploy key exists.
     comin = {

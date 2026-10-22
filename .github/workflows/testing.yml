@@ -12,13 +12,29 @@ on:
 permissions:
   contents: write
 
+# Serialize pointer updates. Two feature branches for the same host must not
+# race; the last push must win.
+concurrency:
+  group: testing-branch-pointer
+  cancel-in-progress: false
+
 jobs:
   point:
+    if: github.event.deleted == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Require a commit on top of main
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin main
+          if ! git merge-base --is-ancestor FETCH_HEAD "$GITHUB_SHA"; then
+            echo "rebase the branch on main first: git rebase --gpg-sign main" >&2
+            exit 1
+          fi
 
       - name: Move testing/<host> to this commit
         env:

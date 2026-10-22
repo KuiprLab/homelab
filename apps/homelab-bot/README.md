@@ -58,12 +58,9 @@ as flake-parts modules.
    both `wantedBy` and the secret's `restartUnits`, which have to agree:
    sops-nix restarts listed units when a secret changes, and `systemctl
    restart` starts an inactive unit regardless of `wantedBy`.
-4. Deploy:
-   ```bash
-   just deploy sorbet
-   ```
-   The bot registers its commands with Discord on startup, so there is nothing
-   else to run.
+4. Commit and push to `main`. comin on sorbet deploys the commit on its next
+   poll (up to five minutes, plus build time). The bot registers its commands
+   with Discord on startup, so there is nothing else to run.
 
 ## Adding a feature
 

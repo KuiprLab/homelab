@@ -42,9 +42,8 @@ in {
             nixpkgs.overlays = overlays;
           }
 
-          # Record the exact commit the system was built from, so CI can
-          # compare /run/current-system/configuration-revision against main
-          # and skip deploys when nothing changed.
+          # Record the exact commit the system was built from. Useful for
+          # drift checks.
           {system.configurationRevision = self.rev or self.dirtyRev or null;}
 
           # Home Manager shared modules
