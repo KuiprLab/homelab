@@ -58,18 +58,75 @@
             *) exit 0 ;;
           esac
 
+          # comin computes this internally, but does not export it to post hooks.
+          # For switch/test, /run/current-system is updated after activation;
+          # a kernel mismatch means the running kernel is still the old one.
+          reboot="unknown"
+          if [ -e /run/current-system/kernel ] && [ -e /run/booted-system/kernel ]; then
+            current_kernel=$(readlink -f /run/current-system/kernel 2>/dev/null || true)
+            booted_kernel=$(readlink -f /run/booted-system/kernel 2>/dev/null || true)
+            if [ -n "$current_kernel" ] && [ -n "$booted_kernel" ]; then
+              if [ "$current_kernel" = "$booted_kernel" ]; then
+                reboot="no"
+              else
+                reboot="yes"
+              fi
+            fi
+          fi
+
           webhook=$(cat ${config.sops.secrets."deploy_webhook".path})
+          commit_url="https://github.com/KuiprLab/homelab/commit/''${COMIN_GIT_SHA:-}"
 
-          body=$(printf '%s %s %s\n%s\n\n%s\n%s' \
-            "$icon" \
-            "$COMIN_HOSTNAME" \
-            "$COMIN_STATUS" \
-            "commit: \`''${COMIN_GIT_SHA:0:7}\` on \`$COMIN_GIT_REF\`" \
-            "$COMIN_GIT_MSG" \
-            "''${COMIN_ERROR_MSG:-}")
-          content=$(printf '%s' "$body" | cut -c1-1900)
-
-          jq -n --arg content "$content" '{content: $content}' \
+          jq -n \
+            --arg icon "$icon" \
+            --arg host "''${COMIN_HOSTNAME:-unknown}" \
+            --arg status "''${COMIN_STATUS:-}" \
+            --arg sha "''${COMIN_GIT_SHA:-}" \
+            --arg ref "''${COMIN_GIT_REF:-unknown}" \
+            --arg msg "''${COMIN_GIT_MSG:-}" \
+            --arg err "''${COMIN_ERROR_MSG:-}" \
+            --arg reboot "$reboot" \
+            --arg gen "''${COMIN_GENERATION:-}" \
+            --arg commit_url "$commit_url" \
+            '
+              {
+                embeds: [
+                  {
+                    title: (($icon + " " + $host + " — deployment " +
+                      (if $status == "done" then "succeeded" else "failed" end))[0:256]),
+                    description: (
+                      if $status == "done" then
+                        (if $msg == "" then "_No commit message._"
+                         else "> " + ($msg | gsub("\n"; "\n> ")) end)
+                      else
+                        ("**Error**\n" +
+                         (if $err == "" then "_No error message._"
+                          else "> " + ($err | gsub("\n"; "\n> ")) end))
+                      end
+                    )[0:4000],
+                    color: (if $status == "done" then 3066993 else 15158332 end),
+                    fields: [
+                      {
+                        name: "Commit",
+                        value: (if $sha == "" then "unknown"
+                                else "[`" + ($sha[0:7]) + "`](" + $commit_url + ")" end),
+                        inline: true
+                      },
+                      {name: "Branch", value: ("`" + $ref + "`"), inline: true},
+                      {
+                        name: "Reboot",
+                        value: (if $reboot == "yes" then "⚠️ **required**"
+                                elif $reboot == "no" then "✅ not required"
+                                else "❔ unknown" end),
+                        inline: true
+                      }
+                    ],
+                    footer: {text: ("comin • " + $gen)},
+                    timestamp: (now | todate)
+                  }
+                  + (if $sha == "" then {} else {url: $commit_url} end)
+                ]
+              }' \
             | curl -fsS --max-time 15 --retry 2 -X POST "$webhook" \
                 -H 'Content-Type: application/json' \
                 -d @-

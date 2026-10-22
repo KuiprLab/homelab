@@ -25,6 +25,23 @@ install target:
       --option extra-trusted-public-keys cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM= \
       --target-host {{target}}
 
+# Trigger a comin deployment on one host (sorbet or eclair)
+deploy host:
+    @ssh {{host}} comin fetch
+
+# Deploy the local working tree to one host, bypassing comin (mode: test|switch)
+deploy-local host mode="test":
+    nix run nixpkgs#nixos-rebuild -- {{mode}} \
+      --flake .#{{host}} \
+      --build-host root@sorbet \
+      --target-host root@{{host}}
+
+deploy-status:
+    @ssh sorbet comin status
+    @echo ------------------
+    @ssh eclair comin status
+
+
 # Format all Nix files
 fmt:
     nix fmt .
