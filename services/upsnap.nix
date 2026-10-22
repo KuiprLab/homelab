@@ -23,15 +23,16 @@ _: {
         };
         image = "ghcr.io/seriousm4x/upsnap:latest@sha256:1e7c2345c493f9228a5dc2102be06b5a33331100f303fe0078502f4ef1068724";
         # Podman does not inherit image HEALTHCHECKs — mirror the upstream
-        # one explicitly (curl → 127.0.0.1:8090/api/health).
+        # one explicitly (curl → 127.0.0.1:8090/api/health), with retries:
+        # podman's first check fires immediately at start.
         # Unhealthy → podman kills the container; systemd's Restart recreates it.
         extraOptions = [
-          "--health-cmd=curl -fs http://127.0.0.1:8090/api/health"
+          "--health-cmd=curl -fsS --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:8090/api/health >/dev/null"
           "--health-interval=10s"
           "--health-on-failure=kill"
           "--health-retries=3"
           "--health-start-period=30s"
-          "--health-timeout=5s"
+          "--health-timeout=30s"
           "--dns=192.168.0.85"
           "--cap-add=NET_RAW"
           "--network=host"
