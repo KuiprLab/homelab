@@ -192,8 +192,8 @@ in {
         # Podman does not inherit image HEALTHCHECKs — mirror the
         # upstream one (dig pi.hole, no recursion needed). The command
         # must ride out FTL's own startup: podman runs healthchecks as
-        # transient systemd units (subtidal pattern), and deploy-rs
-        # aborts activation on ANY failed unit — so the first tick,
+        # transient systemd units (subtidal pattern), and the activation
+        # aborts on ANY failed unit — so the first tick,
         # which fires while FTL is still booting, retries a few times
         # before reporting failure. Unhealthy → podman kills the
         # container; systemd's Restart recreates it (same as subtidal).

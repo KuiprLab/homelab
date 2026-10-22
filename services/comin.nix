@@ -25,6 +25,7 @@
           name = "origin";
           url = "https://github.com/KuiprLab/homelab.git";
           poller.period = 300;
+          timeout = 300;
           branches = {
             main = {
               name = "main";

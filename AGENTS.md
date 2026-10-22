@@ -4,7 +4,7 @@ This is the monorepo of a nix based homelab.
 
 ```
 hosts/<host>/      per-machine configuration (sorbet, eclair)
-modules/flake/     flake-parts plumbing: deploy nodes, systems, checks
+modules/flake/     flake-parts plumbing: systems, checks, formatting
 services/          third-party services you configure
 pkgs/              third-party software you package
 apps/              source for services and tools, colocated with their _package.nix and _module.nix
@@ -61,11 +61,19 @@ Options:
 You should basically only ever use encypt/decrypt and read, for all other actions **delegate to the user**. Never read
 the sops private keys directly from 1Password!
 
-# Deployment 
+# Deployment
 
-Deployment runs through deploy-rs using the justfile recipe: `just deploy <host>`. With host either being sorbet or
-eclair. Before being able to deploy you nedd to run `nix fmt` and `nix flake check`. Additionally all changes need to be
-commited before deploying.
+Both hosts run comin as a pull-based GitOps agent. comin polls `main` every 300 s, builds the new commit on the host,
+and runs `switch-to-configuration switch`. There is no inbound deploy path, deploy key, or self-hosted runner.
+
+A push to `main` is the deploy trigger. Before you push, run `nix fmt` and `nix flake check`.
+
+To test one host before `main`: rebase the branch on `main` with `git rebase --gpg-sign main`, push
+`testing/<host>/<feature>`, and let the `testing.yml` workflow move `testing/<host>` to that commit. comin on
+`<host>` then runs `switch-to-configuration test`; the bootloader does not change. Only one testing branch per host is
+active. The last push wins. Never push `testing/<host>` directly.
+
+Check status with `ssh <host> comin status`. Logs are in `journalctl -u comin`. State lives in `/var/lib/comin`.
 
 # Debugging
 
@@ -74,8 +82,15 @@ host.
 
 # Committing
 
-When working on a new feature or bug fix, create a new branch first. For commit messages use the conventional commit
-standard.
+Create a branch before you work. For a change that must be tested on a host, use `testing/<host>/<feature>`.
+`<host>` is `sorbet` or `eclair`. `<feature>` is one slug without `/`, for example `testing/sorbet/pihole-dns`. Push
+the branch to start a test deployment. Rebase on `main` with `git rebase --gpg-sign main` first; comin rejects a
+testing commit that is not on top of `main` or is unsigned. Do not push `testing/<host>` directly; the workflow
+manages it.
+
+For a change that does not need a host test, use `feat/<name>` or `fix/<name>`. Use conventional commit messages. A
+push to `main` deploys to both hosts. Merge with a merge commit or a squash merge. Do not use "Rebase and merge" unless
+every commit is signed.
 
 
 # Documentation
