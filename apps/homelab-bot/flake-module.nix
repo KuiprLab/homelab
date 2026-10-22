@@ -3,7 +3,7 @@
 # one place that says how this app is built, run and developed.
 _: {
   perSystem = {pkgs, ...}: {
-    packages.homelab-bot = pkgs.callPackage ./_package.nix {};
+    packages.homelab-bot = pkgs.callPackage ./_package.nix {nodejs = pkgs.nodejs_26;};
 
     # nix develop .#homelab-bot
     #
@@ -14,7 +14,7 @@ _: {
     # refuse, and that mismatch only ever shows up in CI.
     devShells.homelab-bot = pkgs.mkShell {
       packages = [
-        pkgs.nodejs # node, npm, npx
+        pkgs.nodejs_26 # node, npm, npx
         pkgs.typescript-language-server # editor LSP; tsc itself comes from the lockfile
       ];
 

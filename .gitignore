@@ -12,6 +12,7 @@ result-*
 
 # Agent session transcripts
 session-*.md
+.claude/settings.local.json
 
 # Node apps
 node_modules/

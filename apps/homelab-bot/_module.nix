@@ -21,7 +21,7 @@
   pkgs,
   ...
 }: let
-  homelab-bot = pkgs.callPackage ./_package.nix {};
+  homelab-bot = pkgs.callPackage ./_package.nix {nodejs = pkgs.nodejs_26;};
 
   # Shared with the slskd -> beets import unit, which only ever reads it; see
   # services/music/beets.nix and src/features/music/hints.ts.
