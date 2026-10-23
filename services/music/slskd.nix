@@ -40,7 +40,7 @@ _: {
           TZ = "Europe/Berlin";
           SLSKD_REMOTE_CONFIGURATION = "true";
         };
-        image = "docker.io/slskd/slskd:latest@sha256:588af49abc3088d639c8f1174d3bfad6e92c093a275a593140e3ac9311ebf6c4";
+        image = "docker.io/slskd/slskd:latest@sha256:d0963a3e5b16facd295bf4f2156dad0182f246b1b21a032cae12f5494c694843";
         # Podman does not inherit image HEALTHCHECKs — mirror the upstream
         # one explicitly (wget → localhost:5030/health; it is a static 200
         # liveness probe, and the 60m start period covers Soulseek login).
