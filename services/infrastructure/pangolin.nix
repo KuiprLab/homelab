@@ -805,7 +805,12 @@ in {
       config,
       pkgs,
       ...
-    }: {
+    }: let
+      blueprint = (pkgs.formats.yaml {}).generate "blueprint-eclair.yml" {
+        client-resources = (clientResources "eclair") // (exitNodeResources "eclair");
+        proxy-resources = proxyResources "eclair";
+      };
+    in {
       sops.secrets."newt-eclair" = {
         sopsFile = ../../secrets/eclair/newt.env;
         format = "dotenv";
@@ -813,29 +818,31 @@ in {
         owner = "root";
       };
 
-      services.newt = {
-        enable = true;
-        package = pkgs.callPackage ../../pkgs/fosrl-newt {};
-        environmentFile = config.sops.secrets."newt-eclair".path;
-        settings = {
-          endpoint = "https://pangolin.ext.kuipr.de";
-          id = "eclair";
-        };
-        blueprint = {
-          client-resources = (clientResources "eclair") // (exitNodeResources "eclair");
-          proxy-resources = proxyResources "eclair";
-        };
-      };
+      systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-eclair".path;
 
-      # eclair runs public vhosts of its own (subtidal): its newt applies the
-      # proxy-resources that route back to eclair's loopback services.
+      virtualisation.oci-containers.containers.newt = {
+        image = "docker.io/fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319";
+        volumes = ["${blueprint}:/blueprint.yml:ro"];
+        cmd = [
+          "--endpoint=https://pangolin.ext.kuipr.de"
+          "--id=eclair"
+          "--blueprint-file=/blueprint.yml"
+        ];
+        extraOptions = ["--network=host" "--env-host"];
+        log-driver = "journald";
+      };
     };
 
     nixosModules.newt = {
       config,
       pkgs,
       ...
-    }: {
+    }: let
+      blueprint = (pkgs.formats.yaml {}).generate "blueprint-sorbet.yml" {
+        client-resources = (clientResources "sorbet") // (exitNodeResources "sorbet");
+        proxy-resources = proxyResources "sorbet";
+      };
+    in {
       sops.secrets."newt-sorbet" = {
         sopsFile = ../../secrets/sorbet/newt.env;
         format = "dotenv";
@@ -843,20 +850,18 @@ in {
         owner = "root";
       };
 
-      services.newt = {
-        enable = true;
-        package = pkgs.callPackage ../../pkgs/fosrl-newt {};
-        environmentFile = config.sops.secrets."newt-sorbet".path;
-        settings = {
-          # The pangolin server runs on eclair; this module is evaluated on
-          # sorbet too, so endpoint must not be derived from eclair config.
-          endpoint = "https://pangolin.ext.kuipr.de";
-          id = "sorbet";
-        };
-        blueprint = {
-          client-resources = (clientResources "sorbet") // (exitNodeResources "sorbet");
-          proxy-resources = proxyResources "sorbet";
-        };
+      systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-sorbet".path;
+
+      virtualisation.oci-containers.containers.newt = {
+        image = "docker.io/fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319";
+        volumes = ["${blueprint}:/blueprint.yml:ro"];
+        cmd = [
+          "--endpoint=https://pangolin.ext.kuipr.de"
+          "--id=sorbet"
+          "--blueprint-file=/blueprint.yml"
+        ];
+        extraOptions = ["--network=host" "--env-host"];
+        log-driver = "journald";
       };
     };
   };

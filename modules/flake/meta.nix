@@ -9,8 +9,6 @@ _: {
 
   # Make nixpkgs available per-system
   perSystem = {pkgs, ...}: {
-    packages.fosrl-newt = pkgs.callPackage ../../pkgs/fosrl-newt {};
-
     # `formatter` and `checks.treefmt` come from modules/flake/treefmt.nix.
     # Everything below is linting, which inspects but never rewrites.
     checks = {
