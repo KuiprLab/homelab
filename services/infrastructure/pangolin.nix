@@ -497,9 +497,14 @@ in {
             http = {
               tls.certResolver = "letsencrypt";
               middlewares = ["sec-headers@file"];
+              encodedCharacters = {
+                allowEncodedSlash = true;
+                allowEncodedQuestionMark = true;
+              };
             };
           };
         };
+        serversTransport.insecureSkipVerify = true;
       };
 
       traefikDynamic = yaml.generate "dynamic_config.yml" {
