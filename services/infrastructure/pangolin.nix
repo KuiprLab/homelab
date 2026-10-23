@@ -437,9 +437,35 @@ in {
   in {
     eclairNixosModules.pangolin-server = {
       config,
+      lib,
       pkgs,
       ...
-    }: {
+    }: let
+      pangolinVersion = "1.25.3";
+      pangolin = pkgs.writeShellScriptBin "pangolin" ''
+        exec ${pkgs.podman}/bin/podman run \
+          --rm --replace \
+          --name pangolin \
+          --network=host \
+          --env-host \
+          --volume /var/lib/pangolin/config:/app/config \
+          --volume /var/lib/geoip:/var/lib/geoip:ro \
+          docker.io/fosrl/pangolin:${pangolinVersion} "$@"
+      '';
+    in {
+      imports = [
+        {
+          systemd.services.pangolin.serviceConfig = lib.mkForce {
+            EnvironmentFile = config.sops.secrets."pangolin".path;
+            ExecStart = lib.getExe pangolin;
+            Restart = "always";
+            RestartSec = "10s";
+            TimeoutStartSec = 0;
+            TimeoutStopSec = 120;
+          };
+          virtualisation.podman.enable = true;
+        }
+      ];
       sops.secrets."pangolin" = {
         sopsFile = ../../secrets/eclair/pangolin.env;
         format = "dotenv";
@@ -457,11 +483,7 @@ in {
 
       services.pangolin = {
         enable = true;
-        # nixpkgs ships the wrapper with NODE_ENV=development, which breaks
-        # prod SSR (renderToPipeableStream is not implemented -> 500).
-        package = pkgs.fosrl-pangolin.override {
-          environmentVariables = {NODE_ENV = "production";};
-        };
+        package = pangolin;
         dashboardDomain = "pangolin.ext.kuipr.de";
         baseDomain = "kuipr.de";
         dnsProvider = "bunny";
