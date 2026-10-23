@@ -78,14 +78,14 @@ _: {
               labels.type = "syslog";
             }
             {
-              # traefik logs its access log to stdout (services.traefik below
-              # sets `accessLog = {}`), so journald holds it — no log file to
-              # rotate or expose to the agent's user.
+              # traefik runs in a container and logs its access log to stdout
+              # (traefik_config.yml sets `accessLog = {}`), so journald holds it
+              # — no log file to rotate or expose to the agent's user.
               # type MUST stay "syslog": the hub's s00-raw parser strips the
               # journalctl timestamp prefix for syslog-type sources, leaving
               # the bare CLF line the traefik parser expects.
               source = "journalctl";
-              journalctl_filter = ["-u" "traefik.service"];
+              journalctl_filter = ["-u" "podman-traefik.service"];
               labels.type = "syslog";
             }
           ];
