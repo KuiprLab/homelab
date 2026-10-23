@@ -631,7 +631,10 @@ in {
                     "/var/lib/geoip:/var/lib/geoip:ro"
                   ];
                   ports = ["127.0.0.1:3000:3000"];
-                  extraOptions = ["--env-host"];
+                  extraOptions = [
+                    "--env-host"
+                    "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                  ];
                   log-driver = "journald";
                 };
                 gerbil = {
@@ -828,7 +831,11 @@ in {
           "--id=eclair"
           "--blueprint-file=/blueprint.yml"
         ];
-        extraOptions = ["--network=host" "--env-host"];
+        extraOptions = [
+          "--network=host"
+          "--env-host"
+          "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ];
         log-driver = "journald";
       };
     };
@@ -860,7 +867,11 @@ in {
           "--id=sorbet"
           "--blueprint-file=/blueprint.yml"
         ];
-        extraOptions = ["--network=host" "--env-host"];
+        extraOptions = [
+          "--network=host"
+          "--env-host"
+          "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ];
         log-driver = "journald";
       };
     };
