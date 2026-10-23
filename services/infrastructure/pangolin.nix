@@ -441,31 +441,124 @@ in {
       pkgs,
       ...
     }: let
-      image = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
-      pangolin = pkgs.writeShellScriptBin "pangolin" ''
-        exec ${pkgs.podman}/bin/podman run \
-          --rm --replace \
-          --name pangolin \
-          --network=host \
-          --env-host \
-          --volume /var/lib/pangolin/config:/app/config \
-          --volume /var/lib/geoip:/var/lib/geoip:ro \
-          ${image} "$@"
-      '';
-    in {
-      imports = [
-        {
-          systemd.services.pangolin.serviceConfig = lib.mkForce {
-            EnvironmentFile = config.sops.secrets."pangolin".path;
-            ExecStart = lib.getExe pangolin;
-            Restart = "always";
-            RestartSec = "10s";
-            TimeoutStartSec = 0;
-            TimeoutStopSec = 120;
+      dashboardDomain = "pangolin.ext.kuipr.de";
+      baseDomain = "kuipr.de";
+      configDir = "/var/lib/pangolin/config";
+
+      yaml = pkgs.formats.yaml {};
+
+      images = {
+        pangolin = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
+        gerbil = "docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f";
+        traefik = "docker.io/library/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2";
+      };
+
+      configFile = yaml.generate "config.yml" {
+        app.dashboard_url = "https://${dashboardDomain}";
+        domains.domain1 = {
+          base_domain = baseDomain;
+          prefer_wildcard_cert = true;
+        };
+        server = {
+          external_port = 3000;
+          internal_port = 3001;
+          next_port = 3002;
+          integration_port = 3003;
+          internal_hostname = "pangolin";
+          maxmind_db_path = "/var/lib/geoip/dbip-country-lite.mmdb";
+          maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
+        };
+        gerbil.base_endpoint = dashboardDomain;
+        flags = {
+          disable_signup_without_invite = true;
+          enable_integration_api = false;
+          allow_raw_resources = false;
+        };
+      };
+
+      traefikStatic = yaml.generate "traefik_config.yml" {
+        providers = {
+          http = {
+            endpoint = "http://pangolin:3001/api/v1/traefik-config";
+            pollInterval = "5s";
           };
-          virtualisation.podman.enable = true;
-        }
-      ];
+          file.filename = "/etc/traefik/dynamic_config.yml";
+        };
+        experimental.plugins.badger = {
+          moduleName = "github.com/fosrl/badger";
+          version = "v1.7.0";
+        };
+        accessLog = {};
+        certificatesResolvers.letsencrypt.acme = {
+          dnsChallenge.provider = "bunny";
+          email = "62436912+frostplexx@users.noreply.github.com";
+          storage = "/letsencrypt/acme.json";
+          caServer = "https://acme-v02.api.letsencrypt.org/directory";
+        };
+        entryPoints = {
+          web.address = ":80";
+          websecure = {
+            address = ":443";
+            transport.respondingTimeouts.readTimeout = "30m";
+            http = {
+              tls.certResolver = "letsencrypt";
+              middlewares = ["sec-headers@file"];
+            };
+          };
+        };
+      };
+
+      traefikDynamic = yaml.generate "dynamic_config.yml" {
+        http = {
+          middlewares = {
+            redirect-to-https.redirectScheme.scheme = "https";
+            sec-headers.headers = {
+              stsSeconds = 31536000;
+              stsIncludeSubdomains = true;
+              contentTypeNosniff = true;
+              referrerPolicy = "strict-origin-when-cross-origin";
+              customFrameOptionsValue = "DENY";
+            };
+          };
+          routers = {
+            main-app-router-redirect = {
+              rule = "Host(`${dashboardDomain}`)";
+              service = "next-service";
+              entryPoints = ["web"];
+              middlewares = ["redirect-to-https"];
+            };
+            next-router = {
+              rule = "Host(`${dashboardDomain}`) && !PathPrefix(`/api/v1`)";
+              service = "next-service";
+              entryPoints = ["websecure"];
+              tls = {
+                domains = [
+                  {main = baseDomain;}
+                  {sans = "*.${baseDomain}";}
+                ];
+                certResolver = "letsencrypt";
+              };
+            };
+            api-router = {
+              rule = "Host(`${dashboardDomain}`) && PathPrefix(`/api/v1`)";
+              service = "api-service";
+              entryPoints = ["websecure"];
+              tls.certResolver = "letsencrypt";
+            };
+            ws-router = {
+              rule = "Host(`${dashboardDomain}`)";
+              service = "api-service";
+              entryPoints = ["websecure"];
+              tls.certResolver = "letsencrypt";
+            };
+          };
+          services = {
+            next-service.loadBalancer.servers = [{url = "http://pangolin:3002";}];
+            api-service.loadBalancer.servers = [{url = "http://pangolin:3000";}];
+          };
+        };
+      };
+    in {
       sops.secrets."pangolin" = {
         sopsFile = ../../secrets/eclair/pangolin.env;
         format = "dotenv";
@@ -481,79 +574,94 @@ in {
         key = "";
       };
 
-      services.pangolin = {
-        enable = true;
-        package = pangolin;
-        dashboardDomain = "pangolin.ext.kuipr.de";
-        baseDomain = "kuipr.de";
-        dnsProvider = "bunny";
-        letsEncryptEmail = "62436912+frostplexx@users.noreply.github.com";
-        environmentFile = config.sops.secrets."pangolin".path;
-        openFirewall = true;
-        settings = {
-          # Certificates are wildcard entries (*.int.kuipr.de, *.ext.kuipr.de);
-          # HTTP-01 cannot issue those, so request them via DNS-01 (bunny).
-          domains.domain1.prefer_wildcard_cert = true;
+      imports = [
+        {
+          boot.kernelModules = ["wireguard"];
 
-          # GeoIP/ASN databases for country and ASN rules (see
-          # flake.pangolinGeoAllow and services/infrastructure/geoip-db.nix).
-          # Opened at import time, so geoip-db.service runs before
-          # pangolin.service.
-          server.maxmind_db_path = "/var/lib/geoip/dbip-country-lite.mmdb";
-          server.maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
+          networking.firewall.allowedUDPPorts = [51820];
 
-          # Raw resources allow full domains outside baseDomain, bypassing the
-          # wildcard certificate and the blueprint. Nothing here uses them.
-          flags.allow_raw_resources = false;
-        };
-      };
+          systemd = {
+            services."podman-pangolin".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+            services."podman-traefik".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+            tmpfiles.settings."10-pangolin-paths" = {
+              "/var/lib/pangolin".d = {
+                user = "root";
+                group = "root";
+                mode = "0750";
+              };
+              "${configDir}".d = {
+                user = "root";
+                group = "root";
+                mode = "0750";
+              };
+              "${configDir}/db".d = {
+                user = "root";
+                group = "root";
+                mode = "0750";
+              };
+              "${configDir}/letsencrypt".d = {
+                user = "root";
+                group = "root";
+                mode = "0700";
+              };
+            };
+          };
 
-      # Access log to stdout -> journald, where crowdsec's traefik parser picks
-      # it up (services/infrastructure/crowdsec.nix). No file, no rotation, no
-      # permissions for the agent's user to work around.
-      #
-      # sec-headers is attached to the websecure entrypoint instead of each
-      # resource router: pangolin renders its routers from the database, so
-      # there is no per-router hook to attach it to.
-      services.traefik = {
-        # traefik performs the DNS-01 challenge and therefore needs
-        # BUNNY_API_KEY, which lives in the shared pangolin dotenv.
-        environmentFiles = [config.sops.secrets."pangolin".path];
-        staticConfigOptions = {
-          accessLog = {};
-          entryPoints.websecure.http.middlewares = ["sec-headers@file"];
-        };
-        dynamicConfigOptions.http.middlewares.sec-headers.headers = {
-          stsSeconds = 31536000;
-          stsIncludeSubdomains = true;
-          contentTypeNosniff = true;
-          referrerPolicy = "strict-origin-when-cross-origin";
-          # Deny framing outright on the public edge: no public resource is
-          # meant to be embedded, and clickjacking on the pangolin dashboard
-          # or authelia login is the interesting attack.
-          customFrameOptionsValue = "DENY";
-        };
-      };
+          virtualisation = {
+            podman = {
+              enable = true;
+              defaultNetwork.settings.dns_enabled = true;
+            };
 
-      # Upstream creates the letsencrypt dir as 0700 and traefik writes
-      # acme.json as 0600, both owned by traefik. pangolin (user pangolin,
-      # group fossorial) must read acme.json for acmeCertSync, which flips
-      # cert status pending -> done. The dir is therefore made pangolin-owned
-      # (traefik keeps write access via the fossorial group) — systemd-tmpfiles
-      # skips ACL ops on paths with mixed ownership ("unsafe path transition").
-      # The default ACL makes files traefik creates/renews in this dir
-      # group-readable.
-      systemd.tmpfiles.settings."10-fossorial-paths" = {
-        "/var/lib/pangolin/config/letsencrypt".d = {
-          user = lib.mkForce "pangolin";
-          group = "fossorial";
-          mode = lib.mkForce "0770";
-        };
-        "/var/lib/pangolin/config/letsencrypt"."a+" = {
-          argument = "g:fossorial:r-x,default:g:fossorial:r-x";
-        };
-      };
-
+            oci-containers = {
+              backend = "podman";
+              containers = {
+                pangolin = {
+                  image = images.pangolin;
+                  volumes = [
+                    "${configDir}:/app/config"
+                    "${configFile}:/app/config/config.yml:ro"
+                    "/var/lib/geoip:/var/lib/geoip:ro"
+                  ];
+                  ports = ["127.0.0.1:3000:3000"];
+                  extraOptions = ["--env-host"];
+                  log-driver = "journald";
+                };
+                gerbil = {
+                  image = images.gerbil;
+                  volumes = ["${configDir}:/var/config"];
+                  ports = [
+                    "80:80"
+                    "443:443"
+                    "51820:51820/udp"
+                    "21820:21820/udp"
+                  ];
+                  cmd = [
+                    "--reachableAt=http://gerbil:3004"
+                    "--generateAndSaveKeyTo=/var/config/key"
+                    "--remoteConfig=http://pangolin:3001/api/v1/"
+                  ];
+                  extraOptions = ["--cap-add=NET_ADMIN" "--cap-add=SYS_MODULE"];
+                  dependsOn = ["pangolin"];
+                  log-driver = "journald";
+                };
+                traefik = {
+                  image = images.traefik;
+                  volumes = [
+                    "${traefikStatic}:/etc/traefik/traefik_config.yml:ro"
+                    "${traefikDynamic}:/etc/traefik/dynamic_config.yml:ro"
+                    "${configDir}/letsencrypt:/letsencrypt"
+                  ];
+                  cmd = ["--configFile=/etc/traefik/traefik_config.yml"];
+                  extraOptions = ["--network=container:gerbil" "--env=BUNNY_API_KEY"];
+                  dependsOn = ["pangolin" "gerbil"];
+                  log-driver = "journald";
+                };
+              };
+            };
+          };
+        }
+      ];
       # One-shot idempotent bootstrap after pangolin is up:
       #   1. ensure the org exists (create-if-missing, never BatchUpdate)
       #   2. ensure the sites exist, with our pinned newtId + fresh secret
@@ -564,8 +672,8 @@ in {
       systemd.services."pangolin-apply" = {
         description = "Pangolin org/site bootstrap (idempotent)";
         wantedBy = ["multi-user.target"];
-        after = ["pangolin.service"];
-        requires = ["pangolin.service"];
+        after = ["podman-pangolin.service"];
+        requires = ["podman-pangolin.service"];
         serviceConfig = {
           Type = "oneshot";
           RuntimeDirectory = "pangolin-apply";
@@ -724,7 +832,7 @@ in {
         environmentFile = config.sops.secrets."newt-sorbet".path;
         settings = {
           # The pangolin server runs on eclair; this module is evaluated on
-          # sorbet where services.pangolin.dashboardDomain is unset ("").
+          # sorbet too, so endpoint must not be derived from eclair config.
           endpoint = "https://pangolin.ext.kuipr.de";
           id = "sorbet";
         };

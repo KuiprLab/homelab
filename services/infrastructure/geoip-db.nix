@@ -8,13 +8,13 @@
 #
 # Ordering matters: pangolin opens both databases at import time, so a missing
 # file fails every country/ASN rule (and crashes the app). geoip-db.service
-# therefore runs before pangolin.service.
+# therefore runs before podman-pangolin.service.
 _: {
   flake.eclairNixosModules.geoip-db = {pkgs, ...}: {
     systemd.services.geoip-db = {
       description = "Fetch DB-IP lite country and ASN databases (MaxMind MMDB)";
       wantedBy = ["multi-user.target"];
-      before = ["pangolin.service"];
+      before = ["podman-pangolin.service"];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
