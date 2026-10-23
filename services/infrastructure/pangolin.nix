@@ -447,12 +447,6 @@ in {
 
       yaml = pkgs.formats.yaml {};
 
-      images = {
-        pangolin = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
-        gerbil = "docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f";
-        traefik = "docker.io/library/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2";
-      };
-
       configFile = yaml.generate "config.yml" {
         app.dashboard_url = "https://${dashboardDomain}";
         domains.domain1 = {
@@ -608,16 +602,29 @@ in {
           };
 
           virtualisation = {
+            containers.enable = true;
+
             podman = {
               enable = true;
-              defaultNetwork.settings.dns_enabled = true;
+              extraPackages = [pkgs.podman-compose];
+              dockerCompat = true;
+              dockerSocket.enable = true;
+              defaultNetwork.settings = {
+                ipv6_enabled = true;
+                dns_enabled = true;
+              };
+              autoPrune = {
+                enable = true;
+                dates = "weekly";
+                flags = ["--all"];
+              };
             };
 
             oci-containers = {
               backend = "podman";
               containers = {
                 pangolin = {
-                  image = images.pangolin;
+                  image = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
                   volumes = [
                     "${configDir}:/app/config"
                     "${configFile}:/app/config/config.yml:ro"
@@ -628,7 +635,7 @@ in {
                   log-driver = "journald";
                 };
                 gerbil = {
-                  image = images.gerbil;
+                  image = "docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f";
                   volumes = ["${configDir}:/var/config"];
                   ports = [
                     "80:80"
@@ -646,7 +653,7 @@ in {
                   log-driver = "journald";
                 };
                 traefik = {
-                  image = images.traefik;
+                  image = "docker.io/library/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2";
                   volumes = [
                     "${traefikStatic}:/etc/traefik/traefik_config.yml:ro"
                     "${traefikDynamic}:/etc/traefik/dynamic_config.yml:ro"
@@ -794,7 +801,11 @@ in {
       };
     };
 
-    eclairNixosModules.newt = {config, ...}: {
+    eclairNixosModules.newt = {
+      config,
+      pkgs,
+      ...
+    }: {
       sops.secrets."newt-eclair" = {
         sopsFile = ../../secrets/eclair/newt.env;
         format = "dotenv";
@@ -804,6 +815,7 @@ in {
 
       services.newt = {
         enable = true;
+        package = pkgs.callPackage ../../pkgs/fosrl-newt {};
         environmentFile = config.sops.secrets."newt-eclair".path;
         settings = {
           endpoint = "https://pangolin.ext.kuipr.de";
@@ -819,7 +831,11 @@ in {
       # proxy-resources that route back to eclair's loopback services.
     };
 
-    nixosModules.newt = {config, ...}: {
+    nixosModules.newt = {
+      config,
+      pkgs,
+      ...
+    }: {
       sops.secrets."newt-sorbet" = {
         sopsFile = ../../secrets/sorbet/newt.env;
         format = "dotenv";
@@ -829,6 +845,7 @@ in {
 
       services.newt = {
         enable = true;
+        package = pkgs.callPackage ../../pkgs/fosrl-newt {};
         environmentFile = config.sops.secrets."newt-sorbet".path;
         settings = {
           # The pangolin server runs on eclair; this module is evaluated on
