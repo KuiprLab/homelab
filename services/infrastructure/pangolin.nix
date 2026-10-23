@@ -441,7 +441,7 @@ in {
       pkgs,
       ...
     }: let
-      pangolinVersion = "1.25.3";
+      image = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
       pangolin = pkgs.writeShellScriptBin "pangolin" ''
         exec ${pkgs.podman}/bin/podman run \
           --rm --replace \
@@ -450,7 +450,7 @@ in {
           --env-host \
           --volume /var/lib/pangolin/config:/app/config \
           --volume /var/lib/geoip:/var/lib/geoip:ro \
-          docker.io/fosrl/pangolin:${pangolinVersion} "$@"
+          ${image} "$@"
       '';
     in {
       imports = [
