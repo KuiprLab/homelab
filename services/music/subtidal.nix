@@ -50,7 +50,7 @@ _: {
         };
         oci-containers.backend = "podman";
         oci-containers.containers.subtidal = {
-          image = "ghcr.io/frostplexx/subtidal:latest@sha256:6d81c30842f371babcaf69ecc70e2f06dfc4b56300a003a95e269a8c0575f461";
+          image = "ghcr.io/frostplexx/subtidal:latest@sha256:c1cc682ef0e1db824c16d256fe739a3ba8bd599e77c29f8bebd8902b4199c291";
           volumes = [
             "/var/lib/subtidal:/data:rw"
             "${config.sops.secrets."subtidal".path}:/config/subtidal/settings.toml:ro"
