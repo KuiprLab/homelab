@@ -90,6 +90,9 @@ Create a branch before you work (`feat/<name>` or `fix/<name>`). For a change th
 on `main` with `git rebase --gpg-sign main` and push it to `testing-<host>`, where `<host>` is `sorbet` or `eclair`.
 comin rejects a testing commit that is not on top of `main` or is not signed.
 
+Once the testing branch carries commits, open a draft pull request for the feature branch with the GitHub CLI
+(`gh pr create --draft`). Keep it a draft until the host test passes, then mark it ready.
+
 For a change that does not need a host test, use `feat/<name>` or `fix/<name>`. Use conventional commit messages. A
 push to `main` deploys to both hosts. Merge with a merge commit or a squash merge. Do not use "Rebase and merge" unless
 every commit is signed.
