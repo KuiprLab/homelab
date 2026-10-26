@@ -103,7 +103,7 @@ _: {
 
       # Two instances on purpose: rmq queues vs Lua-script dedup locks.
       mkRedis = {
-        image = "docker.io/library/redis:8-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0";
+        image = "docker.io/library/redis:8-alpine@sha256:9f8d2d789b9a1d1e3f283f979aa9cbf393373806472e1ccd460e2f9c869b833b";
         cmd = ["redis-server" "--maxmemory-policy" "noeviction"];
         # Ready once the healthcheck passes, which is how dependents get
         # compose's `condition: service_healthy`.
