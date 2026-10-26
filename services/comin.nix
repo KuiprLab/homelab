@@ -1,7 +1,11 @@
 {inputs, ...}: let
-  # comin supports one testing branch per host. The `.github/workflows/testing.yml`
-  # workflow moves `testing/<host>` when a `testing/<host>/<feature>` branch is
-  # pushed, so the agent still only has to poll a fixed ref.
+  # comin supports one testing branch per host. The name is `testing-<host>`
+  # and not `testing/<host>`: git cannot hold `testing/sorbet` and
+  # `testing/sorbet/<feature>` at once, and the collision is fatal, not
+  # cosmetic -- a fetch that meets both refs leaves a directory where the
+  # branch ref has to be written, which breaks every later fetch (including
+  # `main`). Feature branches therefore live under `feat/` or `fix/`; the
+  # commit to test is pushed to `testing-<host>` itself.
   cominModule = {
     config,
     pkgs,
@@ -32,7 +36,7 @@
               operation = "switch";
             };
             testing = {
-              name = "testing/${config.networking.hostName}";
+              name = "testing-${config.networking.hostName}";
               operation = "test";
             };
           };
