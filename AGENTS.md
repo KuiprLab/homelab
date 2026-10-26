@@ -68,10 +68,14 @@ and runs `switch-to-configuration switch`. There is no inbound deploy path, depl
 
 A push to `main` is the deploy trigger. Before you push, run `nix fmt` and `nix flake check`.
 
-To test one host before `main`: rebase the branch on `main` with `git rebase --gpg-sign main`, push
-`testing/<host>/<feature>`, and let the `testing.yml` workflow move `testing/<host>` to that commit. comin on
-`<host>` then runs `switch-to-configuration test`; the bootloader does not change. Only one testing branch per host is
-active. The last push wins. Never push `testing/<host>` directly.
+To test one host before `main`: rebase the branch on `main` with `git rebase --gpg-sign main`, then push it to
+`testing-<host>` (a force-push is fine, the branch is a pointer). comin on `<host>` then runs
+`switch-to-configuration test`; the bootloader does not change. Only one testing branch per host is active. The last
+push wins.
+
+The ref is `testing-<host>`, not `testing/<host>`: git cannot hold `testing/sorbet` and `testing/sorbet/<feature>` at
+the same time, and the collision is fatal rather than cosmetic. A fetch that meets both writes a directory where the
+branch ref belongs, and every later fetch of that remote fails, including `main`.
 
 Check status with `ssh <host> comin status`. Logs are in `journalctl -u comin`. State lives in `/var/lib/comin`.
 
@@ -82,11 +86,9 @@ host.
 
 # Committing
 
-Create a branch before you work. For a change that must be tested on a host, use `testing/<host>/<feature>`.
-`<host>` is `sorbet` or `eclair`. `<feature>` is one slug without `/`, for example `testing/sorbet/pihole-dns`. Push
-the branch to start a test deployment. Rebase on `main` with `git rebase --gpg-sign main` first; comin rejects a
-testing commit that is not on top of `main` or is unsigned. Do not push `testing/<host>` directly; the workflow
-manages it.
+Create a branch before you work (`feat/<name>` or `fix/<name>`). For a change that must be tested on a host, rebase it
+on `main` with `git rebase --gpg-sign main` and push it to `testing-<host>`, where `<host>` is `sorbet` or `eclair`.
+comin rejects a testing commit that is not on top of `main` or is not signed.
 
 For a change that does not need a host test, use `feat/<name>` or `fix/<name>`. Use conventional commit messages. A
 push to `main` deploys to both hosts. Merge with a merge commit or a squash merge. Do not use "Rebase and merge" unless
