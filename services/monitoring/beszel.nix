@@ -1,57 +1,9 @@
-# Beszel — lightweight server monitoring (hub + agents).
-#
-# Topology — all-WebSocket token mode, so no agent ever listens on a port:
-#   sorbet: hub on 127.0.0.1:8091 (mon.int.kuipr.de client-resource for the
-#           UI, monitoring.ext.kuipr.de public proxy-resource for eclair's
-#           agent) + local agent (loopback)
-#   eclair: agent only, dials the hub through pangolin's public edge
-#
-# Hub DISABLE_SSH=true → it never dials agents; a disconnected system is
-# marked down and waits for the agent to reconnect. Agent DISABLE_SSH=true →
-# no SSH server at all. Data flows agent → hub over outbound WebSocket.
-# 8090 is taken by Upsnap, hence 8091.
-#
-# Hub↔agent mutual auth:
-#   - agent → hub: universal token (TOKEN in the sops env file). Systems
-#     auto-register when agents connect; no per-system SSH keys needed.
-#   - agent → hub identity: the agent verifies the hub's WS challenge
-#     signature against KEY. The hub's keypair is pre-generated and shipped
-#     declaratively (the hub loads <dataDir>/beszel_data/id_ed25519 if
-#     present — note the relative "beszel_data" default resolves against
-#     the unit's WorkingDirectory — installed via LoadCredential +
-#     ExecStartPre), so nothing has to be copied out of the web UI. Without
-#     a KEY the 0.18.7 agent binary exits immediately — loadPublicKeys()
-#     is unconditional, even with DISABLE_SSH=true.
-#
-# Setup (one-time, after first sorbet deploy):
-#   1. Open https://mon.int.kuipr.de → create the admin user.
-#   2. Settings → tokens → create a universal token.
-#   3. sops secrets/sorbet/beszel-agent   (replace the placeholder TOKEN)
-#      sops secrets/eclair/beszel-agent   (same token)
-#   4. Redeploy both hosts. Agents connect and register themselves.
-# The agent env files ship with the real KEY + a placeholder TOKEN, so
-# deploys work before step 2 — the agent runs and retries until the real
-# token lands (a bad token is a 401, not a crash).
 _: {
   flake = {
-    pangolinVirtualHosts."mon" = {
-      site = "sorbet";
-      name = "Beszel";
-      subdomain = "mon.int.kuipr.de";
-      port = 8091;
-    };
-
-    # Eclair's agent has no tunnel entry into sorbet (site tunnels are
-    # userspace proxies; eclair's own newt is not a pangolin client), so
-    # the hub is additionally exposed as a public proxy-resource — the
-    # agent dials wss through pangolin's edge (wildcard cert, ws passes).
     pangolinVirtualHosts."monitoring" = {
       site = "sorbet";
-      name = "Beszel (agent endpoint)";
+      name = "Beszel";
       subdomain = "monitoring.ext.kuipr.de";
-      # proxy-resource, not a client-resource: eclair's agent is no pangolin
-      # client; the agent path must be edge-routed (traefik → sorbet's newt
-      # → 127.0.0.1:8091).
       private = false;
       port = 8091;
     };
