@@ -106,11 +106,14 @@ _: {
         name = "beets-retag";
         runtimeInputs = [beets pkgs.jq pkgs.coreutils pkgs.curl pkgs.gnugrep];
         text = ''
+          GOTIFY_TITLE="🏷️ beets retag"
           notify() {
-            [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || return 0
-            jq -n --arg c "🏷️ beets retag: $1" '{content: $c}' \
-              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
-              || echo "discord notification failed" >&2
+            [[ -n "''${GOTIFY_TOKEN:-}" ]] || return 0
+            jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
+              '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
+              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
+                  "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN" \
+              || echo "gotify notification failed" >&2
           }
 
           shopt -s nullglob
@@ -158,12 +161,15 @@ _: {
         name = "slskd-beets-import";
         runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
         text = ''
-          # DISCORD_WEBHOOK_URL comes from the unit's EnvironmentFile
+          # GOTIFY_TOKEN comes from the unit's EnvironmentFile
+          GOTIFY_TITLE="🎵 slskd → beets"
           notify() {
-            [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || return 0
-            jq -n --arg c "🎵 slskd → beets: $1" '{content: $c}' \
-              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL" \
-              || echo "discord notification failed" >&2
+            [[ -n "''${GOTIFY_TOKEN:-}" ]] || return 0
+            jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
+              '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
+              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
+                  "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN" \
+              || echo "gotify notification failed" >&2
           }
 
           # import.move=true empties a directory it fully imported, so
@@ -290,20 +296,18 @@ _: {
         name = "slskd-beets-import-failed";
         runtimeInputs = [pkgs.jq pkgs.curl];
         text = ''
-          [[ -n "''${DISCORD_WEBHOOK_URL:-}" ]] || exit 0
-          jq -n --arg c "🎵 slskd → beets: ❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" '{content: $c}' \
-            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$DISCORD_WEBHOOK_URL"
+          [[ -n "''${GOTIFY_TOKEN:-}" ]] || exit 0
+          jq -n --arg t "🎵 slskd → beets" --arg m "❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" \
+            '{title: $t, message: $m, priority: 8, extras: {"client::display": {contentType: "text/markdown"}}}' \
+            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
+                "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN"
         '';
       };
     in {
-      # Same encrypted env file gatus uses (DISCORD_WEBHOOK_URL=...); systemd
-      # reads EnvironmentFile as root before dropping to daniel.
-      sops.secrets."beets/discord_webhook" = {
-        sopsFile = ../../secrets/sorbet/gatus;
-        format = "binary";
-        key = "";
-        owner = "root";
-      };
+      # gotify-provision.service writes this file when the beets application
+      # is created. The leading `-` makes a missing file non-fatal: the
+      # importer still works, it just skips notifications until the
+      # reconciler has run.
 
       systemd = {
         tmpfiles.rules = [
@@ -331,7 +335,7 @@ _: {
               Type = "oneshot";
               User = "daniel";
               Group = "users";
-              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              EnvironmentFile = "-/var/lib/gotify-provision/beets.env";
               ExecStart = "${retagScript}/bin/beets-retag";
             };
             environment.HOME = "/home/daniel";
@@ -344,7 +348,7 @@ _: {
               Type = "oneshot";
               User = "daniel";
               Group = "users";
-              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              EnvironmentFile = "-/var/lib/gotify-provision/beets.env";
               ExecStart = "${importScript}/bin/slskd-beets-import";
             };
             environment.HOME = "/home/daniel";
@@ -353,10 +357,10 @@ _: {
           # Per-event problems are reported by the script itself; this only
           # fires if the unit as a whole dies (script bug, missing binary, ...).
           slskd-beets-import-failed = {
-            description = "Notify Discord that slskd-beets-import crashed";
+            description = "Notify Gotify that slskd-beets-import crashed";
             serviceConfig = {
               Type = "oneshot";
-              EnvironmentFile = config.sops.secrets."beets/discord_webhook".path;
+              EnvironmentFile = "-/var/lib/gotify-provision/beets.env";
               ExecStart = "${unitFailedScript}/bin/slskd-beets-import-failed";
             };
           };

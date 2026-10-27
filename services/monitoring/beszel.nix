@@ -1,3 +1,7 @@
+# Notifications are configured in the hub UI (Settings → Notifications), not
+# in Nix. For Gotify 3 tokens use the Shoutrrr generic syntax (the legacy
+# gotify:// service rejects gtfya.* tokens):
+#   generic://gotify.ext.kuipr.de/message?token=<app-token>&@content-type=application/json&template=json
 _: {
   flake = {
     pangolinVirtualHosts."monitoring" = {
