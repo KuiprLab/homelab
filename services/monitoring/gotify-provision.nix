@@ -100,6 +100,7 @@ _: let
           id=$(printf '%s' "$apps_json" | jq -r --arg n "$app" '.[] | select(.name == $n) | .id' | head -n1)
 
           if [ -n "$id" ] && [ -s "$token_file" ]; then
+            echo "gotify app $app already provisioned"
             continue
           fi
 
