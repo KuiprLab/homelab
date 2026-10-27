@@ -4,6 +4,11 @@
 # This timer creates the applications declared in Nix and writes their tokens
 # to /var/lib/gotify-provision. Tokens never enter git.
 #
+# Icons are URLs in Nix. Gotify only accepts an uploaded image, not an icon
+# URL, so the reconciler downloads the URL and POSTs it to
+# /application/<id>/image. A hash file prevents a re-upload on every run.
+# Supported formats: PNG, JPEG, GIF. SVG is not accepted by Gotify.
+#
 # The reconciler authenticates with HTTP Basic auth, so the Gotify container
 # keeps GOTIFY_LOCALAUTH_ENABLED=true. The web UI still uses OIDC because
 # GOTIFY_OIDC_AUTO_REDIRECT is set. There are two local users:
@@ -35,7 +40,7 @@ _: let
       text = ''
         BASE=${baseUrl}
         TOKEN_DIR=/var/lib/gotify-provision
-        APPS=(${lib.escapeShellArgs apps})
+        APPS_JSON=${lib.escapeShellArg (builtins.toJSON apps)}
         USER_NAME=${lib.escapeShellArg provisionUser}
 
         # Wait for Gotify. A missing server is a retry, not a failure.
@@ -70,6 +75,10 @@ _: let
             -H 'Content-Type: application/json' "$@"
         }
 
+        user_upload() {
+          curl -fsS --max-time 30 -u "$USER_NAME:$user_pass" "$@"
+        }
+
         # Ensure the local provision user exists and has the sops password.
         # If the OIDC login auto-registered the user first, this adds a local
         # password to that same row instead of creating a duplicate.
@@ -95,38 +104,61 @@ _: let
           exit 0
         fi
 
+        mapfile -t APPS < <(jq -r 'keys[]' <<<"$APPS_JSON")
         for app in "''${APPS[@]}"; do
           token_file="$TOKEN_DIR/$app.token"
+          icon_url=$(jq -r --arg n "$app" '.[$n].icon // empty' <<<"$APPS_JSON")
           id=$(printf '%s' "$apps_json" | jq -r --arg n "$app" '.[] | select(.name == $n) | .id' | head -n1)
 
           if [ -n "$id" ] && [ -s "$token_file" ]; then
             echo "gotify app $app already provisioned"
-            continue
-          fi
-
-          token=""
-          if [ -n "$id" ]; then
-            token=$(user_api -X PUT "$BASE/application/$id/security" \
-              -d '{"regenerateToken":true}' 2>/dev/null \
-              | jq -r '.regenerateToken.token // empty' 2>/dev/null || true)
           else
-            token=$(user_api -X POST "$BASE/application" \
-              -d "$(jq -n --arg n "$app" '{name: $n}')" 2>/dev/null \
-              | jq -r '.token // empty' 2>/dev/null || true)
+            token=""
+            if [ -n "$id" ]; then
+              token=$(user_api -X PUT "$BASE/application/$id/security" \
+                -d '{"regenerateToken":true}' 2>/dev/null \
+                | jq -r '.regenerateToken.token // empty' 2>/dev/null || true)
+            else
+              response=$(user_api -X POST "$BASE/application" \
+                -d "$(jq -n --arg n "$app" '{name: $n}')" 2>/dev/null || true)
+              token=$(printf '%s' "$response" | jq -r '.token // empty' 2>/dev/null || true)
+              id=$(printf '%s' "$response" | jq -r '.id // empty' 2>/dev/null || true)
+            fi
+
+            if [ -z "$token" ]; then
+              echo "could not provision gotify app $app" >&2
+              continue
+            fi
+
+            install -m 0400 /dev/null "$token_file"
+            printf '%s' "$token" > "$token_file"
+            echo "provisioned gotify app $app"
+
+            if [ "$app" = "beets" ]; then
+              install -m 0400 /dev/null "$TOKEN_DIR/beets.env"
+              printf 'GOTIFY_TOKEN=%s\n' "$token" > "$TOKEN_DIR/beets.env"
+            fi
           fi
 
-          if [ -z "$token" ]; then
-            echo "could not provision gotify app $app" >&2
-            continue
-          fi
-
-          install -m 0400 /dev/null "$token_file"
-          printf '%s' "$token" > "$token_file"
-          echo "provisioned gotify app $app"
-
-          if [ "$app" = "beets" ]; then
-            install -m 0400 /dev/null "$TOKEN_DIR/beets.env"
-            printf 'GOTIFY_TOKEN=%s\n' "$token" > "$TOKEN_DIR/beets.env"
+          if [ -n "$icon_url" ] && [ -n "$id" ]; then
+            icon_file="$TOKEN_DIR/$app.icon"
+            hash_file="$TOKEN_DIR/$app.icon.sha256"
+            if curl -fsSL --max-time 20 "$icon_url" -o "$icon_file"; then
+              hash=$(sha256sum "$icon_file" | cut -d' ' -f1)
+              old_hash=$(cat "$hash_file" 2>/dev/null || true)
+              if [ "$hash" != "$old_hash" ]; then
+                if user_upload -X POST "$BASE/application/$id/image" \
+                  -F "file=@$icon_file;filename=icon.png" >/dev/null 2>&1; then
+                  install -m 0400 /dev/null "$hash_file"
+                  printf '%s' "$hash" > "$hash_file"
+                  echo "uploaded icon for $app"
+                else
+                  echo "could not upload icon for $app" >&2
+                fi
+              fi
+            else
+              echo "could not download icon for $app" >&2
+            fi
           fi
         done
       '';
@@ -165,13 +197,30 @@ _: let
   };
 in {
   flake.nixosModules.gotifyProvision = mkProvision {
-    apps = ["comin-sorbet" "beets" "healthchecks" "beszel"];
+    apps = {
+      comin-sorbet = {
+        icon = "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/logo/nixos.svg.png";
+      };
+      beets = {
+        icon = "https://raw.githubusercontent.com/beetbox/beets/master/docs/_static/beets_logo_nobg.png";
+      };
+      healthchecks = {
+        icon = "https://healthchecks.io/static/img/logo.png";
+      };
+      beszel = {
+        icon = "https://raw.githubusercontent.com/henrygd/beszel/main/internal/site/public/static/icon.png";
+      };
+    };
     baseUrl = "http://127.0.0.1:8085";
     gotifyDeps = ["podman-gotify.service"];
   };
 
   flake.eclairNixosModules.gotifyProvision = mkProvision {
-    apps = ["comin-eclair"];
+    apps = {
+      comin-eclair = {
+        icon = "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/logo/nixos.svg.png";
+      };
+    };
     baseUrl = "https://gotify.ext.kuipr.de";
     defineAdminSecret = true;
   };
