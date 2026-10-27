@@ -14,15 +14,17 @@
 # behavior), which is fine at 01:30.
 #
 # Failure handling — the part that matters for a token-expiring remote:
-#   - export fails  → backup never runs → missed ping → healthchecks.io alert
+#   - export fails  → backup never runs → missed ping → healthchecks.io → Gotify
 #   - rclone fails  → /fail ping → immediate alert (catches token expiry)
-#   - host is dead  → no ping → alert
+#   - host is dead  → no ping → healthchecks.io → Gotify or the sorbet
+#                     heartbeat email fallback
 #
 # Setup:
 #   1. Create a check "paperless-backup" at healthchecks.io (period 1 day,
-#      grace 1h) and encrypt its ping URL into
-#      secrets/sorbet/paperless-backup-ping (binary format, same shape as
-#      secrets/sorbet/healthchecks).
+#      grace 1h), add the Gotify webhook integration (see heartbeat.nix), and
+#      encrypt its ping URL into secrets/sorbet/paperless-backup-ping (binary
+#      format, same shape as secrets/sorbet/healthchecks). No email fallback
+#      is needed here: a dead sorbet is caught by the host heartbeat check.
 #   2. Restore drill (a backup you've never restored is a guess): on a fresh
 #      paperless instance run
 #      `paperless-manage document_importer /media/data/Paperless-export`,

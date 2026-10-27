@@ -2,13 +2,20 @@
 #
 # Each host runs a systemd timer that curls a unique check URL every 5 min.
 # If a host is fully dead (power, kernel panic, lost network) and stops
-# pinging, healthchecks.io alerts you out-of-band — gatus can't, because
-# gatus runs on these same hosts.
+# pinging, healthchecks.io alerts. Delivery goes to Gotify
+# (gotify.ext.kuipr.de), except sorbet's check must also have an out-of-band
+# (email) integration: Gotify runs on sorbet, so a dead sorbet cannot deliver
+# its own alert.
 #
 # Setup:
 #   1. Create two checks at https://healthchecks.io/ (one per host).
 #      Suggested period: 5min, grace: 5min.
-#   2. Configure Discord/email integration on the healthchecks.io account.
+#   2. Add a Webhook integration to both checks:
+#        URL:    https://gotify.ext.kuipr.de/message?token=<healthchecks app token>
+#        Method: POST
+#        Header: Content-Type: application/json
+#        Body:   {"title": $NAME_JSON, "message": "$NAME is $STATUS", "priority": 8}
+#      Add an email integration to sorbet's check as the out-of-band fallback.
 #   3. Encrypt the ping URL into the per-host sops file:
 #      - secrets/sorbet/healthchecks  (raw URL, e.g. https://hc-ping.com/<uuid>)
 #      - secrets/eclair/healthchecks  (raw URL, e.g. https://hc-ping.com/<uuid>)
