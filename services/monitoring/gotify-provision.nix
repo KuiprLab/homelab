@@ -224,6 +224,9 @@ in {
       beszel = {
         icon = "beszel";
       };
+      crowdsec = {
+        icon = "crowdsec";
+      };
     };
     baseUrl = "http://127.0.0.1:8085";
     gotifyDeps = ["podman-gotify.service"];
