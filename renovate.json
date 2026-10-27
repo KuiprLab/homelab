@@ -3,6 +3,9 @@
   "nix": {
     "enabled": true
   },
+  "baseBranchPatterns": [
+    "staging"
+  ],
   "schedule": [
     "at any time"
   ],
@@ -10,6 +13,15 @@
   "automergeType": "pr",
   "prHourlyLimit": 0,
   "pinDigests": true,
+  "packageRules": [
+    {
+      "description": "Every flake input inside flake.lock: keep it one PR, or each automerge into staging invalidates its siblings and every rebase rebuilds both hosts in CI",
+      "matchManagers": [
+        "nix"
+      ],
+      "groupName": "nix flake inputs"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
