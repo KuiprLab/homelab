@@ -84,5 +84,12 @@ _: {
         ];
       };
     };
+
+    # 959 MB RAM against a ~1.05 GB working set: pangolin's node heap is reclaimed
+    # while it serves (measured: RSS drops 247->224 MB during a request, ~500 major
+    # faults per request, 0.6-3.2 s TTFB when cold). zram turns those page-ins into
+    # decompression instead of a virtual-disk read. The disk swap device stays as
+    # overflow — systemd-zram is priority 5, the partition is -2.
+    zramSwap.enable = true;
   };
 }
