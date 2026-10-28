@@ -639,6 +639,11 @@ in {
                   extraOptions = [
                     "--env-host"
                     "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                    # Upstream knob (dist/server.mjs): journal_mode=WAL plus
+                    # synchronous=NORMAL. Without it the DB runs a rollback journal,
+                    # so every session write creates and fsyncs one. journal_mode is
+                    # stored in the DB header, so this survives restarts either way.
+                    "--env=ENABLE_SQLITE_WAL_MODE=true"
                   ];
                   log-driver = "journald";
                 };
