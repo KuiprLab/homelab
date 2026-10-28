@@ -104,7 +104,7 @@ in {
             enableReload = false;
             package = pkgs.caddy.withPlugins {
               plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
-              hash = "sha256-92prKdGudX4MAEfUjyCrtpWoy6p5rwYxEEDnzLg2fmI=";
+              hash = "sha256-ymMx2tSs9hgRji+KalPig/rdPiFqbjaLO3UFwZYPggI=";
             };
             globalConfig = ''
               # Port 2019 is the default admin endpoint, but the iFi Tidal

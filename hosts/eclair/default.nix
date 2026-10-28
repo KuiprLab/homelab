@@ -33,9 +33,14 @@ in {
             inherit sorbetTailscaleIp;
           };
 
-          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix)
+          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix).
+          # nixpkgs moved `services/security/crowdsec.nix` to a
+          # `services/security/crowdsec/` directory, which changes the module
+          # key, so list both the old file and the new directory; the entry
+          # that does not exist in the pinned nixpkgs matches nothing.
           disabledModules = [
             "services/security/crowdsec.nix"
+            "services/security/crowdsec"
             "services/security/crowdsec-firewall-bouncer.nix"
           ];
         }
