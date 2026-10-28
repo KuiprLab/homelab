@@ -843,7 +843,7 @@ in {
       systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-eclair".path;
 
       virtualisation.oci-containers.containers.newt = {
-        image = "docker.io/fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319";
+        image = "docker.io/fosrl/newt:1.19.1@sha256:c89f01cb387bf6c598959036cbf56306b068a43e8784345bee7398b7af8ee2e1";
         volumes = ["${blueprint}:/blueprint.yml:ro"];
         cmd = [
           "--endpoint=https://pangolin.ext.kuipr.de"
@@ -879,7 +879,7 @@ in {
       systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-sorbet".path;
 
       virtualisation.oci-containers.containers.newt = {
-        image = "docker.io/fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319";
+        image = "docker.io/fosrl/newt:1.19.1@sha256:c89f01cb387bf6c598959036cbf56306b068a43e8784345bee7398b7af8ee2e1";
         volumes = ["${blueprint}:/blueprint.yml:ro"];
         cmd = [
           "--endpoint=https://pangolin.ext.kuipr.de"

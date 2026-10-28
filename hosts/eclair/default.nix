@@ -33,11 +33,22 @@ in {
             inherit sorbetTailscaleIp;
           };
 
-          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix)
+          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix).
+          # nixpkgs moved `services/security/crowdsec.nix` to a
+          # `services/security/crowdsec/` directory, which changes the module
+          # key, so list both the old file and the new directory; the entry
+          # that does not exist in the pinned nixpkgs matches nothing.
           disabledModules = [
             "services/security/crowdsec.nix"
+            "services/security/crowdsec"
             "services/security/crowdsec-firewall-bouncer.nix"
           ];
+
+          # nixpkgs' redirects.json requires the `sec-crowdsec-reset` anchor,
+          # which only the upstream crowdsec module's doc.md provides. The
+          # pinned module has no doc, so the manual fails the redirect check
+          # (`nixos-manual-html`). Skip it until the pin is dropped.
+          documentation.nixos.checkRedirects = false;
         }
         # Import crowdsec modules from the PR branch
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec.nix"
