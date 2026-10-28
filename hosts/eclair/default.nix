@@ -43,6 +43,12 @@ in {
             "services/security/crowdsec"
             "services/security/crowdsec-firewall-bouncer.nix"
           ];
+
+          # nixpkgs' redirects.json requires the `sec-crowdsec-reset` anchor,
+          # which only the upstream crowdsec module's doc.md provides. The
+          # pinned module has no doc, so the manual fails the redirect check
+          # (`nixos-manual-html`). Skip it until the pin is dropped.
+          documentation.nixos.checkRedirects = false;
         }
         # Import crowdsec modules from the PR branch
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec.nix"
