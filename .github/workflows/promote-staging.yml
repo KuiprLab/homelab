@@ -1,0 +1,134 @@
+# The only thing that moves dependency updates onto `main`.
+#
+# Renovate targets `staging` (see renovate.json) and automerges there all day.
+# comin follows `main` for `switch` and `testing-<host>` for `test`
+# (services/comin.nix), so merges into `staging` cost no rebuild. This job
+# promotes `staging` once per day, or on demand, and is therefore the single
+# place that decides when the hosts rebuild.
+#
+# The gate is `validate.yml` on the staging head commit, not branch protection:
+# `main` is unprotected, so `gh pr merge` would otherwise merge anything.
+#
+# One-time bootstrap, after this file has reached `main`: create `staging` from
+# `main` (`git push origin main:refs/heads/staging`). A staging branch created
+# earlier carries an older validate.yml that does not run on pushes to staging,
+# so no run would ever appear for its head and the gate would block forever.
+# Recreating the branch from main after any such accident is always safe.
+name: Promote staging
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: promote-staging
+  cancel-in-progress: false
+
+env:
+  REPO: ${{ github.repository }}
+  BASE: main
+  HEAD: staging
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the promote pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # The repo deletes head branches on merge, so merging a promote PR in
+          # the web UI takes `staging` with it. Recreate it from main instead of
+          # failing: Renovate reopens whatever it had queued against it.
+          if ! gh api "repos/$REPO/git/ref/heads/$HEAD" >/dev/null 2>&1; then
+            echo "::warning::$HEAD is gone, recreating it from $BASE"
+            main_sha=$(gh api "repos/$REPO/git/ref/heads/$BASE" --jq .object.sha)
+            gh api -X POST "repos/$REPO/git/refs" \
+              -f ref="refs/heads/$HEAD" -f sha="$main_sha" >/dev/null
+          fi
+
+          status=$(gh api "repos/$REPO/compare/$BASE...$HEAD" --jq .status)
+          echo "$BASE...$HEAD is $status"
+          if [ "$status" = "identical" ] || [ "$status" = "behind" ]; then
+            echo "nothing to promote"
+            echo "promote=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr=$(gh pr list --repo "$REPO" --base "$BASE" --head "$HEAD" \
+            --state open --limit 1 --json number \
+            --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --repo "$REPO" --base "$BASE" --head "$HEAD" \
+              --title "chore(deps): promote $HEAD $(date -u +%F)" \
+              --body "Renovate output for $(date -u +%F). Merged automatically once validate.yml is green on $HEAD: https://github.com/$REPO/compare/$BASE...$HEAD" |
+              sed 's|.*/||')
+          fi
+
+          echo "promote=true" >>"$GITHUB_OUTPUT"
+          echo "pr=$pr" >>"$GITHUB_OUTPUT"
+
+      - name: Merge once the staging head is green
+        if: steps.pr.outputs.promote == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.pr.outputs.pr }}
+        run: |
+          set -euo pipefail
+
+          # Three attempts: Renovate can merge another PR into staging while a
+          # build is running, which invalidates the commit that was validated.
+          for attempt in 1 2 3; do
+            sha=$(gh api "repos/$REPO/git/ref/heads/$HEAD" --jq .object.sha)
+            echo "validating $HEAD ${sha}" >&2
+
+            run_id=""
+            for _ in $(seq 1 20); do
+              run_id=$(gh run list --repo "$REPO" --workflow validate.yml \
+                --branch "$HEAD" --commit "$sha" --event push --limit 1 \
+                --json databaseId --jq '.[0].databaseId // empty')
+              [ -n "$run_id" ] && break
+              sleep 15
+            done
+            if [ -z "$run_id" ]; then
+              echo "::error::validate.yml never registered a run for $sha."
+              echo "::error::Check that staging carries this repo's validate.yml with staging in its push branches; if not, recreate it from main."
+              exit 1
+            fi
+
+            if ! gh run watch "$run_id" --repo "$REPO" --interval 30 --exit-status; then
+              echo "::error::validate.yml failed on $HEAD ($sha); $BASE is left untouched"
+              exit 1
+            fi
+
+            if [ "$(gh api "repos/$REPO/git/ref/heads/$HEAD" --jq .object.sha)" = "$sha" ]; then
+              # --match-head-commit pins the merge to the commit that was
+              # validated, so a late Renovate merge cannot ride along unbuilt.
+              gh pr merge "$PR" --repo "$REPO" --merge --match-head-commit "$sha"
+              break
+            fi
+
+            echo "$HEAD moved while validating, re-checking"
+            if [ "$attempt" = "3" ]; then
+              echo "::error::$HEAD never settled; $BASE is left untouched"
+              exit 1
+            fi
+          done
+
+          # gh never deletes the head branch itself, but the repository setting
+          # does. Restore it so Renovate keeps a base branch to target.
+          if ! gh api "repos/$REPO/git/ref/heads/$HEAD" >/dev/null 2>&1; then
+            echo "::warning::$HEAD was deleted by the merge, recreating it from $BASE"
+            main_sha=$(gh api "repos/$REPO/git/ref/heads/$BASE" --jq .object.sha)
+            gh api -X POST "repos/$REPO/git/refs" \
+              -f ref="refs/heads/$HEAD" -f sha="$main_sha" >/dev/null
+          fi
