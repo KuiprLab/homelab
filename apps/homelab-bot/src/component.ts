@@ -8,7 +8,6 @@ import {
 /** Discord's cap on a customId, both on a component and on a modal. */
 const MAX_CUSTOM_ID = 100;
 
-/** An id is "<feature>:<name>"; a customId is that plus ":<data>". */
 const ID_SEGMENT = /^[a-z0-9-]+$/;
 
 interface Identity {
@@ -20,34 +19,14 @@ interface Spec<Interaction> extends Identity {
   readonly execute: (interaction: Interaction, data: string) => Promise<void>;
 }
 
-/**
- * Anything the registry can route to: a stable id, the feature that owns it,
- * and a handler taking the data its customId carried.
- */
 export interface Handler<Interaction> extends Spec<Interaction> {
-  /** "music:download". Unique across the bot, like a command name. */
   readonly id: string;
 }
 
-/**
- * A button, declared once.
- *
- * `build` and `execute` come from the same declaration on purpose: a customId
- * written at the render site and matched again at the handler is two strings
- * that can drift, and the failure that invites is a button Discord happily
- * renders that the bot then ignores. Here the customId is spelled nowhere --
- * it is derived from the id both sides already share.
- */
 export interface Button extends Handler<ButtonInteraction> {
-  /**
-   * Render it. `data` is replayed verbatim on the click, so it carries the
-   * button's subject -- a MusicBrainz id, say -- with no server-side state:
-   * a click still resolves after the bot has restarted.
-   */
   readonly build: (data?: string) => ButtonBuilder;
 }
 
-/** A modal, declared the same way. `execute` runs on submit. */
 export interface Modal extends Handler<ModalSubmitInteraction> {
   readonly build: (data?: string) => ModalBuilder;
 }
@@ -76,8 +55,6 @@ function identify(spec: Identity): {
     customId: (data) => {
       const customId = `${id}:${data}`;
       if (customId.length > MAX_CUSTOM_ID) {
-        // Discord rejects the whole message, so the component's own bug would
-        // surface as the surrounding reply failing. Name it here instead.
         throw new Error(
           `Component ${id} was given ${data.length} characters of data, ` +
             `which makes a customId of ${customId.length}; Discord allows ` +
@@ -108,11 +85,6 @@ export function defineModal(spec: Spec<ModalSubmitInteraction>): Modal {
   };
 }
 
-/**
- * Split a customId back into the id the registry keys on and the data it was
- * built with. The data may itself contain ":" -- only the first two
- * separators are structural.
- */
 export function parseCustomId(
   customId: string,
 ): { readonly id: string; readonly data: string } | undefined {

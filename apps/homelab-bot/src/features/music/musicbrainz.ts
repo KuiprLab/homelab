@@ -9,23 +9,9 @@ export const mbApi = new MusicBrainzApi({
 
 const coverArtArchiveApiClient = new CoverArtArchiveApi();
 
-/**
- * How long a cover is worth waiting for. The archive is a separate service
- * from MusicBrainz and degrades on its own schedule -- a fourteen-second
- * answer, in HTML rather than JSON, is what pushed /music find past Discord's
- * interaction window once. A card without a thumbnail beats a late card.
- */
+// The cover archive degrades on its own schedule; a late answer once blew Discord's window.
 const COVER_ART_TIMEOUT_MS = 5_000;
 
-/**
- * The front cover for a release, when the archive has one.
- *
- * Plenty of releases have no art at all -- the archive is a separate,
- * volunteer-filled database, not part of MusicBrainz -- and it says so with a
- * 404 or with a response carrying no images. Neither is worth failing a
- * command over, so both come back as undefined and the caller renders a card
- * without a thumbnail.
- */
 export async function fetchCoverArt(
   releaseMbid: string,
 ): Promise<string | undefined> {
@@ -41,11 +27,6 @@ export async function fetchCoverArt(
   }
 }
 
-/**
- * Rejects once the budget is spent. The request it races is left to finish on
- * its own -- the archive's client takes no abort signal, and an unawaited
- * response costs nothing but the socket.
- */
 function timeout(ms: number): Promise<never> {
   return new Promise((_resolve, reject) => {
     setTimeout(

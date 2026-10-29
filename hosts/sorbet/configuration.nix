@@ -9,7 +9,6 @@ in {
     system.stateVersion = "24.05";
 
     environment.systemPackages = with pkgs; [
-      # Base system
       neovim
       git
       just
@@ -54,23 +53,20 @@ in {
           flags = ["--all"];
         };
       };
-      # Enable container features
       containers.enable = true;
     };
 
-    # Networking
     networking = {
       firewall = {
         enable = true;
-        # 5353 = mDNS, shared by avahi and the host-networked Home Assistant
-        # container.
+        # 5353: mDNS, shared with the host-networked Home Assistant container.
         allowedUDPPorts = [
           5353
         ];
       };
       hostName = "sorbet";
       networkmanager.enable = true;
-      useDHCP = false; # disable global DHCP
+      useDHCP = false;
       interfaces."enp0s31f6" = {
         wakeOnLan.enable = true;
         ipv4.addresses = [
@@ -81,19 +77,12 @@ in {
         ];
       };
       defaultGateway = "192.168.0.1";
-      # Resolve through the LAN address of the local Technitium server, not
-      # loopback: the query log then attributes host services (navidrome,
-      # homeassistant, ...) to sorbet instead of an anonymous local client.
-      # mkOverride 50 keeps this above anything the resolvconf module
-      # contributes.
+      # LAN address, not loopback (query log attribution); mkOverride 50 beats resolvconf.
       nameservers = lib.mkOverride 50 ["192.168.0.85"];
-      # useLocalResolver forces 127.0.0.1 and ::1 into the generated
-      # resolv.conf regardless of the nameservers above, where nothing listens
-      # (systemd-resolved is disabled in services/infrastructure/dns-fallback.nix).
+      # useLocalResolver forces 127.0.0.1, where nothing listens (no systemd-resolved).
       resolvconf.useLocalResolver = false;
     };
 
-    # Nix settings
     nix = {
       channel.enable = false;
       gc = {
@@ -106,7 +95,6 @@ in {
         warn-dirty = false
       '';
       settings = {
-        # Cap build parallelism so deploys don't peg the machine.
         max-jobs = 4;
         cores = 2;
         substituters = [
@@ -126,7 +114,6 @@ in {
       };
     };
 
-    # Time and locale
     time.timeZone = "Europe/Berlin";
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = {
@@ -147,12 +134,10 @@ in {
 
     security.rtkit.enable = true;
 
-    # Services
     services = {
       avahi = {
         enable = true;
         nssmdns4 = true;
-        # Announce only on the LAN NIC, not on the podman/incus bridges.
         allowInterfaces = ["enp0s31f6"];
         publish.enable = true;
       };
@@ -195,7 +180,6 @@ in {
       };
     };
 
-    # User configuration
     programs.fish.enable = true;
     users = {
       defaultUserShell = pkgs.fish;
@@ -223,7 +207,6 @@ in {
       };
     };
 
-    # Home Manager
     home-manager.users.${user} = _: {
       home = {
         stateVersion = "23.11";

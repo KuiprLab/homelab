@@ -21,35 +21,21 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Pull-based GitOps deployment. Both hosts run the comin agent and
-    # poll this repository; no inbound deploy path or deploy key exists.
     comin = {
       url = "github:nlewo/comin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # One `nix fmt` for every language in the tree, not just Nix.
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Crowdsec module rewrite (PR #446307 branch). The version merged into
-    # nixpkgs is still broken: the agent runs as a DynamicUser without
-    # StateDirectory (can't create /var/lib/crowdsec), the bouncer-register
-    # script reads /etc/crowdsec/config.yaml which nothing creates, and LAPI
-    # is disabled by default. The PR branch fixes all of those and adds
-    # settings.console.enrollKeyFile (console enrollment via LoadCredential).
+    # PR #446307: the crowdsec module merged into nixpkgs is broken.
     nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";
   };
 
-  # Dendritic: every .nix file under these roots is a flake-parts module that
-  # contributes its own outputs. Paths containing /_ are skipped -- that is how
-  # a directory keeps helper files (_package.nix, _module.nix) next to its
-  # module without them being evaluated as flake-parts modules.
-  #
-  # ./pkgs is deliberately absent: its files are a derivation and a NixOS
-  # module, imported by hand from services/unifi.nix.
+  # ./pkgs is imported by hand from services/unifi.nix.
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake {inherit inputs;}
     (inputs.import-tree [

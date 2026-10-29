@@ -1,19 +1,4 @@
-# iGotify — iOS push bridge for Gotify.
-#
-# The iOS app talks to iGotify directly; do not put Authelia forward-auth in
-# front of it, because the app cannot complete a browser SSO flow. iGotify has
-# its own API password, generated on first start and printed to the journal
-# exactly once:
-#
-#   journalctl -u podman-igotify | grep -A6 "Initial API password"
-#
-# The password hash lives in /var/lib/igotify/data/secure/api-password.hash.
-# Keep the /var/lib/igotify volume: it also holds users.db, i.e. the registered
-# iOS devices, Gotify URLs and client tokens.
-#
-# Both Gotify and iGotify are public, so the GOTIFY_URLS /
-# GOTIFY_CLIENT_TOKENS / SECNTFY_TOKENS preconfiguration is not used: the iOS
-# app registers the Gotify URL and client token with iGotify.
+# No Authelia in front: the iOS app cannot complete a browser SSO flow.
 _: {
   flake = {
     pangolinVirtualHosts."igotify" = {
@@ -41,7 +26,6 @@ _: {
         environment = {
           ENABLE_CONSOLE_LOG = "true";
           ENABLE_USER_UI = "true";
-          # Do not publish the API reference on a public host.
           ENABLE_SCALAR_UI = "false";
           GOTIFY_URLS = "";
           GOTIFY_CLIENT_TOKENS = "";
@@ -49,7 +33,6 @@ _: {
         };
         log-driver = "journald";
         extraOptions = [
-          # Same LAN resolver as the other containers.
           "--dns=192.168.0.85"
           "--health-cmd=curl -fsS http://127.0.0.1:8080/Version"
           "--health-interval=30s"

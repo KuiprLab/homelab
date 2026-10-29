@@ -15,15 +15,13 @@
   cfg = config.services.unifi-os-server;
   stateDir = "/var/lib/unifi-os";
 
-  # Capture unifi-core stdout/stderr to readable files
-  # (the container's journal is only accessible as root)
+  # The container journal is root-only; capture unifi-core output to files.
   ucoreDebug = pkgs.writeText "unifi-core-debug.conf" ''
     [Service]
     StandardOutput=append:/data/unifi-core/logs/stdout.log
     StandardError=append:/data/unifi-core/logs/stderr.log
   '';
 
-  # Fix missing directories that services expect but don't create on first run.
   ucorePreStartFix = pkgs.writeText "unifi-core-prestart-fix.conf" ''
     [Service]
     ExecStartPre=-/bin/mkdir -p /data/unifi-core/config/http
@@ -36,12 +34,9 @@
     ExecStartPre=+/bin/bash -c "mkdir -p /var/log/mongodb && chown mongodb:mongodb /var/log/mongodb /var/lib/mongodb"
   '';
 
-  # Exact image name:tag embedded in `image.tar`.
-  # Must match the repository:tag inside the archive.
+  # Must match the repository:tag inside image.tar.
   imageTag = "uosserver:0.0.56";
 in {
-  # reverse engineered via
-  # https://www.unihosted.com/blog/running-unifi-os-server-in-docker
   options.services.unifi-os-server = {
     enable = mkEnableOption "UniFi OS Server container (podman)";
 
@@ -101,28 +96,26 @@ in {
 
     networking.firewall = mkIf cfg.openFirewall {
       allowedTCPPorts = [
-        # 11443 # UniFi OS Server GUI/API --- disabled because its accessed by reverse proxy on localhost
-        8080 # Device and application communication (inform)
-        5005 # RTP control protocol
-        9543 # UniFi Identity Hub
-        6789 # Mobile speed test
-        8443 # UniFi Network Application GUI/API
-        8444 # Secure Portal for Hotspot
-        11084 # UniFi Site Supervisor
-        5671 # AQMPS
-        8880 # Hotspot portal redirect
-        8881 # Hotspot portal redirect
-        8882 # Hotspot portal redirect
+        8080
+        5005
+        9543
+        6789
+        8443
+        8444
+        11084
+        5671
+        8880
+        8881
+        8882
       ];
       allowedUDPPorts = [
-        3478 # STUN
-        5514 # Remote syslog
-        10003 # Device discovery
+        3478
+        5514
+        10003
       ];
     };
 
     systemd.services.podman-unifi-os-server = {
-      # Make sure package upgrades trigger a service restart
       restartTriggers = [cfg.package];
 
       serviceConfig = {
@@ -139,8 +132,7 @@ in {
 
       preStart = lib.mkAfter ''
         uuid_file="${stateDir}/data/uos_uuid"
-        # The Java UniFi controller requires exactly UUID v5 (SHA-1 name-based).
-        # Generate a stable v5 UUID derived from the machine-id.
+        # The Java controller requires exactly a v5 UUID; derive it from machine-id.
         if ! grep -qP '^[0-9a-f]{8}-[0-9a-f]{4}-5' "$uuid_file" 2>/dev/null; then
           ${pkgs.util-linux}/bin/uuidgen -s -n @dns -N "$(cat /etc/machine-id)" > "$uuid_file"
         fi
@@ -157,21 +149,21 @@ in {
       privileged = true;
 
       ports = [
-        "11443:443" # UniFi OS Server GUI/API
-        "8080:8080" # Device and application communication (inform)
-        "5005:5005" # RTP control protocol
-        "9543:9543" # UniFi Identity Hub
-        "6789:6789" # Mobile speed test
-        "8443:8443" # UniFi Network Application GUI/API
-        "8444:8444" # Secure Portal for Hotspot
-        "3478:3478/udp" # STUN
-        "5514:5514/udp" # Remote syslog
-        "10003:10003/udp" # Device discovery
-        "11084:11084" # UniFi Site Supervisor
-        "5671:5671" # AQMPS
-        "8880:8880" # Hotspot portal redirect
-        "8881:8881" # Hotspot portal redirect
-        "8882:8882" # Hotspot portal redirect
+        "11443:443"
+        "8080:8080"
+        "5005:5005"
+        "9543:9543"
+        "6789:6789"
+        "8443:8443"
+        "8444:8444"
+        "3478:3478/udp"
+        "5514:5514/udp"
+        "10003:10003/udp"
+        "11084:11084"
+        "5671:5671"
+        "8880:8880"
+        "8881:8881"
+        "8882:8882"
       ];
 
       environment =

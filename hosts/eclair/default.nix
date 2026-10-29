@@ -1,6 +1,3 @@
-# eclair — tiny public VPS
-# Runs pangolin + haproxy + crowdsec; pangolin covers cross-host overlay.
-# Routes *.ext.kuipr.de and *.int.kuipr.de wildcard resources.
 {
   self,
   inputs,
@@ -9,7 +6,6 @@
 }: let
   collectModules = attrs: lib.attrValues (lib.filterAttrs (_n: v: v != {}) attrs);
 
-  # Legacy arg, unused since the tailscale removal; can be dropped with callers.
   sorbetTailscaleIp = "100.120.32.9";
 in {
   options.flake.eclairNixosModules = lib.mkOption {
@@ -28,32 +24,22 @@ in {
             allowUnfree = true;
             allowBroken = false;
           };
-          # Pass flake-level values into nixos modules via _module.args
           _module.args = {
             inherit sorbetTailscaleIp;
           };
 
-          # Replace upstream crowdsec modules with the PR rewrite (see flake.nix).
-          # nixpkgs moved `services/security/crowdsec.nix` to a
-          # `services/security/crowdsec/` directory, which changes the module
-          # key, so list both the old file and the new directory; the entry
-          # that does not exist in the pinned nixpkgs matches nothing.
+          # The module path moved in nixpkgs; the entry that does not exist matches nothing.
           disabledModules = [
             "services/security/crowdsec.nix"
             "services/security/crowdsec"
             "services/security/crowdsec-firewall-bouncer.nix"
           ];
 
-          # nixpkgs' redirects.json requires the `sec-crowdsec-reset` anchor,
-          # which only the upstream crowdsec module's doc.md provides. The
-          # pinned module has no doc, so the manual fails the redirect check
-          # (`nixos-manual-html`). Skip it until the pin is dropped.
+          # The pinned crowdsec module has no doc.md, so nixos-manual-html fails the redirect check.
           documentation.nixos.checkRedirects = false;
         }
-        # Import crowdsec modules from the PR branch
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec.nix"
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec-firewall-bouncer.nix"
-        # Record the build revision (see hosts/sorbet/default.nix).
         {system.configurationRevision = self.rev or self.dirtyRev or null;}
       ]
       ++ collectModules self.eclairNixosModules;

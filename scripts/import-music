@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-#
-# Upload local music to sorbet and import it into beets.
-#
-# Usage:
-#   import-music ~/Downloads/Album          # import a whole album/folder
-#   import-music --single ~/Music/track.flac  # import a single track as a singleton
-#
-# Copies the given path to the inbox on the server with rsync, then runs
-# `beet import` on the server so beets applies the configured import settings
-# (move, autotag, group albums, etc.).
 
 set -euo pipefail
 

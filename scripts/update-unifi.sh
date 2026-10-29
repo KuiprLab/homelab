@@ -1,12 +1,4 @@
 #!/usr/bin/env bash
-# Updates UniFi OS Server to the latest release:
-#   - pkgs/unifi-os-server-image/default.nix  → version, url
-#   - pkgs/unifi-os-server-image/module.nix   → imageTag
-#   - services/unifi.nix                      → sha256
-#
-# Usage: ./scripts/update-unifi.sh [linux-x64|linux-arm64]
-#
-# Requirements: curl, jq, binwalk (or nix run nixpkgs#binwalk)
 
 set -euo pipefail
 
@@ -18,9 +10,7 @@ DEFAULT_NIX="$REPO_ROOT/pkgs/unifi-os-server-image/default.nix"
 MODULE_NIX="$REPO_ROOT/pkgs/unifi-os-server-image/module.nix"
 UNIFI_MODULE="$REPO_ROOT/services/unifi.nix"
 
-# perl -i warns to stderr but exits 0 on a missing file, so `set -e` will not
-# catch a stale path here -- the rewrite is skipped and the summary below still
-# reports success. Check up front instead.
+# perl -i exits 0 on a missing file, so `set -e` would not catch a stale path.
 for target in "$DEFAULT_NIX" "$MODULE_NIX" "$UNIFI_MODULE"; do
   if [[ ! -f $target ]]; then
     echo "ERROR: target file not found: $target" >&2
@@ -29,9 +19,6 @@ for target in "$DEFAULT_NIX" "$MODULE_NIX" "$UNIFI_MODULE"; do
   fi
 done
 
-# ---------------------------------------------------------------------------
-# 1. Fetch latest version metadata from Ubiquiti firmware API
-# ---------------------------------------------------------------------------
 echo "Querying Ubiquiti firmware API for platform: $PLATFORM ..."
 
 FIRMWARE_JSON=$(curl -fsSL \
@@ -47,29 +34,20 @@ if [[ -z $VERSION || $VERSION == "null" ]]; then
   exit 1
 fi
 
-# Strip leading "v" from version (API returns "v5.0.6", nix uses "5.0.6")
 VERSION="${VERSION#v}"
 
 echo "Latest version : $VERSION"
 echo "Download URL   : $DOWNLOAD_URL"
 
-# Check if already up to date
 CURRENT_VERSION=$(perl -ne 'print $1 if /version \? "([^"]+)"/' "$DEFAULT_NIX")
 if [[ $VERSION == "$CURRENT_VERSION" ]]; then
   echo "Already at latest version $VERSION — nothing to do."
   exit 0
 fi
 
-# ---------------------------------------------------------------------------
-# 2. Convert sha256 hex from API response → SRI format (no extra download)
-# ---------------------------------------------------------------------------
-# SRI = "sha256-" + base64(raw_bytes_of_hex_hash)
 SHA256_SRI="sha256-$(printf '%s' "$SHA256_HEX" | xxd -r -p | base64)"
 echo "SHA256 (SRI)   : $SHA256_SRI"
 
-# ---------------------------------------------------------------------------
-# 3. Extract imageTag from image.tar inside the installer
-# ---------------------------------------------------------------------------
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -103,11 +81,7 @@ echo "imageTag       : $IMAGE_TAG"
 
 cd "$REPO_ROOT"
 
-# ---------------------------------------------------------------------------
-# 4. Patch files
-# ---------------------------------------------------------------------------
 echo "Updating $DEFAULT_NIX ..."
-# Pass values via env vars so they are never interpolated into the regex
 VERSION="$VERSION" perl -i -pe \
   's/(version \? ")[^"]*"/$1$ENV{VERSION}"/' "$DEFAULT_NIX"
 DOWNLOAD_URL="$DOWNLOAD_URL" perl -i -pe \
@@ -125,9 +99,6 @@ if grep -q 'imageTag = "' "$UNIFI_MODULE"; then
     's/(imageTag = ")[^"]*"/$1$ENV{IMAGE_TAG}"/' "$UNIFI_MODULE"
 fi
 
-# ---------------------------------------------------------------------------
-# 5. Summary
-# ---------------------------------------------------------------------------
 echo ""
 echo "Done! Updated $CURRENT_VERSION → $VERSION"
 echo "  imageTag : $IMAGE_TAG"

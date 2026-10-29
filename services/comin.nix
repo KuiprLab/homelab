@@ -1,20 +1,9 @@
-# Not containerized: comin is the deploy mechanism itself. A container would
-# have to rebuild and switch the host it runs on.
 {inputs, ...}: let
-  # comin supports one testing branch per host. The name is `testing-<host>`
-  # and not `testing/<host>`: git cannot hold `testing/sorbet` and
-  # `testing/sorbet/<feature>` at once, and the collision is fatal, not
-  # cosmetic -- a fetch that meets both refs leaves a directory where the
-  # branch ref has to be written, which breaks every later fetch (including
-  # `main`). Feature branches therefore live under `feat/` or `fix/`; the
-  # commit to test is pushed to `testing-<host>` itself.
   cominModule = {
     config,
     pkgs,
     ...
   }: let
-    # Sorbet posts directly to the local container; eclair has to go through
-    # Pangolin. The token is written by gotify-provision.service.
     gotifyBase =
       if config.networking.hostName == "sorbet"
       then "http://127.0.0.1:8085"
@@ -46,8 +35,7 @@
         }
       ];
 
-      # Accept the user's SSH-signed commits and merge commits created by
-      # GitHub. comin verifies the selected commit against either source.
+      # Both keys: merges are signed by GitHub, not by the user.
       gpgPublicKeyPaths = ["${../keys/github-web-flow.asc}"];
       sshAllowedSignersPath = "${../keys/allowed_signers}";
 
@@ -65,9 +53,7 @@
             *) exit 0 ;;
           esac
 
-          # comin computes this internally, but does not export it to post hooks.
-          # For switch/test, /run/current-system is updated after activation;
-          # a kernel mismatch means the running kernel is still the old one.
+          # comin does not export its reboot flag.
           reboot="unknown"
           if [ -e /run/current-system/kernel ] && [ -e /run/booted-system/kernel ]; then
             current_kernel=$(readlink -f /run/current-system/kernel 2>/dev/null || true)

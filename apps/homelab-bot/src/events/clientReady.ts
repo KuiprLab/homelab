@@ -18,8 +18,6 @@ export const clientReady: Event<typeof Events.ClientReady> = {
     if (buttons.length > 0) console.log(`Buttons: ${buttons.join(", ")}`);
     if (modals.length > 0) console.log(`Modals: ${modals.join(", ")}`);
 
-    // A feature that fails to start should not take the bot down with it --
-    // a broken music feature still leaves /ping answering.
     for (const feature of features) {
       if (feature.setup === undefined) continue;
       void Promise.resolve(feature.setup(client)).catch((error: unknown) => {
@@ -36,9 +34,6 @@ export const clientReady: Event<typeof Events.ClientReady> = {
             : `Already registered with Discord: ${names}`,
         );
       } catch (error) {
-        // Never fatal. A bot that cannot update its command list is still a
-        // working bot for whatever is already registered, and the deployed unit
-        // restarting in a loop would be a worse outcome than a stale /ping.
         console.error(
           `Could not register commands. ${explainSyncFailure(error)}`,
         );
