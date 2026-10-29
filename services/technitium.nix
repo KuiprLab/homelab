@@ -61,8 +61,9 @@ _: let
     startingAddress = "192.168.0.2";
     endingAddress = "192.168.0.254";
     subnetMask = "255.255.255.0";
-    leaseTimeDays = 0;
-    leaseTimeHours = 24;
+    # 24 h leases: the API rejects hours outside 0-23.
+    leaseTimeDays = 1;
+    leaseTimeHours = 0;
     routerAddress = "192.168.0.1";
   };
 
@@ -122,7 +123,7 @@ in {
         # client for 300 seconds, which would lock out the bootstrap below.
         ready=false
         for _ in $(seq 1 60); do
-          if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:5380/; then
+          if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:5380/ 2>/dev/null; then
             ready=true
             break
           fi
