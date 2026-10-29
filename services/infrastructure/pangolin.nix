@@ -629,7 +629,7 @@ in {
               backend = "podman";
               containers = {
                 pangolin = {
-                  image = "docker.io/fosrl/pangolin:1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
+                  image = "docker.io/fosrl/pangolin:ee-1.25.3@sha256:5039d0e64a2e57ac52c4833a838f8c015c153f8ab4234c2b3efe95ab4db0b90a";
                   volumes = [
                     "${configDir}:/app/config"
                     "${configFile}:/app/config/config.yml:ro"
@@ -639,19 +639,7 @@ in {
                   extraOptions = [
                     "--env-host"
                     "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                    # Upstream knob (dist/server.mjs): journal_mode=WAL plus
-                    # synchronous=NORMAL. Without it the DB runs a rollback journal,
-                    # so every session write creates and fsyncs one. journal_mode is
-                    # stored in the DB header, so this survives restarts either way.
                     "--env=ENABLE_SQLITE_WAL_MODE=true"
-                    # Memory soft limit = memory.low on the container cgroup, i.e. the
-                    # Next.js bundles and the node heap stay resident while smaller
-                    # neighbours get reclaimed. A systemd MemoryLow on the unit does
-                    # nothing: podman puts the container in
-                    # machine.slice/libpod-<id>.scope/container, not in the unit's
-                    # cgroup. Measured with it: after 7 min idle RSS held at 206 MB and
-                    # swap fell 119->97 MB, and dashboard requests 2 and 3 read 0 MB
-                    # from disk (0.16 s instead of 0.58 s).
                     "--memory-reservation=450m"
                   ];
                   log-driver = "journald";
