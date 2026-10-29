@@ -98,6 +98,12 @@ push to `main` deploys to both hosts. Merge with a merge commit or a squash merg
 every commit is signed.
 
 
+# Comments
+
+Do not add comments by default. A comment is allowed only for a workaround, a non-obvious constraint (ordering, activation, external magic value), or a decision that looks like a mistake. One line, 100 characters maximum. Write why, never what.
+
+Do not write file headers, section dividers, JSDoc blocks, history, or examples. The code and the commit message carry the rest.
+
 # Documentation
 
 Documentation lives in Obsidian. You can access it using the obsidian cli `obsidian` and all of the Docs live in `2 Resources/Homelab`.

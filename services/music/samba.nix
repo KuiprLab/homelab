@@ -1,7 +1,3 @@
-# Not containerized: host SMB passdb, vfs objects = streams_xattr, and browse/
-# wsd multicast on the LAN NIC.
-#
-# Samba shares and firewall rules for music folders
 _: {
   flake.nixosModules.musicSamba = _: let
     homeDir = "/home/daniel";

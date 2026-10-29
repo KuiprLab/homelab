@@ -13,19 +13,13 @@ _: {
           "upsnap-data:/app/pb_data"
         ];
         user = "1000:100";
-        # --network=host is required for LAN device scanning (ping/TCP checks
-        # against 192.168.0.0/24 with NET_RAW). The publish map is ignored
-        # under host networking, so the web UI's bind address is controlled
-        # via the app's own env: loopback only, caddy is the sole way in.
+        # Host networking is needed for LAN scanning; the bind address comes from UPSNAP_HTTP_LISTEN.
         environment = {
           TZ = "Europe/Berlin";
           UPSNAP_HTTP_LISTEN = "127.0.0.1:8090";
         };
         image = "ghcr.io/seriousm4x/upsnap:latest@sha256:1e7c2345c493f9228a5dc2102be06b5a33331100f303fe0078502f4ef1068724";
-        # Podman does not inherit image HEALTHCHECKs — mirror the upstream
-        # one explicitly (curl → 127.0.0.1:8090/api/health), with retries:
-        # podman's first check fires immediately at start.
-        # Unhealthy → podman kills the container; systemd's Restart recreates it.
+        # Podman does not inherit image HEALTHCHECKs.
         extraOptions = [
           "--health-cmd=curl -fsS --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:8090/api/health >/dev/null"
           "--health-interval=10s"

@@ -7,13 +7,11 @@
   findutils,
   gnugrep,
   version ? "5.0.8",
-  # url ? "https://fw-download.ubnt.com/data/unifi-os-server/df5b-linux-arm64-5.0.6-f35e944c-f4b6-4190-93a8-be61b96c58f4.6-arm64",
   url ? "https://fw-download.ubnt.com/data/unifi-os-server/c2e4-linux-x64-5.0.8-bcb62759-753a-4be2-8546-a6e0de63e59a.8-x64",
   sha256,
 }:
 stdenvNoCC.mkDerivation rec {
-  # reverse engineered via
-  # https://www.unihosted.com/blog/running-unifi-os-server-in-docker
+  # reverse engineered via https://www.unihosted.com/blog/running-unifi-os-server-in-docker
   pname = "unifi-os-server-image";
   inherit version;
 

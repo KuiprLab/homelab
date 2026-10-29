@@ -14,13 +14,6 @@ import { diagnostics } from "./diagnostics/index.ts";
 import { lab } from "./lab/index.ts";
 import { music } from "./music/index.ts";
 
-/**
- * Every feature the bot ships, listed explicitly rather than discovered by
- * scanning the directory at runtime: an explicit list is type checked, and the
- * Nix store is read-only and not somewhere to go looking for modules.
- *
- * Adding a feature is two lines -- import it, add it here.
- */
 export const features: readonly Feature[] = [diagnostics, lab, music];
 
 interface Registered {
@@ -29,11 +22,6 @@ interface Registered {
   readonly routes: ReadonlyMap<string, Execute>;
 }
 
-/**
- * Slash command names are global to the application, so two features cannot
- * both own /play. Discord would silently keep whichever we sent last; fail
- * loudly at startup instead, naming both features.
- */
 function build(): ReadonlyMap<string, Registered> {
   const registry = new Map<string, Registered>();
 
@@ -61,11 +49,9 @@ function build(): ReadonlyMap<string, Registered> {
 
 const registry = build();
 
-/** What gets sent to Discord. Derived from the same declarations as the routes. */
 export const definitions: readonly RESTPostAPIChatInputApplicationCommandsJSONBody[] =
   [...registry.values()].map((entry) => toDefinition(entry.command));
 
-/** Every route the bot answers, as Discord would name it: "ping", "music play". */
 export function routeNames(): string[] {
   return [...registry.values()].flatMap((entry) =>
     [...entry.routes.keys()].map((route) =>
@@ -74,7 +60,6 @@ export function routeNames(): string[] {
   );
 }
 
-/** Resolve a running interaction to its handler, subcommands included. */
 export function resolve(
   commandName: string,
   group: string | null,
@@ -83,13 +68,6 @@ export function resolve(
   return registry.get(commandName)?.routes.get(routeKey(group, subcommand));
 }
 
-/**
- * Buttons and modals are keyed by their whole id, the same way commands are
- * keyed by name: ids are global to the application, so two features cannot
- * both own "music:download". A feature may only register components declaring
- * its own name, or a customId would advertise a feature that does not answer
- * it.
- */
 function buildRegistry<
   T extends { readonly id: string; readonly feature: string },
 >(
@@ -120,10 +98,6 @@ function buildRegistry<
   return components;
 }
 
-/**
- * Turn a registry into a lookup that takes a running interaction's customId
- * and hands back its handler with the customId's data already bound.
- */
 function resolver<Interaction>(
   registry: ReadonlyMap<string, Handler<Interaction>>,
 ): (
@@ -141,7 +115,6 @@ function resolver<Interaction>(
 const buttonRegistry = buildRegistry("button", (feature) => feature.buttons);
 const modalRegistry = buildRegistry("modal", (feature) => feature.modals);
 
-/** Every button and modal the bot answers, as their customIds name them. */
 export function componentIds(): { buttons: string[]; modals: string[] } {
   return {
     buttons: [...buttonRegistry.keys()],

@@ -26,19 +26,16 @@ import {
   RetagError,
 } from "./retagRequests.ts";
 
-/** Library albums a name may match before the user has to be more specific. */
 const MAX_MATCHES = 5;
 
 /** Releases to offer. Discord caps a select menu at 25 options. */
 const MAX_CANDIDATES = 25;
 
-/** How long a pending retag choice stays valid. */
 const TTL_MS = 15 * 60 * 1000;
 
 const EXPIRED =
   "That retag has expired. Run `/music retag` again to pick from fresh results.";
 
-/** The select inside the modal. Scoped to the modal, not routed. */
 const RELEASE_SELECT = "release";
 
 interface Pending {
@@ -47,25 +44,8 @@ interface Pending {
   readonly storedAt: number;
 }
 
-/**
- * Pending choices, keyed by what the button carries.
- *
- * Same trade as searches.ts: a customId caps at 100 characters, which is not
- * enough for an album id plus twenty-five release ids, so the payload stays
- * here and the button carries a key into it. A restart or the TTL invalidates
- * an open picker, which the handler reports rather than acting on stale data.
- */
 const pending = new Map<string, Pending>();
 
-/**
- * Retag an album against a MusicBrainz release you choose.
- *
- * Worth having because beets cannot fix this itself: an album already carrying
- * a release id matches that id at distance ~0 no matter what else fits, so a
- * wrong tag anchors itself. Chaos A.D. tagged from Spotify claimed sixteen
- * tracks; Storm of the Light's Bane tagged to a 2-CD reissue claimed
- * twenty-three. Both need a release forced by hand, once.
- */
 export const retag: Subcommand = {
   name: "retag",
   description: "Retag an album against a MusicBrainz release you pick",
@@ -91,7 +71,6 @@ export const retag: Subcommand = {
       return;
     }
 
-    // A MusicBrainz search follows, and that client is rate limited.
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const text = interaction.options.getString("album", true).trim();
@@ -113,8 +92,6 @@ export const retag: Subcommand = {
     }
 
     if (matches.length > 1) {
-      // Retagging rewrites tags on real files, so an ambiguous name is asked
-      // about rather than guessed at.
       await interaction.editReply({
         content:
           `"${text}" matches ${String(matches.length)} albums:\n` +
@@ -154,11 +131,6 @@ export const retag: Subcommand = {
   },
 };
 
-/**
- * Opens the picker. showModal has to be the first response to an interaction
- * -- Discord does not allow deferring one -- so the options come from the
- * stored search rather than from a fresh MusicBrainz call.
- */
 export const chooseRetagButton = defineButton({
   feature: "music",
   name: "retag",
@@ -196,7 +168,6 @@ export const chooseRetagButton = defineButton({
   },
 });
 
-/** Writes the request. The importer picks it up and reports back itself. */
 export const retagModal = defineModal({
   feature: "music",
   name: "retag",
@@ -214,8 +185,6 @@ export const retagModal = defineModal({
     const [releaseId] =
       interaction.fields.getStringSelectValues(RELEASE_SELECT);
 
-    // Resolved against the stored candidates, so an id that was never offered
-    // cannot get through.
     const release = choice.candidates.find(
       (candidate) => candidate.id === releaseId,
     );
@@ -288,12 +257,6 @@ function card(
     );
 }
 
-/**
- * Releases whose track count matches what the library holds, first. That is
- * the whole reason to retag -- a release claiming more tracks is what makes an
- * album look incomplete -- so it decides the order rather than being one more
- * column to read.
- */
 function rank(
   releases: readonly IReleaseMatch[],
   tracks: number,
@@ -315,7 +278,6 @@ function option(release: IReleaseMatch): StringSelectMenuOptionBuilder {
     .setValue(release.id);
 }
 
-/** "12 tracks · 1993 · XE · CD" -- everything needed to tell pressings apart. */
 function describe(release: IReleaseMatch): string {
   const count = trackCount(release);
   return [
@@ -333,10 +295,6 @@ function describe(release: IReleaseMatch): string {
     .join(" · ");
 }
 
-/**
- * Search results carry a top-level track count; the lookup endpoint only
- * exposes one per medium, so total the media when it is missing.
- */
 function trackCount(release: IRelease): number | undefined {
   if (release["track-count"] !== undefined) return release["track-count"];
   const total =
@@ -348,7 +306,6 @@ function remember(
   album: LibraryAlbum,
   candidates: readonly IReleaseMatch[],
 ): string {
-  // base64url so the key cannot contain the ":" a customId splits on.
   const key = randomBytes(6).toString("base64url");
   pending.set(key, { album, candidates, storedAt: Date.now() });
   return key;
@@ -364,12 +321,10 @@ function recall(key: string): Pending | undefined {
   return choice;
 }
 
-/** Inside a quoted Lucene phrase only the quote and backslash are structural. */
 function escape(value: string): string {
   return value.replace(/["\\]/g, (character) => `\\${character}`);
 }
 
-/** Discord rejects an over-long label or description outright. */
 function clamp(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }

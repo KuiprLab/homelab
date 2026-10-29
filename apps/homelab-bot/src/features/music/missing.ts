@@ -14,17 +14,8 @@ import {
   type IncompleteAlbum,
 } from "./library.ts";
 
-/** Sections Discord will accept in one container, with room to spare. */
 const MAX_SHOWN = 5;
 
-/**
- * Albums the library has only part of.
- *
- * beets already knows this -- a partial import leaves the album short of the
- * tracktotal its own tags claim -- but nothing surfaces it, so a download that
- * half-failed months ago stays half-failed. Each one gets a button that
- * queues the rest through the same Soulseek path /music find uses.
- */
 export const missing: Subcommand = {
   name: "missing",
   description: "List albums the library only has part of",
@@ -41,8 +32,6 @@ export const missing: Subcommand = {
     }
 
     try {
-      // Synchronous and local: node:sqlite has no async API, and the query is
-      // a grouped scan of a ten-megabyte file, not a network call.
       const albums = incompleteAlbums(MAX_SHOWN + 1);
 
       if (albums.length === 0) {
@@ -82,11 +71,6 @@ function build(albums: readonly IncompleteAlbum[]): ContainerBuilder {
       `**${album.album}** — ${album.albumartist}\n` +
       `${String(album.have)} of ${String(album.expect)} tracks`;
 
-    // A whole disc absent is not the same problem as tracks that failed to
-    // download, and it usually means the album is tagged to a reissue the
-    // library never had: Storm of the Light's Bane sitting at 8 of 23 was a
-    // 2-CD edition whose bonus disc was never wanted. Say so rather than
-    // offering to "complete" it, which would fetch the bonus disc.
     if (album.discs > album.discsPresent) {
       container.addTextDisplayComponents((text) =>
         text.setContent(
@@ -98,8 +82,6 @@ function build(albums: readonly IncompleteAlbum[]): ContainerBuilder {
       continue;
     }
 
-    // Without a MusicBrainz id there is nothing to hand the download flow:
-    // it looks a release up by id, not by name.
     if (album.releaseId === undefined) {
       container.addTextDisplayComponents((text) =>
         text.setContent(`${line} · _no MusicBrainz id, so nothing to look up_`),
@@ -126,6 +108,5 @@ function summary(albums: readonly IncompleteAlbum[]): string {
   if (albums.length <= MAX_SHOWN) {
     return `${albums.length} album${albums.length === 1 ? "" : "s"} short of their tracklist.`;
   }
-  // One extra was fetched precisely to know whether to say "and more".
   return `Showing ${String(MAX_SHOWN)}, worst first. There are more.`;
 }

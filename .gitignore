@@ -1,28 +1,21 @@
-# Nix
 result
 result-*
 .direnv/
 
-# Editors / OS
 .DS_Store
 *.swp
 
-# Tooling caches
 .ruff_cache/
 
-# Agent session transcripts
 session-*.md
 .claude/settings.local.json
 
-# Node apps
 node_modules/
 dist/
 
-# Local dev credentials (plaintext). Real secrets live in secrets/, via sops.
+# Plaintext dev credentials; real secrets live in secrets/, via sops.
 .env
 
-# Generated DoH device profiles (embed secret tokens — see
-# scripts/gen-doh-profiles).
 doh-profiles/
 
 PLAN.md

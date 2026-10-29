@@ -1,19 +1,5 @@
-# The only thing that moves dependency updates onto `main`.
-#
-# Renovate targets `staging` (see renovate.json) and automerges there all day.
-# comin follows `main` for `switch` and `testing-<host>` for `test`
-# (services/comin.nix), so merges into `staging` cost no rebuild. This job
-# promotes `staging` once per day, or on demand, and is therefore the single
-# place that decides when the hosts rebuild.
-#
-# The gate is `validate.yml` on the staging head commit, not branch protection:
-# `main` is unprotected, so `gh pr merge` would otherwise merge anything.
-#
-# One-time bootstrap, after this file has reached `main`: create `staging` from
-# `main` (`git push origin main:refs/heads/staging`). A staging branch created
-# earlier carries an older validate.yml that does not run on pushes to staging,
-# so no run would ever appear for its head and the gate would block forever.
-# Recreating the branch from main after any such accident is always safe.
+# Gate is validate.yml on the staging head, not branch protection: main is unprotected.
+# Bootstrap once: git push origin main:refs/heads/staging
 name: Promote staging
 
 on:
@@ -46,9 +32,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The repo deletes head branches on merge, so merging a promote PR in
-          # the web UI takes `staging` with it. Recreate it from main instead of
-          # failing: Renovate reopens whatever it had queued against it.
+          # The repo deletes head branches on merge; recreate staging or Renovate loses its base.
           if ! gh api "repos/$REPO/git/ref/heads/$HEAD" >/dev/null 2>&1; then
             echo "::warning::$HEAD is gone, recreating it from $BASE"
             main_sha=$(gh api "repos/$REPO/git/ref/heads/$BASE" --jq .object.sha)
@@ -111,8 +95,7 @@ jobs:
             fi
 
             if [ "$(gh api "repos/$REPO/git/ref/heads/$HEAD" --jq .object.sha)" = "$sha" ]; then
-              # --match-head-commit pins the merge to the commit that was
-              # validated, so a late Renovate merge cannot ride along unbuilt.
+              # Pins the merge to the validated commit; a late Renovate merge cannot ride along.
               gh pr merge "$PR" --repo "$REPO" --merge --match-head-commit "$sha"
               break
             fi
@@ -124,8 +107,6 @@ jobs:
             fi
           done
 
-          # gh never deletes the head branch itself, but the repository setting
-          # does. Restore it so Renovate keeps a base branch to target.
           if ! gh api "repos/$REPO/git/ref/heads/$HEAD" >/dev/null 2>&1; then
             echo "::warning::$HEAD was deleted by the merge, recreating it from $BASE"
             main_sha=$(gh api "repos/$REPO/git/ref/heads/$BASE" --jq .object.sha)

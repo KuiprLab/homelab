@@ -1,10 +1,4 @@
-/**
- * gatus's read API -- just enough of it to answer "is anything broken".
- *
- * Point GATUS_URL at the container (http://127.0.0.1:8888) rather than
- * gatus.int.kuipr.de: the vhost is behind authelia, which answers an
- * unauthenticated request with a login page instead of JSON.
- */
+/** GATUS_URL must point at the container: the public vhost returns authelia's login page. */
 
 import { config } from "../../config.ts";
 
@@ -12,10 +6,8 @@ const ENDPOINTS_PATH = "/api/v1/endpoints/statuses";
 
 const TIMEOUT_MS = 5_000;
 
-/** One probe run. gatus keeps a window of these per endpoint. */
 interface GatusResult {
   readonly success: boolean;
-  /** Nanoseconds, the way Go's time.Duration marshals. */
   readonly duration: number;
   readonly timestamp: string;
 }
@@ -27,12 +19,10 @@ interface GatusEndpoint {
   readonly results?: readonly GatusResult[];
 }
 
-/** An endpoint reduced to its latest run. */
 export interface Check {
   readonly name: string;
   readonly group: string;
   readonly up: boolean;
-  /** Milliseconds, converted from gatus's nanoseconds. */
   readonly responseMs: number;
   readonly at: Date;
 }
@@ -44,13 +34,6 @@ export class GatusError extends Error {
   }
 }
 
-/**
- * Every endpoint gatus watches, reduced to its most recent result.
- *
- * An endpoint with no results at all is dropped rather than reported as down:
- * gatus lists a check it has not run yet, and calling that an outage would be
- * a lie on every restart.
- */
 export async function checks(): Promise<readonly Check[]> {
   const base = config.gatusUrl;
   if (base === null) {
@@ -81,7 +64,6 @@ export async function checks(): Promise<readonly Check[]> {
   const endpoints = (await response.json()) as readonly GatusEndpoint[];
 
   return endpoints.flatMap((endpoint) => {
-    // gatus returns its window oldest first, so the newest run is the last.
     const latest = endpoint.results?.at(-1);
     if (latest === undefined) return [];
 

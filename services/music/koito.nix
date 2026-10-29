@@ -1,5 +1,3 @@
-# Koito — modern, themeable ListenBrainz-compatible scrobbler.
-# https://koito.io
 _: {
   flake = {
     pangolinVirtualHosts."koito" = {
@@ -29,20 +27,9 @@ _: {
             KOITO_DEFAULT_USERNAME = "daniel";
           };
           ports = ["127.0.0.1:4110:4110"];
-          # The bookworm-slim image has no curl/wget — TCP probe via bash's
-          # /dev/tcp instead; gatus keeps the real HTTP check via caddy.
-          # Retry inside the command: podman's first check fires immediately
-          # at start, and a failed transient-unit check aborts NixOS
-          # activations (this actually failed a deploy — Rust boot is slower
-          # than the check). Unhealthy → podman kills; systemd Restart recreates.
-          #
-          # Per-container DNS attribution: aardvark-dns (the default podman DNS
-          # proxy) forwards upstream with no client identity, so the query log
-          # would show the bridge gateway (10.88.0.1) for every container.
-          # Pointing --dns at the LAN resolver sends the query from this
-          # container's pinned IP (ip= option) instead. NOTE: this bypasses
-          # aardvark, so podman's inter-container name resolution is not
-          # available.
+          # bookworm-slim image ships no curl/wget: TCP probe via bash /dev/tcp
+          # podman's first health check fires immediately; retry or activation fails
+          # pinned IP + --dns bypass aardvark-dns so the query log keeps per-container attribution
           extraOptions = [
             "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
             "--health-interval=30s"
@@ -55,9 +42,6 @@ _: {
           ];
         };
 
-        # No container-level healthcheck: process-only bot, no HTTP endpoint to probe.
-        # Pinned IP + --dns: per-container attribution in the query log (see
-        # koito above).
         last-fm-presence = {
           image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:ba64784e5bdcfd232de2dea7edf36bc7d6dd0929c8b9c23850cb0805dfa32d9a";
           volumes = [];

@@ -1,5 +1,3 @@
-# eclair base configuration
-# Minimal VPS: SSH, pangolin, sops age key, system packages.
 _: {
   flake.eclairNixosModules.eclairConfiguration = {pkgs, ...}: {
     system.stateVersion = "25.05";
@@ -11,7 +9,7 @@ _: {
     ];
 
     sops = {
-      # Populate /var/lib/sops/age-key.txt on the VPS before first deploy.
+      # Create /var/lib/sops/age-key.txt on the VPS before first deploy.
       age.keyFile = "/var/lib/sops/age-key.txt";
       age.generateKey = false;
     };
@@ -20,13 +18,11 @@ _: {
       firewall = {
         enable = true;
         allowedTCPPorts = [80 443];
-        # gerbil: 51820 (wireguard) via pangolin module
         allowedUDPPorts = [21820];
       };
       hostName = "eclair";
     };
 
-    # Time and locale
     time.timeZone = "Europe/Berlin";
     i18n.defaultLocale = "en_US.UTF-8";
 
@@ -47,10 +43,8 @@ _: {
       ];
     };
 
-    # Nix settings
     nix = {
       channel.enable = false;
-      # Automatic garbage collection: weekly, keep the last 30 days.
       gc = {
         automatic = true;
         dates = "weekly";
@@ -61,7 +55,6 @@ _: {
         warn-dirty = false
       '';
       settings = {
-        # Safety net — eclair must never build heavy closures itself.
         max-jobs = 1;
         cores = 1;
         substituters = [
