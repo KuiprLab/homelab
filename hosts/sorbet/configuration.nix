@@ -153,24 +153,6 @@ in {
     security.rtkit.enable = true;
 
     systemd.user.services = {
-      bt-speaker = {
-        description = "Connect Bluetooth speaker";
-        wantedBy = ["default.target"];
-        wants = ["wireplumber.service"];
-        after = ["wireplumber.service"];
-        path = [pkgs.bluez];
-        serviceConfig.Type = "oneshot";
-        script = ''
-          for i in $(seq 1 20); do
-            if bluetoothctl connect 20:DF:B9:52:66:C3 | grep -q "Connection successful"; then
-              exit 0
-            fi
-            sleep 10
-          done
-          wpctl set-default 59
-          exit 1
-        '';
-      };
       shairport-sync = {
         wantedBy = ["default.target"];
         after = ["pipewire.service" "pipewire-pulse.service"];
@@ -185,10 +167,7 @@ in {
       avahi = {
         enable = true;
         nssmdns4 = true;
-        # Announce only on the LAN NIC. The Tidal Connect binary registers
-        # its mDNS service through avahi on every interface, including the
-        # podman/incus bridges; the phone's TIDAL app then sees unreachable
-        # 10.88.0.1-style addresses and times out during cast.
+        # Announce only on the LAN NIC, not on the podman/incus bridges.
         allowInterfaces = ["enp0s31f6"];
         publish = {
           enable = true;
