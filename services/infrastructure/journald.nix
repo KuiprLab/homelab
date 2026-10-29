@@ -1,3 +1,6 @@
+# Not containerized: it configures the host's own journald, which containers
+# write into.
+#
 # systemd-journald size caps for both hosts.
 # Hard limits prevent runaway growth even if everything else fails.
 # Currently sorbet's journal sits at 2.4GB — capping at 500MB forces vacuum.

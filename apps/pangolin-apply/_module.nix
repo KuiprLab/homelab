@@ -1,3 +1,6 @@
+# Not containerized: idempotent bootstrap that runs against pangolin's loopback
+# API. Same dependency direction as the other reconcilers.
+#
 # pangolin-apply -- idempotent bootstrap of pangolin's server-side state.
 #
 # Pangolin keeps the org, the tunnel sites and the IdP registration in SQLite
