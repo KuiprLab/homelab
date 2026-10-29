@@ -55,12 +55,12 @@ _: {
         # recreates.
         #
         # Per-container DNS attribution: aardvark-dns (the default podman DNS
-        # proxy) forwards upstream with no client identity, so Pi-hole logs
-        # every bridge container as the gateway (10.88.0.1 → FTL shows
-        # "host.containers.internal"). Pointing --dns at host dnsmasq makes
-        # dnsmasq tag ECS with this container's pinned IP (ip= option), and
-        # FTL's dns_hosts table names it. NOTE: this bypasses aardvark, so
-        # podman's inter-container name resolution is not available.
+        # proxy) forwards upstream with no client identity, so the query log
+        # would show the bridge gateway (10.88.0.1) for every container.
+        # Pointing --dns at the LAN resolver sends the query from this
+        # container's pinned IP (ip= option) instead. NOTE: this bypasses
+        # aardvark, so podman's inter-container name resolution is not
+        # available.
         extraOptions = [
           "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
           "--health-interval=30s"

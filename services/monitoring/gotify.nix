@@ -99,8 +99,8 @@ _: {
         ];
         log-driver = "journald";
         extraOptions = [
-          # Use the host dnsmasq instead of aardvark-dns (same reason as the
-          # other containers): public names resolve through the LAN resolver.
+          # Use the LAN resolver on this host instead of aardvark-dns (same
+          # reason as the other containers): public names resolve through it.
           "--dns=192.168.0.85"
           # Podman does not inherit the image HEALTHCHECK; mirror it.
           "--health-cmd=curl -fsS http://127.0.0.1:80/health"

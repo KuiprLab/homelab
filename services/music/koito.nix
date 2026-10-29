@@ -37,12 +37,12 @@ _: {
           # than the check). Unhealthy → podman kills; systemd Restart recreates.
           #
           # Per-container DNS attribution: aardvark-dns (the default podman DNS
-          # proxy) forwards upstream with no client identity, so Pi-hole logs
-          # every bridge container as the gateway (10.88.0.1 → FTL shows
-          # "host.containers.internal"). Pointing --dns at host dnsmasq makes
-          # dnsmasq tag ECS with this container's pinned IP (ip= option), and
-          # FTL's dns_hosts table names it. NOTE: this bypasses aardvark, so
-          # podman's inter-container name resolution is not available.
+          # proxy) forwards upstream with no client identity, so the query log
+          # would show the bridge gateway (10.88.0.1) for every container.
+          # Pointing --dns at the LAN resolver sends the query from this
+          # container's pinned IP (ip= option) instead. NOTE: this bypasses
+          # aardvark, so podman's inter-container name resolution is not
+          # available.
           extraOptions = [
             "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
             "--health-interval=30s"
@@ -56,7 +56,8 @@ _: {
         };
 
         # No container-level healthcheck: process-only bot, no HTTP endpoint to probe.
-        # Pinned IP + --dns: per-container attribution in Pi-hole (see koito above).
+        # Pinned IP + --dns: per-container attribution in the query log (see
+        # koito above).
         last-fm-presence = {
           image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:ba64784e5bdcfd232de2dea7edf36bc7d6dd0929c8b9c23850cb0805dfa32d9a";
           volumes = [];
