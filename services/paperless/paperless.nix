@@ -113,7 +113,12 @@ _: {
             # No LLM on purpose — even 360M models make CPU-bound suggestion
             # calls; the ai_suggestions button 400s, which is expected.
             PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
-            PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
+            # Text-only 270m variant on purpose: paperless embeds text chunks, so
+            # the vision/audio projectors in :latest (740m, 1.3G) would only cost
+            # memory against the 2G cap. 270m is 304M — half of the old
+            # embeddinggemma — and scores better on MTEB text and code.
+            # Needs ollama >= 0.40.4 (model family gemma-embedding2).
+            PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma-2:270m"; # multilingual (good for deu docs)
             PAPERLESS_AI_LLM_EMBEDDING_ENDPOINT = "http://ollama:11434";
           };
           log-driver = "journald";

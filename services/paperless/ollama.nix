@@ -6,6 +6,13 @@
 # runs as root and owns the tree; the old unit's pre-start chown existed only to
 # keep a host user and the mount in sync, which no longer applies.
 #
+# Nix does not fetch models. After a model change: `podman exec ollama ollama
+# pull <model>` as root, then reindex on the consumer side (paperless:
+# `podman exec paperless python3 manage.py document_index reindex`).
+#
+# The image must stay at ollama >= 0.40.4: embeddinggemma-2 declares
+# `requires 0.40.4` (model family gemma-embedding2).
+#
 # Paperless reaches this by aardvark name (http://ollama:11434). The loopback
 # publish exists for host-side checks only.
 _: {
