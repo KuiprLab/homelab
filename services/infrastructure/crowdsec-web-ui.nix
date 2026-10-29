@@ -1,50 +1,3 @@
-# CrowdSec Web UI — dashboard for eclair's CrowdSec engine.
-#
-# Runs on sorbet, not on eclair. eclair is 1 vCPU / 959 MB and already runs
-# pangolin (node API + Next), traefik, gerbil, newt, crowdsec and subtidal. This
-# UI is one main process plus four query-workers and one sync-worker — ~350 MB
-# for a dashboard that is opened rarely. With it on eclair the pangolin working
-# set did not fit: RSS fell while serving, ~500 major faults per request and
-# 0.6-3.4 s TTFB cold. With it removed, the dashboard stays resident (0.46 s
-# cold, no disk reads when warm) — that is the whole reason for the split.
-#
-# Networking — the LAPI only exists on eclair, bound to 127.0.0.1:9090
-# (`api.server.listen_uri`), because `api.server.trusted_ips` gates alert
-# deletion on a 127.0.0.1 source. The pangolin tunnel cannot carry this:
-# site newts are userspace proxies with no L3 route (same reason sorbet's Pi-hole
-# cannot live on eclair, see services/pihole.nix). The transport is therefore a
-# forwarded SSH session from sorbet into eclair's loopback:
-#
-#   sorbet:crowdsec-lapi-tunnel  ssh -L 127.0.0.1:19090 -> eclair 127.0.0.1:9090
-#                                ssh -L 127.0.0.1:19091 -> eclair 127.0.0.1:6060
-#
-# so the LAPI stays loopback-only, `trusted_ips` needs no change, and the
-# connection genuinely originates on eclair's loopback. eclair authorizes a
-# dedicated key that may only open those two destinations
-# (`restrict,port-forwarding,permitopen=...`).
-#
-# Port 3010 is deliberately absent from sorbet's firewall: the only way in is
-# pangolin's traefik → sorbet's newt → 127.0.0.1:3010. The container shares the
-# host netns because a podman bridge has no route to 127.0.0.1:19090.
-#
-# Auth — Pangolin's SSO (`auth.sso-enabled` on the resource) is the only gate,
-# via its Authelia IdP. The app's own login is off (`auth.enabled`), so there is
-# no local account, no setup wizard, and no second factor to maintain.
-# Consequence to remember: every request that reaches the container is fully
-# privileged — the last line of defence is the host firewall (3010 is not open)
-# plus the loopback bind.
-#
-# LAPI credentials — one sops dotenv file feeds both the container and the
-# registration oneshot on eclair, which sources the same CONFIG_ variable.
-# Rotating the password requires deleting the machine record first
-# (`cscli machines delete crowdsec-web-ui`) — the oneshot only adds a missing
-# machine and never resets an existing one.
-#
-# Moving this resource between sites is imperative: blueprint apply creates and
-# updates by niceId, it never deletes, so a resource that already exists on the
-# eclair site keeps that site binding. Delete `crowdsec` in the pangolin
-# dashboard first, then let sorbet's newt create it. The old data directory on
-# eclair (/var/lib/crowdsec-web-ui) can be removed afterwards.
 _: {
   flake = {
     pangolinVirtualHosts."crowdsec" = {
@@ -53,11 +6,6 @@ _: {
       subdomain = "crowdsec.ext.kuipr.de";
       port = 3010;
       private = false;
-      # Pangolin gates the browser through its Authelia IdP. `sso-roles` is
-      # what makes the resource reachable at all: badger's access check needs
-      # a role linked to the resource or its inline policy (pangolin source,
-      # server/routers/badger/verifySession.ts:1363-1435). Admin roles are
-      # linked implicitly and skipped by the blueprint sync.
       extra.auth = {
         "sso-enabled" = true;
         "sso-roles" = ["Member"];

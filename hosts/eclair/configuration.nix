@@ -19,12 +19,8 @@ _: {
     networking = {
       firewall = {
         enable = true;
-        # haproxy: HTTP redirect + HTTPS passthrough; 2222 is the public
-        # break-glass SSH port (sshd listens on all interfaces).
         allowedTCPPorts = [80 443 2222];
-        # gerbil: 51820 (wireguard) via pangolin module; 21820 is
-        # clients_start_port used by newt UDP hole punch / relay —
-        # without it sites behind NAT cannot register an endpoint.
+        # gerbil: 51820 (wireguard) via pangolin module 
         allowedUDPPorts = [21820];
       };
       hostName = "eclair";
@@ -85,11 +81,6 @@ _: {
       };
     };
 
-    # 959 MB RAM against a ~1.05 GB working set: pangolin's node heap is reclaimed
-    # while it serves (measured: RSS drops 247->224 MB during a request, ~500 major
-    # faults per request, 0.6-3.2 s TTFB when cold). zram turns those page-ins into
-    # decompression instead of a virtual-disk read. The disk swap device stays as
-    # overflow — systemd-zram is priority 5, the partition is -2.
     zramSwap.enable = true;
   };
 }
