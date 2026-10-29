@@ -75,10 +75,11 @@ _: {
             "--health-start-period=1m"
             "--health-timeout=30s"
             "--network-alias=authelia"
-            # Pinned IP + --dns=192.168.0.85: per-container DNS attribution in
-            # Pi-hole — host dnsmasq tags ECS with the container's IP, which
-            # FTL names via its dns_hosts table (bypasses aardvark-dns, so no
-            # podman inter-container name resolution).
+            # Pinned IP + --dns=192.168.0.85: per-container DNS attribution.
+            # Queries leave from the container's own address instead of
+            # aardvark-dns's gateway, so the LAN resolver logs them under that
+            # IP (bypasses aardvark-dns, so no podman inter-container name
+            # resolution).
             "--network=authelia_default:ip=10.89.2.20"
             "--network=proxy"
             "--dns=192.168.0.85"
