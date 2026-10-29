@@ -1,3 +1,5 @@
+# Not containerized: comin is the deploy mechanism itself. A container would
+# have to rebuild and switch the host it runs on.
 {inputs, ...}: let
   # comin supports one testing branch per host. The name is `testing-<host>`
   # and not `testing/<host>`: git cannot hold `testing/sorbet` and

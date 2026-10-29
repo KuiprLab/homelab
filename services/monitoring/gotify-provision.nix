@@ -1,3 +1,6 @@
+# Not containerized: a reconciler that drives the gotify container. Putting it
+# in a container inverts the dependency.
+#
 # Reconcile Gotify applications and tokens.
 #
 # Gotify has no declarative app/token config; applications are SQLite rows. The

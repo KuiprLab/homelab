@@ -1,3 +1,6 @@
+# Not containerized: a container cannot start the store's own daemon; it is part
+# of the NixOS activation path.
+#
 # Start nix-daemon at boot on both hosts.
 #
 # Determinate's determinate-nixd writes /etc/nix/nix.conf when it starts, and

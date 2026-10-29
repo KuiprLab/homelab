@@ -1,3 +1,6 @@
+# Not containerized: needs the home-manager beets package, ~/.beets/library.db
+# and the daniel user's filesystem view (downloads, inbox, hints, retag dirs).
+#
 # Beets home-manager configuration and slskd → beets import bridge.
 #
 # slskd runs a script on DownloadDirectoryComplete (configured in the slskd.yml

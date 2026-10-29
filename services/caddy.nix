@@ -1,3 +1,7 @@
+# Not containerized: TLS edge for every *.int.kuipr.de; custom withPlugins build,
+# ACME state and DNS-01 secrets. A container would add an ingress failure mode
+# for no isolation gain.
+#
 # Caddy on sorbet: the LAN TLS edge for *.int.kuipr.de.
 #
 # int services are not enumerated in pangolin. One pangolin host

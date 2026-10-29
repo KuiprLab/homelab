@@ -1,3 +1,5 @@
+# Not containerized: a curl oneshot on a systemd timer. Nothing to isolate.
+#
 # Heartbeat / dead-man's switch via healthchecks.io.
 #
 # Each host runs a systemd timer that curls a unique check URL every 5 min.

@@ -1,3 +1,7 @@
+# Not containerized: binds 192.168.0.85:53 and serves DHCP 67/68 for the LAN,
+# and its state is mutated through the REST API by technitium-converge. It would
+# need --net=host, which removes the isolation it is meant to gain.
+#
 # Technitium DNS Server on sorbet: LAN resolver, ad/malware blocker and DHCP
 # server for 192.168.0.0/24. One process is authoritative for both DNS and DHCP
 # on the LAN; nothing forwards to a second resolver.

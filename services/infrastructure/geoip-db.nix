@@ -1,3 +1,6 @@
+# Not containerized: a curl + gunzip oneshot feeding a host path pangolin
+# mounts. Nothing to isolate.
+#
 # Keyless GeoIP/ASN databases for pangolin's country and ASN rules.
 #
 # pangolin reads MaxMind-format MMDBs via `server.maxmind_db_path` (country)

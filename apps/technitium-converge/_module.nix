@@ -1,3 +1,6 @@
+# Not containerized: a reconciler that drives the technitium unit through its
+# REST API. It has to run where the resolver's loopback API is.
+#
 # technitium-converge -- apply Technitium's desired state through its REST API.
 #
 # The nixpkgs module (services.technitium-dns-server) only defines the unit and

@@ -1,3 +1,8 @@
+# Not containerized: the agent acquires from journald (the official image ships
+# no journalctl, and a NixOS journalctl cannot be bind-mounted into a foreign
+# image without its store closure), and the bouncer needs host nftables plus the
+# named counters declared below for its metrics.
+#
 # CrowdSec security engine + firewall bouncer for eclair.
 #
 # eclair is the public edge: pangolin's traefik terminates TLS for every

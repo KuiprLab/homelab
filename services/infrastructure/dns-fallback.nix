@@ -1,3 +1,7 @@
+# Not containerized: OnFailure/Conflicts handshake with the Technitium unit and
+# the same :53 bind. It is a lifeboat for the host's own resolver, so it has to
+# live where the resolver does.
+#
 # Fallback DNS + DHCP for when Technitium is down.
 #
 # Technitium (services/technitium.nix) is the only LAN DNS and DHCP authority.
