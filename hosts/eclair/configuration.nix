@@ -20,7 +20,7 @@ _: {
       firewall = {
         enable = true;
         allowedTCPPorts = [80 443];
-        # gerbil: 51820 (wireguard) via pangolin module 
+        # gerbil: 51820 (wireguard) via pangolin module
         allowedUDPPorts = [21820];
       };
       hostName = "eclair";
