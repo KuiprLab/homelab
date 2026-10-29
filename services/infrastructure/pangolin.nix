@@ -4,15 +4,36 @@
   ...
 }: let
   # Server-side identifiers that would otherwise only exist in the pangolin
-  # database. Everything below is created once by pangolin-apply.service on
-  # eclair (see below) and must match the values newts use to connect.
+  # database. Everything below is created once by the pangolin-apply oneshot
+  # (apps/pangolin-apply) and must match the values newts use to connect.
   # Rotating newt secrets is the only piece that needs a manual sops edit;
-  # newt IDs are stable by design.
+  # newt IDs are stable by design. Exported as flake.pangolinServer so the
+  # apply step reads the same values this config is built from.
   orgId = "kuiprde";
   orgName = "kuipr.de";
   # Default ranges shipped by pangolin (pick-org-defaults endpoint).
   orgSubnet = "100.90.128.0/20";
   orgUtilitySubnet = "100.96.128.0/20";
+  # Local API as seen from eclair itself; the port is config.yml's
+  # server.external_port.
+  apiUrl = "http://127.0.0.1:3000/api/v1";
+  dashboardDomain = "pangolin.ext.kuipr.de";
+  baseDomain = "kuipr.de";
+  # Authelia is the OIDC issuer (services/infrastructure/authelia.nix).
+  oidcIssuer = "https://auth.ext.kuipr.de";
+  # Tunnel sites: one newt per entry. niceId is also the newt --id; secretEnv
+  # names the variable holding the newt secret in
+  # secrets/eclair/pangolin-apply.env.
+  sites = {
+    eclair = {
+      niceId = "eclair";
+      secretEnv = "NEWT_SECRET_ECLAIR";
+    };
+    sorbet = {
+      niceId = "sorbet";
+      secretEnv = "NEWT_SECRET_SORBET";
+    };
+  };
   # blueprint niceIds: the attribute names of flake.pangolinVirtualHosts
   # become the resource niceIds on the pangolin server. NiceIds are the key
   # the blueprint upsert matches on, so renaming an attribute = new resource.
@@ -283,6 +304,61 @@ in {
         24940 # Hetzner
       ];
     };
+
+    pangolinServer = lib.mkOption {
+      description = ''
+        Server-side identifiers that otherwise only exist in pangolin's
+        database. Consumed by apps/pangolin-apply, which creates the org, the
+        sites and the IdP registration idempotently.
+      '';
+      type = lib.types.submodule {
+        options = {
+          apiUrl = lib.mkOption {
+            type = lib.types.str;
+            description = "Pangolin API base URL, reachable from eclair itself.";
+          };
+          orgId = lib.mkOption {
+            type = lib.types.str;
+            description = "Pangolin org id: the URL segment and database key.";
+          };
+          orgName = lib.mkOption {
+            type = lib.types.str;
+            description = "Human readable org name.";
+          };
+          orgSubnet = lib.mkOption {
+            type = lib.types.str;
+            description = "Tunnel subnet handed to the org (pangolin's default range).";
+          };
+          orgUtilitySubnet = lib.mkOption {
+            type = lib.types.str;
+            description = "Utility subnet handed to the org (pangolin's default range).";
+          };
+          dashboardDomain = lib.mkOption {
+            type = lib.types.str;
+            description = "Domain the dashboard and API are served on.";
+          };
+          oidcIssuer = lib.mkOption {
+            type = lib.types.str;
+            description = "Authelia base URL used as the OIDC issuer.";
+          };
+          sites = lib.mkOption {
+            description = "Pangolin tunnel sites, one newt each.";
+            type = lib.types.attrsOf (lib.types.submodule {
+              options = {
+                niceId = lib.mkOption {
+                  type = lib.types.str;
+                  description = "Site niceId, which is also the newt --id.";
+                };
+                secretEnv = lib.mkOption {
+                  type = lib.types.str;
+                  description = "Variable in secrets/eclair/pangolin-apply.env holding the newt secret.";
+                };
+              };
+            });
+          };
+        };
+      };
+    };
   };
 
   config.flake = let
@@ -435,14 +511,24 @@ in {
         // (en.extra or {}))
       (lib.filterAttrs (_: en: en.site == site) exitNodes);
   in {
+    pangolinServer = {
+      inherit
+        apiUrl
+        orgId
+        orgName
+        orgSubnet
+        orgUtilitySubnet
+        dashboardDomain
+        oidcIssuer
+        sites
+        ;
+    };
+
     eclairNixosModules.pangolin-server = {
       config,
-      lib,
       pkgs,
       ...
     }: let
-      dashboardDomain = "pangolin.ext.kuipr.de";
-      baseDomain = "kuipr.de";
       configDir = "/var/lib/pangolin/config";
 
       yaml = pkgs.formats.yaml {};
@@ -565,14 +651,6 @@ in {
         owner = "root";
       };
 
-      # Admin credentials + one newt secret per site, used exclusively by
-      # pangolin-apply.service to bootstrap org/sites. See gitops notes.
-      sops.secrets."pangolin-apply" = {
-        sopsFile = ../../secrets/eclair/pangolin-apply.env;
-        format = "dotenv";
-        key = "";
-      };
-
       imports = [
         {
           boot.kernelModules = ["wireguard"];
@@ -679,136 +757,6 @@ in {
           };
         }
       ];
-      # One-shot idempotent bootstrap after pangolin is up:
-      #   1. ensure the org exists (create-if-missing, never BatchUpdate)
-      #   2. ensure the sites exist, with our pinned newtId + fresh secret
-      #   3. ensure the Authelia IdP is registered
-      # Safely re-runs: everything it creates already returns real statuses
-      # if it already exists. Secrets come from sops, and the admin password
-      # is only ever used for a localhost login.
-      systemd.services."pangolin-apply" = {
-        description = "Pangolin org/site bootstrap (idempotent)";
-        wantedBy = ["multi-user.target"];
-        after = ["podman-pangolin.service"];
-        requires = ["podman-pangolin.service"];
-        serviceConfig = {
-          Type = "oneshot";
-          RuntimeDirectory = "pangolin-apply";
-          RuntimeDirectoryMode = "0700";
-          EnvironmentFile = config.sops.secrets."pangolin-apply".path;
-          RemainAfterExit = true;
-          Restart = "on-failure";
-          RestartSec = "15s";
-        };
-        path = with pkgs; [curl jq];
-        script = let
-          api = "http://127.0.0.1:3000/api/v1";
-          siteIds = {
-            eclair = {
-              niceId = "eclair";
-              secretEnv = "NEWT_SECRET_ECLAIR";
-            };
-            sorbet = {
-              niceId = "sorbet";
-              secretEnv = "NEWT_SECRET_SORBET";
-            };
-          };
-          # Authelia (services/infrastructure/authelia.nix) is the OIDC issuer.
-          # Its `pangolin` client hardcodes the redirect URL, which embeds the
-          # idpId assigned here (1 on a fresh DB).
-          oidcIssuer = "https://auth.ext.kuipr.de";
-          expectedRedirect = "https://pangolin.ext.kuipr.de/auth/idp/1/oidc/callback";
-          ensureIdp = ''
-            if curl -sf -b "$JAR" ${api}/idp \
-                | jq -e --arg n "$PANGOLIN_IDP_NAME" \
-                    '[.data.idps[]? | select(.name == $n)] | length > 0' >/dev/null; then
-              echo "idp $PANGOLIN_IDP_NAME already registered"
-            else
-              echo "registering idp $PANGOLIN_IDP_NAME"
-              created=$(curl -sf -b "$JAR" -X PUT ${api}/idp/oidc \
-                -H 'Content-Type: application/json' \
-                -H 'x-csrf-token: x-csrf-protection' \
-                -d "$(jq -n \
-                  --arg name "$PANGOLIN_IDP_NAME" \
-                  --arg clientId "$PANGOLIN_IDP_CLIENT_ID" \
-                  --arg clientSecret "$PANGOLIN_IDP_CLIENT_SECRET" \
-                  '{name: $name, clientId: $clientId,
-                    clientSecret: $clientSecret,
-                    authUrl: "${oidcIssuer}/api/oidc/authorization",
-                    tokenUrl: "${oidcIssuer}/api/oidc/token",
-                    identifierPath: "sub",
-                    emailPath: "email",
-                    namePath: "name",
-                    scopes: "openid profile email",
-                    autoProvision: true,
-                    variant: "oidc"}')")
-              redirect=$(printf '%s' "$created" | jq -r '.data.redirectUrl')
-              echo "registered idp $(printf '%s' "$created" | jq -r '.data.idpId'), redirect $redirect"
-              if [ "$redirect" != "${expectedRedirect}" ]; then
-                echo "WARNING: redirect $redirect != authelia redirect_uris ${expectedRedirect}" >&2
-              fi
-            fi
-          '';
-          ensureSite = _: v: ''
-            code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
-              ${api}/org/${orgId}/site/${v.niceId} || true)
-            if [ "$code" != "200" ]; then
-              echo "creating site ${v.niceId}"
-              curl -sf -b "$JAR" -X PUT ${api}/org/${orgId}/site \
-                -H 'Content-Type: application/json' \
-                -H 'x-csrf-token: x-csrf-protection' \
-                -d "$(jq -n \
-                  --arg name ${v.niceId} \
-                  --arg niceId ${v.niceId} \
-                  --arg newtId ${v.niceId} \
-                  --arg secret "${"$"}${v.secretEnv}" \
-                  '{name: $name, niceId: $niceId, newtId: $newtId,
-                    secret: $secret, type: "newt"}')" >/dev/null
-            fi
-          '';
-        in ''
-          set -euo pipefail
-          JAR=$(mktemp)
-          trap 'rm -f "$JAR"' EXIT
-
-          # Wait for the API to answer (pangolin boots before it is ready).
-          for i in $(seq 1 60); do
-            if curl -sf -o /dev/null ${api}/; then break; fi
-            sleep 2
-          done
-          curl -sf -o /dev/null ${api}/ || {
-            echo "pangolin API not reachable" >&2
-            exit 1
-          }
-
-          echo "logging in as $PANGOLIN_ADMIN_EMAIL"
-          curl -sf -c "$JAR" -X POST ${api}/auth/login \
-            -H 'Content-Type: application/json' \
-            -H 'x-csrf-token: x-csrf-protection' \
-            -d "$(jq -n --arg e "$PANGOLIN_ADMIN_EMAIL" \
-                     --arg p "$PANGOLIN_ADMIN_PASSWORD" \
-                     '{email: $e, password: $p}')" >/dev/null
-
-          code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
-            ${api}/org/${orgId} || true)
-          if [ "$code" != "200" ]; then
-            echo "creating org ${orgId}"
-            curl -sf -b "$JAR" -X PUT ${api}/org \
-              -H 'Content-Type: application/json' \
-              -H 'x-csrf-token: x-csrf-protection' \
-              -d "$(jq -n \
-                --arg orgId ${orgId} \
-                --arg name ${orgName} \
-                --arg subnet ${orgSubnet} \
-                --arg utilitySubnet ${orgUtilitySubnet} \
-                '{orgId: $orgId, name: $name, subnet: $subnet,
-                  utilitySubnet: $utilitySubnet}')" >/dev/null
-          fi
-
-          ${lib.concatStringsSep "\n" (lib.mapAttrsToList ensureSite siteIds)}
-          ${ensureIdp}
-        '';
-      };
     };
 
     eclairNixosModules.newt = {
