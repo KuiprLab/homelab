@@ -72,8 +72,8 @@ _: {
               "--health-start-period=10s"
               "--health-timeout=90s"
               "--network-alias=gluetun"
-              # Pinned IP so the gluetun pod has a stable, named identity in
-              # Pi-hole (slskd share this netns via
+              # Pinned IP so the gluetun pod has a stable, named identity in the
+              # DNS query log (slskd share this netns via
               # --network=container:gluetun). No --dns override: gluetun manages
               # its own resolver for VPN egress.
               "--network=proxy:ip=10.89.0.20"

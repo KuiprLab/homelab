@@ -5,7 +5,7 @@
 # every *.int.kuipr.de name over the tunnel to caddy's loopback:443, where TLS
 # terminates and the request is proxied to the backend named in the matching
 # flake.pangolinVirtualHosts entry. LAN clients reach the same listener
-# directly (pihole answers *.int.kuipr.de with 192.168.0.85), so no pangolin
+# directly (the LAN resolver answers *.int.kuipr.de with 192.168.0.85), so no pangolin
 # client is needed at home — same FQDN, same certificate, same app session
 # either way.
 #
@@ -113,9 +113,8 @@ in {
               # Bunny DNS-01: no listener needed, names resolve only on LAN.
               acme_dns bunny {env.BUNNY_API_KEY}
               # DNS-01 propagation checks must hit public resolvers, not the
-              # system ones (resolv.conf → dnsmasq): dnsmasq hangs on CNAME
-              # queries under its address=/.int.kuipr.de/ wildcard and cannot
-              # see the public TXT records anyway.
+              # local one (resolv.conf → technitium): the ACME TXT records are
+              # public and deliberately not part of the LAN zone.
               tls_resolvers 1.1.1.1 8.8.8.8
             '';
             virtualHosts =
