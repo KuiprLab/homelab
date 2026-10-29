@@ -62,16 +62,11 @@ in {
     networking = {
       firewall = {
         enable = true;
-        # 5353 = mDNS. AirPlay: 5000 TCP (RTSP control), 6000/6001 UDP
-        # (audio), 319/320 UDP (timing).
+        # 5353 = mDNS, shared by avahi and the host-networked Home Assistant
+        # container.
         allowedUDPPorts = [
           5353
-          6000
-          6001
-          319
-          320
         ];
-        allowedTCPPorts = [5000];
       };
       hostName = "sorbet";
       networkmanager.enable = true;
@@ -152,16 +147,6 @@ in {
 
     security.rtkit.enable = true;
 
-    systemd.user.services = {
-      shairport-sync = {
-        wantedBy = ["default.target"];
-        after = ["pipewire.service" "pipewire-pulse.service"];
-        # the backend is named "pulseaudio"; the "pa" shorthand is not valid
-        serviceConfig.ExecStart = "${pkgs.shairport-sync}/bin/shairport-sync -a 'Home Mini' -o pulseaudio";
-        serviceConfig.Restart = "on-failure";
-      };
-    };
-
     # Services
     services = {
       avahi = {
@@ -169,10 +154,7 @@ in {
         nssmdns4 = true;
         # Announce only on the LAN NIC, not on the podman/incus bridges.
         allowInterfaces = ["enp0s31f6"];
-        publish = {
-          enable = true;
-          userServices = true;
-        };
+        publish.enable = true;
       };
       hardware.openrgb = {
         enable = true;

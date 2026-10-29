@@ -1,3 +1,6 @@
+# Not containerized: long-lived bot with host tooling on its PATH, no listener,
+# and it writes into /var/lib dirs the beets units watch.
+#
 # homelab-bot -- Discord bot for the lab.
 #
 # The package is built from source in this same directory (_package.nix), so

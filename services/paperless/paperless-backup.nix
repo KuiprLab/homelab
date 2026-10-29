@@ -1,7 +1,7 @@
 # Off-box backup for paperless-ngx (sorbet).
 #
 # One chain, one signal:
-#   paperless-exporter.service   (nixpkgs `services.paperless.exporter`)
+#   paperless-exporter.service   (podman one-shot, same image as the web container)
 #     └─ onSuccess → paperless-backup.service:
 #          rclone sync of the export dir to the remote, pinging
 #          healthchecks.io (/start … success | /fail).
@@ -10,8 +10,8 @@
 # manifest in a version-portable format restorable with `document_importer`.
 # Deliberately unzipped: an unzipped export makes the rclone sync incremental
 # (only changed files transfer); the exporter's --delete keeps it a clean
-# mirror. The exporter stops the paperless services while it runs (upstream
-# behavior), which is fine at 01:30.
+# mirror. It runs against the live database rather than stopping the web
+# container the way upstream's exporter did — see the unit for why.
 #
 # Failure handling — the part that matters for a token-expiring remote:
 #   - export fails  → backup never runs → missed ping → healthchecks.io → Gotify
@@ -27,9 +27,10 @@
 #      is needed here: a dead sorbet is caught by the host heartbeat check.
 #   2. Restore drill (a backup you've never restored is a guess): on a fresh
 #      paperless instance run
-#      `paperless-manage document_importer /media/data/Paperless-export`,
-#      then `paperless-manage document_thumbnails` (exports skip thumbnails;
-#      they regenerate from the originals).
+#      `podman run --rm -v /media/data/Paperless-export:/usr/src/paperless/export
+#       <paperless image> document_importer ../export`,
+#      then `document_thumbnails` (exports skip thumbnails; they regenerate
+#      from the originals).
 #
 # Remote: gdrive (already in secrets/sorbet/rclone).
 _: {
@@ -43,6 +44,11 @@ _: {
       "gdrive:paperless-backup"
     ];
     exportDir = "/media/data/Paperless-export";
+    # Same image as the web container (services/paperless/paperless.nix). Kept in
+    # sync by hand: the exporter must run the code that wrote the database.
+    image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:9bc6e8248891bcfa6f52fffe8b81e4ea8cae75790c3ec1b9906961a7ba55c969";
+    dataDir = "/var/lib/paperless";
+    mediaDir = "/media/data/data/Paperless-data";
     # Writable copy of the sops-rendered rclone config: rclone writes
     # refreshed OAuth tokens back to the config between runs, which the
     # read-only sops file can't absorb.
@@ -66,68 +72,100 @@ _: {
       };
     };
 
-    services.paperless.exporter = {
-      enable = true;
-      directory = exportDir;
-      onCalendar = "01:30:00";
-      settings = {
+    # document_exporter, not a volume copy: it writes originals + metadata +
+    # manifest in a version-portable format restorable with document_importer.
+    #
+    # Runs the same image as the web container as a one-shot. Deliberately
+    # against the *live* database instead of stopping the web container the way
+    # upstream's exporter did: the run is at 01:30 and nobody consumes documents
+    # then, so a torn read is not a realistic risk and the UI keeps its uptime.
+    # Do not "fix" this back to stop/start.
+    systemd = {
+      services.paperless-exporter = {
+        description = "Export paperless-ngx documents for the off-box backup";
+        after = ["podman-paperless.service"];
         # Defaults kept: --no-progress-bar --no-color --compare-checksums
         # --delete. No --zip (would defeat the incremental sync).
-        # Thumbnails are one tiny webp per document — a huge file count,
-        # which is the painful part for the iCloud sync. They're
-        # deterministically regenerable from the originals (see restore
-        # drill above), so skip them; --delete prunes existing ones from
-        # the export (and the remotes, via the sync) on the first run.
-        "no-thumbnail" = true;
-      };
-    };
-
-    # Push off-box only after a *successful* export; on export failure the
-    # missed ping is the alert. Merges with upstream's OnSuccess (which
-    # restarts the paperless services).
-    systemd.services.paperless-exporter.onSuccess = ["paperless-backup.service"];
-
-    systemd.services.paperless-backup = {
-      description = "Push paperless export off-box via rclone + ping healthchecks.io";
-      after = ["network-online.target"];
-      wants = ["network-online.target"];
-      serviceConfig = {
-        Type = "oneshot";
-        User = "paperless";
-        StateDirectory = "paperless-backup";
-        ExecStart = pkgs.writeShellScript "paperless-backup" ''
+        # Thumbnails are one tiny webp per document — a huge file count, which is
+        # the painful part for the iCloud sync. They are deterministically
+        # regenerable from the originals (see restore drill above), so skip them;
+        # --delete prunes existing ones from the export (and the remotes, via the
+        # sync) on the first run.
+        script = ''
           set -eu
-
-          PING_URL=$(cat ${config.sops.secrets."healthchecks/paperless-backup".path})
-          hc() {
-            ${pkgs.curl}/bin/curl -fsS --max-time 10 --retry 3 "$1" >/dev/null
-          }
-
-          hc "$PING_URL/start" || true
-
-          install -m 0600 ${config.sops.secrets."rclone/paperless".path} \
-            /var/lib/paperless-backup/rclone.conf
-
-          # --transfers 2 / --checkers 4: keep the request rate low so the
-          # remotes' rate limits don't trip on the nightly run.
-          failed=""
-          for target in ${lib.escapeShellArgs remotes}; do
-            if ! ${pkgs.rclone}/bin/rclone sync \
-              --config /var/lib/paperless-backup/rclone.conf \
-              --fast-list --transfers 2 --checkers 4 \
-              ${exportDir} "$target"
-            then
-              echo "rclone sync to $target failed" >&2
-              failed=1
-            fi
-          done
-
-          if [ -n "$failed" ]; then
-            hc "$PING_URL/fail" || true
-            exit 1
-          fi
-          hc "$PING_URL"
+          exec ${pkgs.podman}/bin/podman run --rm \
+            --network podman \
+            -e USERMAP_UID=${toString config.users.users.paperless.uid} \
+            -e USERMAP_GID=${toString config.users.groups.paperless.gid} \
+            -e PAPERLESS_REDIS=redis://redis:6379 \
+            -e PAPERLESS_DBENGINE=sqlite \
+            -v ${dataDir}:/usr/src/paperless/data \
+            -v ${mediaDir}:/usr/src/paperless/media \
+            -v ${exportDir}:/usr/src/paperless/export \
+            ${image} \
+            document_exporter ../export \
+              --no-thumbnail --no-progress-bar --no-color --compare-checksums --delete
         '';
+        serviceConfig = {
+          Type = "oneshot";
+          # Rootful podman; the container itself runs as the paperless uid.
+          User = "root";
+        };
+        # Push off-box only after a *successful* export; on export failure the
+        # missed ping is the alert.
+        onSuccess = ["paperless-backup.service"];
+      };
+
+      timers.paperless-exporter = {
+        wantedBy = ["timers.target"];
+        timerConfig = {
+          OnCalendar = "01:30:00";
+          Persistent = true;
+        };
+      };
+
+      services.paperless-backup = {
+        description = "Push paperless export off-box via rclone + ping healthchecks.io";
+        after = ["network-online.target"];
+        wants = ["network-online.target"];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "paperless";
+          StateDirectory = "paperless-backup";
+          ExecStart = pkgs.writeShellScript "paperless-backup" ''
+            set -eu
+
+            PING_URL=$(cat ${config.sops.secrets."healthchecks/paperless-backup".path})
+            hc() {
+              ${pkgs.curl}/bin/curl -fsS --max-time 10 --retry 3 "$1" >/dev/null
+            }
+
+            hc "$PING_URL/start" || true
+
+            install -m 0600 ${config.sops.secrets."rclone/paperless".path} \
+              /var/lib/paperless-backup/rclone.conf
+
+            # --transfers 2 / --checkers 4: keep the request rate low so the
+            # remotes' rate limits don't trip on the nightly run.
+            failed=""
+            for target in ${lib.escapeShellArgs remotes}; do
+              if ! ${pkgs.rclone}/bin/rclone sync \
+                --config /var/lib/paperless-backup/rclone.conf \
+                --fast-list --transfers 2 --checkers 4 \
+                ${exportDir} "$target"
+              then
+                echo "rclone sync to $target failed" >&2
+                failed=1
+              fi
+            done
+
+            if [ -n "$failed" ]; then
+              hc "$PING_URL/fail" || true
+              exit 1
+            fi
+            hc "$PING_URL"
+          '';
+        };
       };
     };
   };

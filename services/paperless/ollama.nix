@@ -1,28 +1,40 @@
+# Ollama in podman: CPU-only embedding server backing the paperless-ngx RAG
+# index. No LLM here on purpose — 8B-class models pin every core for minutes on
+# this box.
+#
+# Models live on the big disk (/media/data), not the small SSD. The container
+# runs as root and owns the tree; the old unit's pre-start chown existed only to
+# keep a host user and the mount in sync, which no longer applies.
+#
+# Paperless reaches this by aardvark name (http://ollama:11434). The loopback
+# publish exists for host-side checks only.
 _: {
-  flake.nixosModules.ollama = {
-    # CPU-only embedding server backing paperless-ngx RAG index
-    # (nomic-embed-text, ~300M resident). No LLM here on purpose —
-    # 8B-class models pin every core for minutes on this box.
-    services.ollama = {
-      enable = true;
-      modelsDir = "/media/data/ollama"; # big disk, not the small SSD
-      # Pin a persistent user so modelsDir ownership is stable.
-      user = "ollama";
-    };
-
-    systemd.services.ollama = {
-      serviceConfig = {
-        Restart = "on-failure"; # don't stay dead after an OOM blip
-        # Embedding-only now: embeddinggemma ~0.8G resident + runtime.
-        MemoryMax = "2G";
-
-        # modelsDir is on a separate mount. A tmpfiles "d" rule can't fix the
-        # owner of a pre-existing directory, so enforce it as root (+ prefix)
-        # before the server starts; the ollama user exists by then.
-        ExecStartPre = [
-          "+/bin/sh -c 'mkdir -p /media/data/ollama && /run/current-system/sw/bin/chown ollama:ollama /media/data/ollama'"
-        ];
+  flake.nixosModules.ollama = {lib, ...}: {
+    # 2G covers embeddinggemma (~0.8G resident) plus the runtime.
+    virtualisation.oci-containers.containers.ollama = {
+      image = "docker.io/ollama/ollama:latest@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429";
+      volumes = [
+        "/media/data/ollama:/root/.ollama"
+      ];
+      ports = ["127.0.0.1:11434:11434"];
+      environment = {
+        OLLAMA_HOST = "0.0.0.0:11434";
+        OLLAMA_MODELS = "/root/.ollama";
       };
+      log-driver = "journald";
+      extraOptions = [
+        "--memory=2g"
+        # The client inside the image talks to the server over loopback; the
+        # server itself is bound to 0.0.0.0 so paperless can reach it.
+        "--health-cmd=OLLAMA_HOST=127.0.0.1:11434 ollama list"
+        "--health-interval=60s"
+        "--health-on-failure=kill"
+        "--health-retries=3"
+        "--health-start-period=30s"
+        "--health-timeout=30s"
+      ];
     };
+
+    systemd.services."podman-ollama".serviceConfig.Restart = lib.mkOverride 90 "on-failure";
   };
 }

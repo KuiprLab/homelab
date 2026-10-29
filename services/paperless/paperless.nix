@@ -1,3 +1,19 @@
+# Paperless-ngx in podman: web, Tika, Gotenberg and Redis.
+#
+# The nixpkgs module used to run all four as host units (Tika and Gotenberg via
+# configureTika, Redis over a unix socket). Upstream ships and tests these as
+# four containers, so the split is now explicit here.
+#
+# UIDs: the image's entrypoint remaps its internal `paperless` user only when it
+# starts as root, so the web container does that and hands it USERMAP_UID/GID of
+# this host's paperless user. Files in the three bind mounts therefore keep the
+# 315:315 owner the native units used, and the exporter (step 4) can write into
+# /media/data/Paperless-export as the same identity.
+#
+# Secrets: the OIDC blob is systemd-escaped single-line JSON, which `podman
+# --env-file` does not unescape. It is instead loaded into the podman unit with
+# EnvironmentFile= (systemd unescapes it, as it always did) and forwarded with
+# `--env=PAPERLESS_SOCIALACCOUNT_PROVIDERS`, podman's pass-through form.
 _: {
   flake = {
     pangolinVirtualHosts."paperless" = {
@@ -7,55 +23,188 @@ _: {
       port = 28981;
     };
 
-    nixosModules.paperless = {config, ...}: {
+    nixosModules.paperless = {
+      lib,
+      config,
+      ...
+    }: let
+      dataDir = "/var/lib/paperless"; # database and index
+      mediaDir = "/media/data/data/Paperless-data"; # document originals
+      consumeDir = "/media/data/Paperless-ingest";
+      oidcSecret = config.sops.secrets."paperless/oidc".path;
+      # Image-internal paths; the volume map below is what makes them real.
+      containerData = "/usr/src/paperless/data";
+      containerMedia = "/usr/src/paperless/media";
+      containerConsume = "/usr/src/paperless/consume";
+      uid = toString config.users.users.paperless.uid;
+      gid = toString config.users.groups.paperless.gid;
+
+      # One healthcheck shape for the three sidecars: podman does not inherit
+      # image HEALTHCHECKs and its first check fires before the process listens,
+      # so the command retries internally (~30s) before reporting.
+      tcpProbe = port: "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/${toString port} 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+    in {
       # OIDC client secret for Authelia. The allauth provider config has no
       # env-var indirection for the secret, so the whole
-      # PAPERLESS_SOCIALACCOUNT_PROVIDERS JSON (single line, quotes
-      # systemd-escaped) lives in this sops file.
+      # PAPERLESS_SOCIALACCOUNT_PROVIDERS JSON lives in this sops file.
       sops.secrets."paperless/oidc" = {
         sopsFile = ../../secrets/sorbet/paperless-oidc;
         format = "binary";
         key = "";
-        # paperless-manage (run as the paperless user by the exporter)
-        # sources this file; the web services read it via EnvironmentFile=,
-        # which systemd reads as root — paperless ownership is fine for all.
+        # Read by the root-owned podman unit; paperless ownership is kept so the
+        # exporter could source it too.
         owner = "paperless";
+        restartUnits = ["podman-paperless.service"];
       };
 
-      services.paperless = {
-        enable = true;
-        consumptionDir = "/media/data/Paperless-ingest";
-        consumptionDirIsPublic = true;
-        mediaDir = "/media/data/data/Paperless-data"; # Where to store the documents
-        domain = "paperless.int.kuipr.de"; # The domain to use for the Paperless web interface
-        dataDir = "/var/lib/paperless"; # Where to store the database and other state
-        environmentFile = config.sops.secrets."paperless/oidc".path;
-        configureTika = true; # Whether to configure Tika and Gotenberg to process Office and e-mail files with OCR.
-        settings = {
-          PAPERLESS_OCR_LANGUAGE = "deu+eng"; # Languages to use for OCR (Tesseract)
-          PAPERLESS_TIME_ZONE = "Europe/Berlin"; # Time zone for the Paperless web interface
-          PAPERLESS_PAGINATION = "50"; # Number of documents per page in the web interface
-          PAPERLESS_PAGINATION_MAX = "100"; # Maximum number of documents per page in the web interface
-          PAPERLESS_PAGINATION_MIN = "10"; # Minimum number of documents per page in the web interface
-          PAPERLESS_TIKA_ENABLED = true; # Whether to enable Tika for processing Office and e-mail files
-          PAPERLESS_URL = "https://paperless.int.kuipr.de"; # The URL to use for the Paperless web interface
-          PAPERLESS_LOGOUT_REDIRECT_URL = "https://auth.ext.kuipr.de/logout";
-          PAPERLESS_APPS = "allauth.socialaccount.providers.openid_connect";
-          PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https";
-          PAPERLESS_ACCOUNT_EMAIL_VERIFICATION = "none"; # no mail server
-          PAPERLESS_SOCIAL_AUTO_SIGNUP = true; # auto-create account on first login
-          PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins"; # Authelia group that grants superuser on login
-          PAPERLESS_DISABLE_REGULAR_LOGIN = true; # hide and block username/password login
-          PAPERLESS_REDIRECT_LOGIN_TO_SSO = true; # skip the login page, go straight to Authelia
-          PAPERLESS_AI_ENABLED = true; # RAG-only: embedding index via local ollama (services/ollama.nix)
-          # No LLM on purpose — even 360M models make CPU-bound suggestion
-          # calls; the ai_suggestions button 400s, which is expected.
-          PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
-          PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
-          # Must be a literal IP: paperless' pinned-host transport connects to
-          # the first resolved address, and "localhost" resolves to ::1 while
-          # ollama binds 127.0.0.1 only.
-          PAPERLESS_AI_LLM_EMBEDDING_ENDPOINT = "http://127.0.0.1:11434";
+      # The nixpkgs module created this user and group. Pin their ids so the
+      # existing 315:315 ownership of /var/lib/paperless, /media/data/Paperless-*
+      # stays valid and the container can keep using USERMAP_UID/GID.
+      users.users.paperless = {
+        isSystemUser = true;
+        group = "paperless";
+        uid = 315;
+      };
+      users.groups.paperless.gid = 315;
+
+      virtualisation.oci-containers.containers = {
+        # ---- web ----
+        paperless = {
+          image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:9bc6e8248891bcfa6f52fffe8b81e4ea8cae75790c3ec1b9906961a7ba55c969";
+          volumes = [
+            "${dataDir}:${containerData}"
+            "${mediaDir}:${containerMedia}"
+            "${consumeDir}:${containerConsume}"
+          ];
+          ports = ["127.0.0.1:28981:8000"];
+          environment = {
+            # The image's entrypoint drops to the mapped user itself.
+            USERMAP_UID = uid;
+            USERMAP_GID = gid;
+            GRANIAN_HOST = "0.0.0.0";
+            GRANIAN_PORT = "8000";
+            GRANIAN_WORKERS = "1";
+            PAPERLESS_REDIS = "redis://redis:6379";
+            PAPERLESS_DATA_DIR = containerData;
+            PAPERLESS_MEDIA_ROOT = containerMedia;
+            PAPERLESS_CONSUMPTION_DIR = containerConsume;
+            PAPERLESS_TIKA_ENABLED = "true";
+            PAPERLESS_TIKA_ENDPOINT = "http://tika:9998";
+            PAPERLESS_GOTENBERG_ENABLED = "true";
+            PAPERLESS_TIKA_GOTENBERG_ENDPOINT = "http://gotenberg:3000";
+            PAPERLESS_OCR_LANGUAGE = "deu+eng"; # Tesseract languages
+            PAPERLESS_TIME_ZONE = "Europe/Berlin";
+            PAPERLESS_URL = "https://paperless.int.kuipr.de";
+            PAPERLESS_PAGINATION = "50";
+            PAPERLESS_PAGINATION_MAX = "100";
+            PAPERLESS_PAGINATION_MIN = "10";
+            PAPERLESS_LOGOUT_REDIRECT_URL = "https://auth.ext.kuipr.de/logout";
+            PAPERLESS_APPS = "allauth.socialaccount.providers.openid_connect";
+            PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https";
+            PAPERLESS_ACCOUNT_EMAIL_VERIFICATION = "none"; # no mail server
+            PAPERLESS_SOCIAL_AUTO_SIGNUP = "true"; # auto-create account on first login
+            PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins"; # Authelia group that grants superuser
+            PAPERLESS_DISABLE_REGULAR_LOGIN = "true"; # hide and block password login
+            PAPERLESS_REDIRECT_LOGIN_TO_SSO = "true"; # straight to Authelia
+            PAPERLESS_AI_ENABLED = "true"; # RAG-only: embedding index via ollama
+            # No LLM on purpose — even 360M models make CPU-bound suggestion
+            # calls; the ai_suggestions button 400s, which is expected.
+            PAPERLESS_AI_LLM_EMBEDDING_BACKEND = "ollama";
+            PAPERLESS_AI_LLM_EMBEDDING_MODEL = "embeddinggemma"; # multilingual (good for deu docs)
+            PAPERLESS_AI_LLM_EMBEDDING_ENDPOINT = "http://ollama:11434";
+          };
+          log-driver = "journald";
+          extraOptions = [
+            # Pass-through: the value comes from the unit's EnvironmentFile
+            # (systemd unescapes the sops blob, `--env-file` would not).
+            "--env=PAPERLESS_SOCIALACCOUNT_PROVIDERS"
+            "--health-cmd=sh -c 'n=0; until curl -fsS -o /dev/null http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=3m"
+            "--health-timeout=30s"
+          ];
+        };
+
+        # ---- sidecars ----
+        # Names are prefixed to avoid squatting generic names on the shared
+        # podman network; the network aliases are what the web container uses.
+        paperless-tika = {
+          image = "docker.io/apache/tika:latest@sha256:b99f19c4fd76237dafe7d22f719b9bddfa9a449da687c597a41e2f6d9a595418";
+          log-driver = "journald";
+          extraOptions = [
+            "--network-alias=tika"
+            (tcpProbe 9998)
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=1m"
+            "--health-timeout=10s"
+          ];
+        };
+
+        paperless-gotenberg = {
+          image = "docker.io/gotenberg/gotenberg:8@sha256:13672f317b443c793e972b1bd2155ec62a3e7b6891b411e8196442cc053ee5f5";
+          log-driver = "journald";
+          extraOptions = [
+            "--network-alias=gotenberg"
+            (tcpProbe 3000)
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=1m"
+            "--health-timeout=10s"
+          ];
+        };
+
+        # Broker and result backend. Nothing here needs to survive a restart:
+        # the task queue is empty at boot and the results are transients.
+        paperless-redis = {
+          image = "docker.io/library/redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5";
+          log-driver = "journald";
+          extraOptions = [
+            "--network-alias=redis"
+            "--health-cmd=redis-cli ping"
+            "--health-interval=30s"
+            "--health-on-failure=kill"
+            "--health-retries=3"
+            "--health-start-period=10s"
+            "--health-timeout=10s"
+          ];
+        };
+      };
+
+      systemd = {
+        tmpfiles.rules = [
+          "d ${dataDir} 0755 paperless paperless - -"
+          "d ${mediaDir} 2775 paperless paperless - -"
+          "d ${consumeDir} 0777 paperless paperless - -"
+          "d /media/data/Paperless-export 0755 paperless paperless - -"
+        ];
+
+        services = let
+          sidecars = ["podman-paperless-redis.service" "podman-paperless-tika.service" "podman-paperless-gotenberg.service"];
+        in {
+          "podman-paperless" = {
+            # Redis and ollama are hard needs (no queue, no embeddings without
+            # them); the converters are soft so a Tika crash cannot take the UI
+            # down with it.
+            requires = ["podman-ollama.service" "podman-paperless-redis.service"];
+            after = ["podman-ollama.service"] ++ sidecars;
+            wants = ["podman-paperless-tika.service" "podman-paperless-gotenberg.service"];
+            wantedBy = ["multi-user.target"];
+            # systemd, not podman, owns restarts.
+            serviceConfig = {
+              Restart = lib.mkOverride 90 "always";
+              # The sops blob is read here and forwarded with --env (see above).
+              EnvironmentFile = [oidcSecret];
+            };
+          };
+
+          "podman-paperless-tika".serviceConfig.Restart = lib.mkOverride 90 "always";
+          "podman-paperless-gotenberg".serviceConfig.Restart = lib.mkOverride 90 "always";
+          "podman-paperless-redis".serviceConfig.Restart = lib.mkOverride 90 "always";
         };
       };
     };
