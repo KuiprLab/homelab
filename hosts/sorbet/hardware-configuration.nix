@@ -6,18 +6,15 @@ _: {
     ...
   }: {
     imports = [
-      # Include the results of the hardware scan.
       (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
-    # Boot loader
     boot = {
       loader = {
         systemd-boot.enable = true;
         efi.canTouchEfiVariables = true;
       };
 
-      # Use latest kernel.
       kernelPackages = pkgs.linuxPackages_latest;
 
       initrd = {

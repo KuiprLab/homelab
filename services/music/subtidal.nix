@@ -1,10 +1,3 @@
-# Subtidal — runs on sorbet.
-#
-# It used to live on eclair "for faster connection speeds" (traffic terminated on
-# the VPS and never crossed the house uplink). Measured 2026-10-28: 127 MB of
-# egress in 4 days, so the rationale did not hold, and it was the largest swapped
-# consumer on a 1 GB box (193 MB of pages vs 27 MB resident). Stream traffic now
-# goes eclair → pangolin tunnel → sorbet's uplink.
 _: {
   flake = {
     pangolinVirtualHosts."subtidal" = {
@@ -16,10 +9,7 @@ _: {
     };
 
     nixosModules.subtidal = {config, ...}: let
-      # Pinned, not auto-allocated: the data directory and the config secret are
-      # owned by this uid, and NixOS system users without an explicit uid can
-      # shift when another module adds one. uid/gid 986 are unused on sorbet.
-      # Not 1000 — that is `daniel` here, an interactive account.
+      # pinned, not auto-allocated: 986 is unused on sorbet and is not 1000 (daniel)
       uid = 986;
       gid = 986;
     in {
@@ -34,7 +24,6 @@ _: {
         sopsFile = ../../secrets/sorbet/subtidal.toml;
         format = "binary";
         key = "";
-        # 0400 + owner: readable only by the container user, not world-readable.
         owner = "subtidal";
         mode = "0400";
         restartUnits = ["podman-subtidal.service"];
@@ -56,13 +45,8 @@ _: {
             SUBTIDAL_TOKEN_FILE = "/data/tokens.json";
             RUST_LOG = "info";
           };
-          # Podman does not inherit image HEALTHCHECKs — mirror the upstream
-          # one explicitly (curl → 127.0.0.1:8000/rest/ping).
-          # Unhealthy → podman kills the container; systemd's Restart recreates it.
+          # podman ignores image HEALTHCHECK; retry the first check or activation fails
           extraOptions = [
-            # Retry inside the command: podman's first check fires immediately at
-            # start, and a failed transient-unit check aborts NixOS activations
-            # (this actually failed a deploy — Rust boot is slower than the check).
             "--health-cmd=curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null"
             "--health-interval=30s"
             "--health-on-failure=kill"

@@ -3,16 +3,6 @@ _: {
     nixosModules.unifi = _: {
       imports = [../../pkgs/unifi-os-server-image/module.nix];
 
-      # services.unifi-os-server = {
-      #   enable = true;
-      #   package = pkgs.callPackage ../pkgs/unifi-os-server-image {
-      #     sha256 = "sha256-2xdlbyItNx2l+W7RBOM1A74WynVYF/EmQJtn2ACbFBk=";
-      #   };
-      #   systemIp = "192.168.0.85";
-      #   openFirewall = true;
-      # };
-
-      # Important:
       # SSH into device with username/password: ubnt/ubnt
       # set-inform http://192.168.0.85:8080/inform
       virtualisation.oci-containers = {
@@ -30,12 +20,7 @@ _: {
           ];
           ports = [
             "127.0.0.1:11443:443"
-            # Device/portal ports: bound to the LAN IP, not 0.0.0.0. APs and
-            # other devices talk to UOS_SYSTEM_IP (192.168.0.85, see the
-            # set-inform note above), so LAN-side behavior is unchanged —
-            # and LAN-local bindings keep the ports off any overlay network
-            # that gets added later. (Loopback-only would break device
-            # adoption, which is why these aren't 127.0.0.1 like the UI.)
+            # LAN IP, not loopback: device adoption talks to UOS_SYSTEM_IP.
             "192.168.0.85:5005:5005"
             "192.168.0.85:9543:9543"
             "192.168.0.85:6789:6789"
@@ -59,14 +44,7 @@ _: {
           };
 
           image = "ghcr.io/lemker/unifi-os-server:latest@sha256:c0136d42d238b9574d93676aada3f61971ffb6bcbe2a3050627a9fa7ced7c878";
-          # TCP-only probe: the UOS image has no verified curl/wget, but bash's
-          # /dev/tcp is guaranteed on its Ubuntu base. Proves the UniFi portal
-          # (nginx) accepts connections; real HTTP checks stay with gatus.
-          # Retry inside the command (subshell fd-open failure): podman's first
-          # check fires immediately at start and a failed transient-unit check
-          # aborts NixOS activations, while systemd inside the container boots
-          # the whole UniFi stack. Unhealthy → podman kills → systemd Restart
-          # recreates.
+          # The image has no curl/wget; a failed check aborts activation, so retry with /dev/tcp.
           extraOptions = [
             "--health-cmd=bash -c 'n=0; until (exec 3<>/dev/tcp/127.0.0.1/443) 2>/dev/null; do n=$((n+1)); [ $n -ge 30 ] && exit 1; sleep 5; done'"
             "--health-interval=30s"
@@ -77,7 +55,6 @@ _: {
             "--cgroupns=host"
             "--cap-add=NET_RAW"
             "--cap-add=NET_ADMIN"
-            # tmpfs mounts
             "--tmpfs=/run:exec"
             "--tmpfs=/run/lock"
             "--tmpfs=/tmp:exec"

@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-# Converge Technitium DNS/DHCP state through its REST API.
-#
-# The nixpkgs module (services.technitium-dns-server) only defines the unit; it
-# has no configuration options. Everything else lives in Technitium's mutable
-# state dir and is applied here: forwarders, blocking, the int.kuipr.de zone,
-# the DHCP scope, the Authelia OIDC login. Every call is an idempotent
-# overwrite, not an append, so the unit can run on every boot and on every
-# change.
-#
-# Bootstrap: the server unit passes the sops password as
-# DNS_SERVER_ADMIN_PASSWORD, which Technitium only honours while it creates
-# auth.config on a fresh state dir. The converge script still falls back to the
-# built-in admin/admin login once, for a state dir created before this wiring.
-#
-# The desired state arrives as environment variables from the unit (see
-# _module.nix); this file carries none of its own.
 
 set -euo pipefail
 
@@ -43,9 +27,7 @@ login() {
     jq -r 'select(.status == "ok") | .token // empty' || true
 }
 
-# Technitium binds its web service late on a cold boot. Wait for it
-# without logging in: five failed logins from one address block the
-# client for 300 seconds, which would lock out the bootstrap below.
+# Do not log in while waiting: five failed logins block the client for 300s.
 ready=false
 for _ in $(seq 1 60); do
   if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:5380/ 2>/dev/null; then
@@ -61,8 +43,7 @@ fi
 
 token="$(login "$password")"
 if [ -z "$token" ]; then
-  # State dir created before DNS_SERVER_ADMIN_PASSWORD was wired up: the
-  # built-in admin/admin login is still active exactly once.
+  # State dir from before DNS_SERVER_ADMIN_PASSWORD: admin/admin still works once.
   session="$(login admin)"
   if [ -n "$session" ]; then
     curl -fsS --max-time 10 -G -H "Authorization: Bearer $session" \
@@ -83,7 +64,6 @@ api() {
   curl -fsS --max-time 30 -G -H "Authorization: Bearer $token" "$base$path" "$@"
 }
 
-# apply <path> [args...]: one API call that must report status ok.
 apply() {
   local path=$1 response
   shift
@@ -95,9 +75,6 @@ apply() {
   printf '%s' "$response"
 }
 
-# --- DNS settings -------------------------------------------------------
-# Each parameter is an overwrite of the current value, so sending the
-# full desired set every run converges instead of accumulating.
 set_args=()
 while IFS=$'\t' read -r key value; do
   set_args+=(--data-urlencode "$key=$value")
@@ -107,21 +84,16 @@ before="$(api /settings/get | jq -r '(.response.blockListUrls // []) | join(",")
 updated="$(apply /settings/set "${set_args[@]}")"
 after="$(jq -r '(.response.blockListUrls // []) | join(",")' <<<"$updated")"
 
-# Download the lists now only when the set changed; otherwise the
-# server refreshes them on its own schedule.
 if [ "$after" != "$before" ]; then
   apply /settings/forceUpdateBlockLists >/dev/null
 fi
 
-# --- int.kuipr.de -------------------------------------------------------
 # An existing zone makes this call fail, which is the steady state.
 api /zones/create \
   --data-urlencode "zone=$zone" \
   --data-urlencode type=Primary >/dev/null 2>&1 || true
 
-# overwrite=true assigns the record set instead of appending a second A
-# record on every run. The wildcard is the LAN split-horizon for every
-# *.int.kuipr.de name.
+# overwrite=true assigns the record set instead of appending a second A record.
 for domain in "$zone" "*.$zone"; do
   apply /zones/records/add \
     --data-urlencode "zone=$zone" \
@@ -132,9 +104,7 @@ for domain in "$zone" "*.$zone"; do
     --data-urlencode overwrite=true >/dev/null
 done
 
-# --- DHCP scope ---------------------------------------------------------
-# A fresh state dir ships a `Default` scope (192.168.1.0/24). Two enabled
-# scopes on one interface is a coin flip, so drop it.
+# A fresh state dir ships a `Default` scope (192.168.1.0/24); drop it.
 api /dhcp/scopes/delete --data-urlencode name=Default >/dev/null 2>&1 || true
 
 apply /dhcp/scopes/set \
@@ -150,8 +120,7 @@ apply /dhcp/scopes/set \
 
 scope="$(api /dhcp/scopes/get --data-urlencode "name=$scope_name" 2>/dev/null || true)"
 while IFS=$'\t' read -r mac address host; do
-  # The API answers hardware addresses with dashes, the scope set call
-  # takes colons: normalise both sides before comparing.
+  # The API answers dash-separated MACs, the scope set call wants colons.
   present="$(jq -r --arg mac "$mac" \
     '[(.response.reservedLeases // [])[]
       | select((((.hardwareAddress // "") | ascii_upcase) | gsub("-"; ":")) == ($mac | ascii_upcase))] | length' \
@@ -164,8 +133,7 @@ while IFS=$'\t' read -r mac address host; do
     --data-urlencode "hostName=$host" >/dev/null
 done < <(jq -r '.[] | [.hardwareAddress, .ipAddress, .hostName] | @tsv' <<<"$leases_json")
 
-# Enabling an already-enabled scope is undocumented, so tolerate a
-# rejection here and verify the end state through the scope list.
+# Enabling an already-enabled scope is undocumented: tolerate the rejection.
 api /dhcp/scopes/enable --data-urlencode "name=$scope_name" >/dev/null 2>&1 || true
 enabled="$(api /dhcp/scopes/list |
   jq -r --arg name "$scope_name" '[.response.scopes[] | select(.name == $name)][0].enabled // false')"
@@ -176,10 +144,7 @@ fi
 
 echo "converged: dns settings, $zone zone, dhcp scope $scope_name"
 
-# --- Single sign-on (Authelia OIDC) -------------------------------------
-# Last, because applying the SSO config restarts the web service. The
-# API masks the client secret on read, so gate on a hash of the whole
-# desired tuple instead of comparing the live config.
+# Last: applying SSO restarts the web service; the API masks the secret, so hash it.
 sso_secret="${TECHNITIUM_SSO_CLIENT_SECRET:-}"
 if [ -z "$sso_secret" ]; then
   echo "TECHNITIUM_SSO_CLIENT_SECRET is missing; leaving SSO alone" >&2

@@ -7,8 +7,6 @@ export const ping: Command = {
   description: "Check that the bot is alive and how fast it is responding",
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    // createdTimestamp is when Discord received the command, so this measures
-    // the whole round trip rather than just our own handler.
     const roundtrip = Date.now() - interaction.createdTimestamp;
     const gateway = Math.round(interaction.client.ws.ping);
 

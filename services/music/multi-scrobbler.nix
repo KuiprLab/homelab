@@ -42,25 +42,12 @@ _: {
         ];
         environment = {
           TZ = "Europe/Berlin";
-          # Used as base for OAuth redirect URIs (Spotify, Last.fm).
           BASE_URL = "https://scrobble.int.kuipr.de";
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         ports = ["127.0.0.1:9078:9078"];
-        # The linuxserver base image ships curl. Probe the UI root — /api/health
-        # answers 500 whenever any source/client is down, which would restart-loop
-        # on a broken (not hung) source. Retry inside the command: podman's first
-        # check fires immediately at start, and a failed transient-unit check
-        # aborts NixOS activations. Unhealthy → podman kills → systemd Restart
-        # recreates.
-        #
-        # Per-container DNS attribution: aardvark-dns (the default podman DNS
-        # proxy) forwards upstream with no client identity, so the query log
-        # would show the bridge gateway (10.88.0.1) for every container.
-        # Pointing --dns at the LAN resolver sends the query from this
-        # container's pinned IP (ip= option) instead. NOTE: this bypasses
-        # aardvark, so podman's inter-container name resolution is not
-        # available.
+        # probe / not /api/health: that answers 500 while any source is down
+        # retry: podman's first check fires immediately; pinned IP + --dns keep attribution
         extraOptions = [
           "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
           "--health-interval=30s"

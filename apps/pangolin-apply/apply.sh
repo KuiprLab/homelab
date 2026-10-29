@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# Pangolin org/site/IdP bootstrap, run once per boot on eclair.
-#
-#   1. ensure the org exists (create-if-missing, never BatchUpdate)
-#   2. ensure the sites exist, with our pinned newtId + fresh secret
-#   3. ensure the Authelia IdP is registered
-#
-# Safely re-runs: everything it creates already returns a real status if it
-# already exists. Credentials come from sops, and the admin password is only
-# ever used for a localhost login.
-#
-# Every identifier arrives as an environment variable from the unit (see
-# _module.nix); this file carries no configuration of its own.
 
 set -euo pipefail
 
@@ -26,7 +14,6 @@ sites="$PANGOLIN_SITES"
 jar=$(mktemp)
 trap 'rm -f "$jar"' EXIT
 
-# Wait for the API to answer (pangolin boots before it is ready).
 for _ in $(seq 1 60); do
   if curl -sf -o /dev/null "$api/"; then break; fi
   sleep 2
@@ -60,9 +47,7 @@ if [ "$code" != "200" ]; then
         utilitySubnet: $utilitySubnet}')" >/dev/null
 fi
 
-# niceId and newtId are pinned to the site key, so the pangolin database
-# matches the --id the site's newt is started with; the secret is a fresh
-# sops value and the only part that ever needs rotating.
+# Pin niceId and newtId to the site key so the DB matches newt's --id.
 mapfile -t site_list < <(jq -r 'keys[]' <<<"$sites")
 for site in "${site_list[@]}"; do
   nice_id=$(jq -r --arg s "$site" '.[$s].niceId' <<<"$sites")
@@ -85,9 +70,7 @@ for site in "${site_list[@]}"; do
   fi
 done
 
-# Authelia (services/infrastructure/authelia.nix) is the OIDC issuer. Its
-# `pangolin` client hardcodes the redirect URL, which embeds the idpId
-# assigned here (1 on a fresh DB).
+# Authelia's `pangolin` client hardcodes the redirect URL (idpId 1 on a fresh DB).
 if curl -sf -b "$jar" "$api/idp" |
   jq -e --arg n "$PANGOLIN_IDP_NAME" \
     '[.data.idps[]? | select(.name == $n)] | length > 0' >/dev/null; then

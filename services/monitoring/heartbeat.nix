@@ -1,30 +1,3 @@
-# Not containerized: a curl oneshot on a systemd timer. Nothing to isolate.
-#
-# Heartbeat / dead-man's switch via healthchecks.io.
-#
-# Each host runs a systemd timer that curls a unique check URL every 5 min.
-# If a host is fully dead (power, kernel panic, lost network) and stops
-# pinging, healthchecks.io alerts. Delivery goes to Gotify
-# (gotify.ext.kuipr.de), except sorbet's check must also have an out-of-band
-# (email) integration: Gotify runs on sorbet, so a dead sorbet cannot deliver
-# its own alert.
-#
-# Setup:
-#   1. Create two checks at https://healthchecks.io/ (one per host).
-#      Suggested period: 5min, grace: 5min.
-#   2. Add a Webhook integration to both checks:
-#        URL:    https://gotify.ext.kuipr.de/message?token=<healthchecks app token>
-#        Method: POST
-#        Header: Content-Type: application/json
-#        Body:   {"title": $NAME_JSON, "message": "$NAME is $STATUS", "priority": 8}
-#      Add an email integration to sorbet's check as the out-of-band fallback.
-#   3. Encrypt the ping URL into the per-host sops file:
-#      - secrets/sorbet/healthchecks  (raw URL, e.g. https://hc-ping.com/<uuid>)
-#      - secrets/eclair/healthchecks  (raw URL, e.g. https://hc-ping.com/<uuid>)
-#      Use the same age key already configured (.sops.yaml).
-#
-# The URL itself is the only auth token healthchecks.io uses, so we treat
-# it as a secret to keep it out of git.
 _: let
   mkHeartbeatModule = {sopsFile}: {
     config,
@@ -45,8 +18,6 @@ _: let
       wants = ["network-online.target"];
       serviceConfig = {
         Type = "oneshot";
-        # Use $(cat <secret>) to inline the URL. --max-time short so a
-        # network blip doesn't hold up the timer; --retry handles transients.
         ExecStart = pkgs.writeShellScript "heartbeat-ping" ''
           set -eu
           URL=$(cat ${config.sops.secrets."healthchecks/url".path})
@@ -63,8 +34,6 @@ _: let
       timerConfig = {
         OnBootSec = "1min";
         OnUnitActiveSec = "5min";
-        # Add small randomization so two hosts don't ping simultaneously
-        # (helps healthchecks.io rate-limiting heuristics).
         RandomizedDelaySec = "30s";
         Persistent = true;
       };

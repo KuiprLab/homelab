@@ -3,6 +3,5 @@ creation_rules:
     age: null
     key_groups:
       - age:
-          # sorbet age key (from op://Personal/sorbet.nix/Private Key)
           - age1pdgfrwphxlpr87qrxd3qqkdrzqufh0tqnzkpak8szkkflh09uf2sjm8llt
 onepassworditem: op://Personal/sorbet.nix/Private Key

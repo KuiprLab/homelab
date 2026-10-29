@@ -1,12 +1,3 @@
-# Not containerized: a reconciler that drives the technitium unit through its
-# REST API. It has to run where the resolver's loopback API is.
-#
-# technitium-converge -- apply Technitium's desired state through its REST API.
-#
-# The nixpkgs module (services.technitium-dns-server) only defines the unit and
-# has no configuration options, so forwarders, blocking, zones, the DHCP scope
-# and the SSO login are reconciled imperatively. Called from
-# services/technitium.nix, which owns the desired state.
 {
   apiUrl,
   dhcpScope,
@@ -46,9 +37,8 @@ in {
 
     serviceConfig = {
       Type = "oneshot";
-      # Changed ExecStart restarts the unit on switch.
+      # Holds the SSO config hash; changed ExecStart restarts the unit on switch.
       RemainAfterExit = true;
-      # Holds the SSO config hash.
       StateDirectory = "technitium-converge";
       ExecStart = lib.getExe converge;
     };

@@ -1,7 +1,3 @@
-# Not containerized: an rclone oneshot that reads the navidrome container's
-# state dir from the host and pushes it to gdrive.
-#
-# Navidrome backup sync to Google Drive via rclone
 _: {
   flake.nixosModules.musicGdriveSync = {
     pkgs,

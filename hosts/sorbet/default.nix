@@ -4,21 +4,16 @@
   lib,
   ...
 }: let
-  # Shared nixpkgs config
   nixpkgsConfig = {
     allowUnfree = true;
     allowBroken = false;
     allowUnsupportedSystem = false;
   };
 
-  # Overlays
   overlays = [
   ];
 
-  # Helper to collect all modules from an attrset
-  # sorbetConfiguration and sorbetHardwareConfiguration are declared
-  # explicitly below; skip them in the bulk collection so they do not
-  # merge twice (list options like podman subnets would duplicate).
+  # sorbetConfiguration/HardwareConfiguration are listed explicitly; merging them twice duplicates lists.
   collectModules = attrs: lib.attrValues (lib.filterAttrs (n: v: v != {} && n != "sorbetConfiguration" && n != "sorbetHardwareConfiguration") attrs);
 in {
   flake = {
@@ -31,22 +26,17 @@ in {
         [
           self.nixosModules.sorbetConfiguration
           self.nixosModules.sorbetHardwareConfiguration
-          # Core modules
           inputs.home-manager.nixosModules.home-manager
           inputs.determinate.nixosModules.default
 
           inputs.sops-nix.nixosModules.sops
-          # Nixpkgs configuration
           {
             nixpkgs.config = nixpkgsConfig;
             nixpkgs.overlays = overlays;
           }
 
-          # Record the exact commit the system was built from. Useful for
-          # drift checks.
           {system.configurationRevision = self.rev or self.dirtyRev or null;}
 
-          # Home Manager shared modules
           {
             home-manager = {
               useGlobalPkgs = true;

@@ -7,17 +7,9 @@ import {
 import type { Subcommand } from "../../feature.ts";
 import { checks, GatusError, type Check } from "./gatus.ts";
 
-/** Green while everything passes, red the moment anything does not. */
 const HEALTHY = 0x2ecc71;
 const FAILING = 0xe74c3c;
 
-/**
- * What gatus currently thinks of the lab.
- *
- * The pull side of monitoring on purpose: gatus already pushes its own alerts
- * to Discord when something breaks, and what that cannot answer is "is it
- * broken right now", asked from a phone.
- */
 export const status: Subcommand = {
   name: "status",
   description: "Show what gatus currently thinks of the lab",
@@ -64,8 +56,6 @@ function build(all: readonly Check[]): ContainerBuilder {
     ),
   );
 
-  // Failures first and on their own, so the thing that is wrong is not
-  // something you have to find inside a list of groups.
   if (down.length > 0) {
     container.addSeparatorComponents((separator) =>
       separator.setSpacing(SeparatorSpacingSize.Small),
@@ -112,7 +102,6 @@ function byGroup(all: readonly Check[]): ReadonlyMap<string, Check[]> {
   return groups;
 }
 
-/** gatus probes on its own schedule, so a stale result is worth spotting. */
 function ago(at: Date): string {
   const seconds = Math.round((Date.now() - at.getTime()) / 1000);
   if (seconds < 90) return `${String(seconds)}s ago`;

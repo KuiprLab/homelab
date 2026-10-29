@@ -3,27 +3,15 @@
   config,
   ...
 }: let
-  # Server-side identifiers that would otherwise only exist in the pangolin
-  # database. Everything below is created once by the pangolin-apply oneshot
-  # (apps/pangolin-apply) and must match the values newts use to connect.
-  # Rotating newt secrets is the only piece that needs a manual sops edit;
-  # newt IDs are stable by design. Exported as flake.pangolinServer so the
-  # apply step reads the same values this config is built from.
   orgId = "kuiprde";
   orgName = "kuipr.de";
-  # Default ranges shipped by pangolin (pick-org-defaults endpoint).
   orgSubnet = "100.90.128.0/20";
   orgUtilitySubnet = "100.96.128.0/20";
-  # Local API as seen from eclair itself; the port is config.yml's
-  # server.external_port.
   apiUrl = "http://127.0.0.1:3000/api/v1";
   dashboardDomain = "pangolin.ext.kuipr.de";
   baseDomain = "kuipr.de";
-  # Authelia is the OIDC issuer (services/infrastructure/authelia.nix).
   oidcIssuer = "https://auth.ext.kuipr.de";
-  # Tunnel sites: one newt per entry. niceId is also the newt --id; secretEnv
-  # names the variable holding the newt secret in
-  # secrets/eclair/pangolin-apply.env.
+  # niceId is also the newt --id; secretEnv names the variable in secrets/eclair/pangolin-apply.env.
   sites = {
     eclair = {
       niceId = "eclair";
@@ -34,9 +22,6 @@
       secretEnv = "NEWT_SECRET_SORBET";
     };
   };
-  # blueprint niceIds: the attribute names of flake.pangolinVirtualHosts
-  # become the resource niceIds on the pangolin server. NiceIds are the key
-  # the blueprint upsert matches on, so renaming an attribute = new resource.
 in {
   options.flake = {
     pangolinVirtualHosts = lib.mkOption {
@@ -368,8 +353,6 @@ in {
 
     forSite = site: lib.filterAttrs (_nick: v: v.site == site) vhosts;
 
-    # Country allow-list as blueprint resource rules: `pass` keeps the normal
-    # auth flow for allowed countries, the trailing `deny` catches the rest.
     # Priorities must be unique; 1000 leaves room for hand-written rules.
     geoRules =
       lib.imap0 (i: cc: {
@@ -386,10 +369,7 @@ in {
         priority = 1000;
       };
 
-    # ASN deny-list as blueprint resource rules. One rule per ASN: the engine
-    # compares the looked-up ASN against a single value
-    # (isIpInAsn in server/routers/badger/verifySession.ts), so there is no
-    # wildcard. 500+ keeps these ahead of the country catch-all.
+    # One rule per ASN: the engine matches a single value, there is no wildcard.
     asnRules =
       lib.imap0 (i: asn: {
         action = "deny";
@@ -399,16 +379,8 @@ in {
       })
       config.flake.pangolinAsnDeny;
 
-    # Dashboard labels, so resources can be filtered/grouped in pangolin's UI.
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
 
-    # exit-node client-resources for a site: full-tunnel access for pangolin
-    # clients (replaces a tailscale subnet router). Schema: mode "exit-node"
-    # (server.mjs PrivateResourceSchema, alias of "gateway") — no destination
-    # required, all TCP/UDP ports + ICMP always allowed; users are email
-    # addresses, roles are org role ids. Admins always have access.
-
-    # Shared rendering bits
     healthcheckFor = {
       hostname,
       port,
@@ -427,9 +399,6 @@ in {
       "follow-redirects" = true;
     };
 
-    # host client-resources: raw L4 routes to one machine on the site's
-    # network. The alias (wildcards allowed) is what clients resolve; the
-    # wildcard route into caddy is the reason these exist.
     hostResourcesFor = site:
       lib.mapAttrs (_nick: r:
         {
@@ -445,18 +414,12 @@ in {
         // r.extra)
       (lib.filterAttrs (_: r: r.site == site) hostRoutes);
 
-    # > private: moderately-documented client-resources; applied through the
-    # newt of the site listed in vh.site. Plain private vhosts are not
-    # included: caddy on sorbet serves those (services/caddy.nix) and the
-    # wildcard host resource above routes them. Only entries with an explicit
-    # pangolin mode (ssh) remain real client-resources.
+    # Plain private vhosts are served by caddy on sorbet; only explicit modes are real client-resources.
     clientResources = site:
       lib.mapAttrs (_nick: vh:
         lib.recursiveUpdate
         {
           inherit (vh) name;
-          # client (site) resources in http mode: pangolin terminates TLS for
-          # the full domain and forwards through the site's newt connection.
           mode = "http";
           destination = vh.hostname;
           "destination-port" = vh.port;

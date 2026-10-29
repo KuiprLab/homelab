@@ -21,8 +21,6 @@ export const interactionCreate: Event<typeof Events.InteractionCreate> = {
 async function runCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-  // A command with subcommands is never invoked on its own, so the handler is
-  // identified by the whole path, not just the command name.
   const group = interaction.options.getSubcommandGroup(false);
   const subcommand = interaction.options.getSubcommand(false);
   const path = [interaction.commandName, group, subcommand]
@@ -31,7 +29,6 @@ async function runCommand(
 
   const execute = resolve(interaction.commandName, group, subcommand);
   if (execute === undefined) {
-    // Discord still advertises a command this build no longer answers.
     console.warn(`Ignoring unknown command /${path}`);
     return;
   }
@@ -50,7 +47,6 @@ async function runCommand(
 async function runButton(interaction: ButtonInteraction): Promise<void> {
   const execute = resolveButton(interaction.customId);
   if (execute === undefined) {
-    // Discord is showing a button this build no longer answers.
     console.warn(`Ignoring unknown button "${interaction.customId}"`);
     return;
   }
@@ -69,7 +65,6 @@ async function runButton(interaction: ButtonInteraction): Promise<void> {
 async function runModal(interaction: ModalSubmitInteraction): Promise<void> {
   const execute = resolveModal(interaction.customId);
   if (execute === undefined) {
-    // A modal this build no longer answers was still open in someone's client.
     console.warn(`Ignoring unknown modal "${interaction.customId}"`);
     return;
   }
@@ -85,12 +80,6 @@ async function runModal(interaction: ModalSubmitInteraction): Promise<void> {
   }
 }
 
-/**
- * Discord closes the interaction after three seconds, so a failure that
- * arrives late has to go out as a follow-up instead of a reply. Showing a
- * modal counts as having replied, so a handler that fails after opening one
- * lands here too.
- */
 async function reportFailure(
   interaction:
     ChatInputCommandInteraction | ButtonInteraction | ModalSubmitInteraction,
