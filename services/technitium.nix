@@ -9,9 +9,10 @@
 # the full desired state on boot and whenever this file changes; every call is
 # an idempotent overwrite, not an append.
 #
-# Bootstrap: on a fresh state dir Technitium still answers with the built-in
-# admin/admin login. The unit logs in with the sops password and falls back to
-# admin/admin once to set that password.
+# Bootstrap: the unit passes the sops password as
+# DNS_SERVER_ADMIN_PASSWORD, which Technitium only honours while it creates
+# auth.config on a fresh state dir. The converge script still falls back to the
+# built-in admin/admin login once, for a state dir created before this wiring.
 #
 # Consumers:
 #   * DHCP hands 192.168.0.85 out as resolver for the LAN (option 6).
@@ -35,6 +36,11 @@ _: let
   settings = {
     # SOA/NS name of this server inside the local zone.
     dnsServerDomain = "sorbet.${zone}";
+    # Never bind the wildcard. podman's aardvark-dns and incus' dnsmasq hold
+    # :53 on their bridge addresses, and a 0.0.0.0 bind (the Technitium
+    # default) then fails with EADDRINUSE. These are the only two addresses
+    # that need to answer: the LAN and the host itself.
+    dnsServerLocalEndPoints = "${serverIp}:53,127.0.0.1:53";
     # Forwarding (not recursion): the upstream behaviour stays as it was.
     forwarders = "1.1.1.1,9.9.9.9";
     forwarderProtocol = "Udp";
@@ -55,8 +61,9 @@ _: let
     startingAddress = "192.168.0.2";
     endingAddress = "192.168.0.254";
     subnetMask = "255.255.255.0";
-    leaseTimeDays = 0;
-    leaseTimeHours = 24;
+    # 24 h leases: the API rejects hours outside 0-23.
+    leaseTimeDays = 1;
+    leaseTimeHours = 0;
     routerAddress = "192.168.0.1";
   };
 
@@ -102,7 +109,7 @@ in {
         # shellcheck disable=SC1091
         . ${config.sops.secrets."technitium.env".path}
         set +a
-        password="$TECHNITIUM_ADMIN_PASSWORD"
+        password="$DNS_SERVER_ADMIN_PASSWORD"
 
         login() {
           curl -fsS --max-time 10 -G "$BASE/user/login" \
@@ -111,30 +118,38 @@ in {
             | jq -r 'select(.status == "ok") | .token // empty' || true
         }
 
-        # Technitium binds its web service late on a cold boot. On a fresh state
-        # dir only the built-in admin/admin login works; set the sops password
-        # once and continue with it.
-        token=""
+        # Technitium binds its web service late on a cold boot. Wait for it
+        # without logging in: five failed logins from one address block the
+        # client for 300 seconds, which would lock out the bootstrap below.
+        ready=false
         for _ in $(seq 1 60); do
-          token="$(login "$password")"
-          [ -n "$token" ] && break
+          if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:5380/ 2>/dev/null; then
+            ready=true
+            break
+          fi
           sleep 2
         done
+        if [ "$ready" != true ]; then
+          echo "technitium web service is not reachable on 5380" >&2
+          exit 1
+        fi
+
+        token="$(login "$password")"
         if [ -z "$token" ]; then
-          token="$(login admin)"
-          if [ -z "$token" ]; then
-            echo "cannot authenticate to technitium" >&2
-            exit 1
+          # State dir created before DNS_SERVER_ADMIN_PASSWORD was wired up: the
+          # built-in admin/admin login is still active exactly once.
+          session="$(login admin)"
+          if [ -n "$session" ]; then
+            curl -fsS --max-time 10 -G -H "Authorization: Bearer $session" \
+              "$BASE/user/changePassword" \
+              --data-urlencode pass=admin \
+              --data-urlencode "newPass=$password" >/dev/null
+            token="$(login "$password")"
           fi
-          curl -fsS --max-time 10 -G -H "Authorization: Bearer $token" \
-            "$BASE/user/changePassword" \
-            --data-urlencode pass=admin \
-            --data-urlencode "newPass=$password" >/dev/null
-          token="$(login "$password")"
-          if [ -z "$token" ]; then
-            echo "technitium password change did not take effect" >&2
-            exit 1
-          fi
+        fi
+        if [ -z "$token" ]; then
+          echo "technitium rejected the sops admin password" >&2
+          exit 1
         fi
 
         api() {
@@ -193,6 +208,10 @@ in {
         done
 
         # --- DHCP scope -----------------------------------------------------
+        # A fresh state dir ships a `Default` scope (192.168.1.0/24). Two enabled
+        # scopes on one interface is a coin flip, so drop it.
+        api /dhcp/scopes/delete --data-urlencode name=Default >/dev/null 2>&1 || true
+
         apply /dhcp/scopes/set \
           --data-urlencode "name=$SCOPE_NAME" \
           --data-urlencode "startingAddress=${dhcpScope.startingAddress}" \
@@ -243,12 +262,14 @@ in {
 
     services.technitium-dns-server.enable = true;
     # Ports are opened by services/infrastructure/dns-fallback.nix.
-    # DHCP serves as soon as the scope exists, so the unit must not start
-    # before enp0s31f6 has its address; the module only orders against
-    # network.target.
+    # DHCP serves as soon as the scope exists, so the unit must not start before
+    # enp0s31f6 has its address; the module only orders against network.target.
     systemd.services.technitium-dns-server = {
       after = ["network-online.target"];
       wants = ["network-online.target"];
+      # Only read while Technitium creates auth.config on a fresh state dir;
+      # afterwards the password lives in auth.config.
+      serviceConfig.EnvironmentFile = config.sops.secrets."technitium.env".path;
     };
 
     systemd.services.technitium-converge = {
