@@ -99,16 +99,15 @@ in {
           services.caddy = {
             enable = true;
             # A reload cannot change the admin endpoint. The admin port is
-            # moved to 2020 for the Tidal Connect binary
-            # (services/music/tidal-connect.nix), so activation must restart.
+            # pinned to 2020 (not the 2019 default), so activation must
+            # restart the unit.
             enableReload = false;
             package = pkgs.caddy.withPlugins {
               plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
               hash = "sha256-ymMx2tSs9hgRji+KalPig/rdPiFqbjaLO3UFwZYPggI=";
             };
             globalConfig = ''
-              # Port 2019 is the default admin endpoint, but the iFi Tidal
-              # Connect binary hard-codes 2019 for its control websocket.
+              # Pinned admin endpoint; Caddy's default is 2019.
               admin localhost:2020
               # Bunny DNS-01: no listener needed, names resolve only on LAN.
               acme_dns bunny {env.BUNNY_API_KEY}
