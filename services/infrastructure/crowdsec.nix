@@ -67,7 +67,11 @@ _: {
       };
     };
 
-    networking.nftables.enable = true;
+    networking = {
+      nftables.enable = true;
+      # traefik runs in gerbil's netns; it reaches the loopback LAPI through the bridge.
+      firewall.interfaces.podman0.allowedTCPPorts = [9090];
+    };
 
     # Counter names must be `processed` and `crowdsec[6]-blacklists-*` for the metrics collector.
     networking.nftables.tables = {
@@ -149,6 +153,21 @@ _: {
             "fe80::/10"
           ]}
         '';
+      };
+    };
+
+    # traefik runs in gerbil's netns, so the loopback LAPI needs a bridge-side entry point.
+    systemd.services.crowdsec-lapi-proxy = {
+      description = "Expose the CrowdSec LAPI on the podman bridge";
+      wantedBy = ["multi-user.target"];
+      after = ["crowdsec.service"];
+      wants = ["crowdsec.service"];
+      # podman0 only exists once a container has started; the bind has to be retried until then.
+      startLimitIntervalSec = 0;
+      serviceConfig = {
+        ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:9090,bind=10.88.0.1,fork,reuseaddr TCP:127.0.0.1:9090";
+        Restart = "always";
+        RestartSec = 3;
       };
     };
 

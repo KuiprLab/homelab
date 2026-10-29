@@ -493,6 +493,19 @@ in {
       ...
     }: let
       configDir = "/var/lib/pangolin/config";
+      lapiKeyFile = "/var/lib/pangolin/crowdsec-lapi-key";
+
+      banPage = pkgs.writeText "ban.html" ''
+        <!doctype html>
+        <meta charset="utf-8">
+        <title>Access denied</title>
+        <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111;color:#eee;font:16px/1.6 system-ui,sans-serif}main{max-width:32rem;padding:2rem;text-align:center}h1{font-size:1.5rem;font-weight:600}</style>
+        <main>
+          <h1>Access denied</h1>
+          <p>Your address is blocked at the edge after automated behaviour analysis.</p>
+          <p>The block expires automatically.</p>
+        </main>
+      '';
 
       yaml = pkgs.formats.yaml {};
 
@@ -527,9 +540,15 @@ in {
           };
           file.filename = "/etc/traefik/dynamic_config.yml";
         };
-        experimental.plugins.badger = {
-          moduleName = "github.com/fosrl/badger";
-          version = "v1.7.0";
+        experimental.plugins = {
+          badger = {
+            moduleName = "github.com/fosrl/badger";
+            version = "v1.7.0";
+          };
+          crowdsec = {
+            moduleName = "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin";
+            version = "v1.8.1";
+          };
         };
         accessLog = {};
         certificatesResolvers.letsencrypt.acme = {
@@ -545,7 +564,7 @@ in {
             transport.respondingTimeouts.readTimeout = "30m";
             http = {
               tls.certResolver = "letsencrypt";
-              middlewares = ["sec-headers@file"];
+              middlewares = ["crowdsec@file" "sec-headers@file"];
               encodedCharacters = {
                 allowEncodedSlash = true;
                 allowEncodedQuestionMark = true;
@@ -560,6 +579,22 @@ in {
         http = {
           middlewares = {
             redirect-to-https.redirectScheme.scheme = "https";
+            # traefik shares gerbil's netns, so it reaches the LAPI over the podman bridge.
+            crowdsec.plugin.crowdsec = {
+              enabled = true;
+              logLevel = "INFO";
+              crowdsecMode = "live";
+              crowdsecLapiScheme = "http";
+              crowdsecLapiHost = "10.88.0.1:9090";
+              crowdsecLapiKeyFile = "/etc/traefik/lapi-key";
+              updateIntervalSeconds = 15;
+              # -1 in live mode lets a request through when the LAPI is unreachable or rejects
+              # the key, so a CrowdSec outage cannot take the public edge down with it.
+              updateMaxFailure = -1;
+              defaultDecisionSeconds = 15;
+              httpTimeoutSeconds = 10;
+              banHTMLFilePath = "/etc/traefik/ban.html";
+            };
             sec-headers.headers = {
               stsSeconds = 31536000;
               stsIncludeSubdomains = true;
@@ -621,8 +656,54 @@ in {
           networking.firewall.allowedUDPPorts = [51820];
 
           systemd = {
-            services."podman-pangolin".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
-            services."podman-traefik".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+            services = {
+              "podman-pangolin".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+              "podman-traefik" = {
+                after = ["crowdsec-traefik-bouncer.service"];
+                wants = ["crowdsec-traefik-bouncer.service"];
+                serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+              };
+
+              # The key file is the source of truth: cscli keeps no copy of an issued key.
+              crowdsec-traefik-bouncer = {
+                description = "Register the CrowdSec bouncer that pangolin's traefik uses";
+                wantedBy = ["multi-user.target"];
+                after = ["crowdsec.service"];
+                wants = ["crowdsec.service"];
+                path = [
+                  config.services.crowdsec.package
+                  pkgs.openssl
+                  pkgs.systemd
+                ];
+                serviceConfig = {
+                  Type = "oneshot";
+                  RemainAfterExit = true;
+                };
+                script = ''
+                  set -eu
+
+                  if [ -s ${lapiKeyFile} ]; then
+                    if cscli bouncers inspect traefik-bouncer >/dev/null 2>&1; then
+                      exit 0
+                    fi
+                    # Re-add with the stored key, or a running traefik is left holding a dead one.
+                    cscli bouncers add traefik-bouncer --key "$(cat ${lapiKeyFile})" >/dev/null
+                    exit 0
+                  fi
+
+                  key=$(openssl rand -hex 32)
+                  cscli bouncers delete traefik-bouncer >/dev/null 2>&1 || true
+                  cscli bouncers add traefik-bouncer --key "$key" >/dev/null
+                  printf '%s' "$key" > ${lapiKeyFile}
+                  chmod 0400 ${lapiKeyFile}
+
+                  if systemctl is-active --quiet podman-traefik.service; then
+                    systemctl --no-block restart podman-traefik.service
+                  fi
+                '';
+              };
+            };
+
             tmpfiles.settings."10-pangolin-paths" = {
               "/var/lib/pangolin".d = {
                 user = "root";
@@ -643,6 +724,12 @@ in {
                 user = "root";
                 group = "root";
                 mode = "0700";
+              };
+              # Must exist before the container starts, or podman creates a directory here.
+              "${lapiKeyFile}".f = {
+                user = "root";
+                group = "root";
+                mode = "0400";
               };
             };
           };
@@ -709,6 +796,8 @@ in {
                     "${traefikStatic}:/etc/traefik/traefik_config.yml:ro"
                     "${traefikDynamic}:/etc/traefik/dynamic_config.yml:ro"
                     "${configDir}/letsencrypt:/letsencrypt"
+                    "${banPage}:/etc/traefik/ban.html:ro"
+                    "${lapiKeyFile}:/etc/traefik/lapi-key:ro"
                   ];
                   cmd = ["--configFile=/etc/traefik/traefik_config.yml"];
                   extraOptions = ["--network=container:gerbil" "--env=BUNNY_API_KEY"];
