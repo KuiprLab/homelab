@@ -56,6 +56,16 @@ _: let
     blockListUpdateIntervalHours = 24;
   };
 
+  # Authelia OIDC. The client is registered in the authelia sops config; the
+  # secret is shared through secrets/sorbet/technitium.env.
+  sso = {
+    authority = "https://auth.ext.kuipr.de";
+    clientId = "technitium";
+    scopes = "openid|profile|email|groups";
+    # Remote group -> Technitium group. `daniel` is in `admin` in authelia.
+    groupMap = "admin|Administrators";
+  };
+
   dhcpScope = {
     name = "lan";
     startingAddress = "192.168.0.2";
@@ -250,6 +260,32 @@ in {
         fi
 
         echo "converged: dns settings, $ZONE zone, dhcp scope $SCOPE_NAME"
+
+        # --- Single sign-on (Authelia OIDC) ---------------------------------
+        # Last, because applying the SSO config restarts the web service. The
+        # API masks the client secret on read, so gate on a hash of the whole
+        # desired tuple instead of comparing the live config.
+        sso_secret="''${TECHNITIUM_SSO_CLIENT_SECRET:-}"
+        if [ -z "$sso_secret" ]; then
+          echo "TECHNITIUM_SSO_CLIENT_SECRET is missing; leaving SSO alone" >&2
+        else
+          sso_hash="$(printf '%s' "${sso.authority}|${sso.clientId}|$sso_secret|${sso.scopes}|${sso.groupMap}" \
+            | sha256sum | cut -d' ' -f1)"
+          sso_hash_file=/var/lib/technitium-converge/sso.hash
+          if [ ! -f "$sso_hash_file" ] || [ "$(< "$sso_hash_file")" != "$sso_hash" ]; then
+            apply /admin/sso/set \
+              --data-urlencode ssoEnabled=true \
+              --data-urlencode "ssoAuthority=${sso.authority}" \
+              --data-urlencode "ssoClientId=${sso.clientId}" \
+              --data-urlencode "ssoClientSecret=$sso_secret" \
+              --data-urlencode "ssoScopes=${sso.scopes}" \
+              --data-urlencode ssoAllowSignup=true \
+              --data-urlencode ssoAllowSignupOnlyForMappedUsers=true \
+              --data-urlencode "ssoGroupMap=${sso.groupMap}" >/dev/null
+            echo "$sso_hash" > "$sso_hash_file"
+            echo "applied SSO config"
+          fi
+        fi
       '';
     };
   in {
@@ -281,6 +317,8 @@ in {
         Type = "oneshot";
         # Changed ExecStart (this file edited) restarts the unit on switch.
         RemainAfterExit = true;
+        # Holds the SSO config hash.
+        StateDirectory = "technitium-converge";
         ExecStart = lib.getExe converge;
       };
     };
