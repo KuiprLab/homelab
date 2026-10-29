@@ -588,7 +588,9 @@ in {
               crowdsecLapiHost = "10.88.0.1:9090";
               crowdsecLapiKeyFile = "/etc/traefik/lapi-key";
               updateIntervalSeconds = 15;
-              updateMaxFailure = 0;
+              # -1 in live mode lets a request through when the LAPI is unreachable or rejects
+              # the key, so a CrowdSec outage cannot take the public edge down with it.
+              updateMaxFailure = -1;
               defaultDecisionSeconds = 15;
               httpTimeoutSeconds = 10;
               banHTMLFilePath = "/etc/traefik/ban.html";
@@ -662,25 +664,42 @@ in {
                 serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
               };
 
-              # cscli does not keep issued keys, so a missing file means re-registering the bouncer.
+              # The key file is the source of truth: cscli keeps no copy of an issued key.
               crowdsec-traefik-bouncer = {
                 description = "Register the CrowdSec bouncer that pangolin's traefik uses";
                 wantedBy = ["multi-user.target"];
                 after = ["crowdsec.service"];
                 wants = ["crowdsec.service"];
-                path = [config.services.crowdsec.package];
+                path = [
+                  config.services.crowdsec.package
+                  pkgs.openssl
+                  pkgs.systemd
+                ];
                 serviceConfig = {
                   Type = "oneshot";
                   RemainAfterExit = true;
                 };
                 script = ''
                   set -eu
-                  if [ -s ${lapiKeyFile} ] && cscli bouncers inspect traefik-bouncer >/dev/null 2>&1; then
+
+                  if [ -s ${lapiKeyFile} ]; then
+                    if cscli bouncers inspect traefik-bouncer >/dev/null 2>&1; then
+                      exit 0
+                    fi
+                    # Re-add with the stored key, or a running traefik is left holding a dead one.
+                    cscli bouncers add traefik-bouncer --key "$(cat ${lapiKeyFile})" >/dev/null
                     exit 0
                   fi
+
+                  key=$(openssl rand -hex 32)
                   cscli bouncers delete traefik-bouncer >/dev/null 2>&1 || true
-                  cscli bouncers add traefik-bouncer -o raw | tr -d '\n' > ${lapiKeyFile}
+                  cscli bouncers add traefik-bouncer --key "$key" >/dev/null
+                  printf '%s' "$key" > ${lapiKeyFile}
                   chmod 0400 ${lapiKeyFile}
+
+                  if systemctl is-active --quiet podman-traefik.service; then
+                    systemctl --no-block restart podman-traefik.service
+                  fi
                 '';
               };
             };
