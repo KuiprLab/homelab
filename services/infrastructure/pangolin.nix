@@ -341,6 +341,30 @@ in {
               };
             });
           };
+          standaloneHealthChecks = lib.mkOption {
+            description = ''
+              Site-scoped health checks that exist only as pangolin rows (the
+              alerting page's "standalone" checks). Blueprints carry a health
+              check per proxy-resource target only, so private resources are
+              reconciled here instead. Consumed by apps/pangolin-apply.
+            '';
+            type = lib.types.listOf (lib.types.submodule {
+              options = {
+                name = lib.mkOption {
+                  type = lib.types.str;
+                  description = "Reconcile key: a check with this name is created, updated or deleted.";
+                };
+                siteNiceId = lib.mkOption {type = lib.types.str;};
+                hcHostname = lib.mkOption {type = lib.types.str;};
+                hcPort = lib.mkOption {type = lib.types.port;};
+                hcScheme = lib.mkOption {type = lib.types.enum ["http" "https"];};
+                hcPath = lib.mkOption {type = lib.types.str;};
+                hcInterval = lib.mkOption {type = lib.types.int;};
+                hcUnhealthyInterval = lib.mkOption {type = lib.types.int;};
+              };
+            });
+            default = [];
+          };
         };
       };
     };
@@ -380,6 +404,29 @@ in {
       config.flake.pangolinAsnDeny;
 
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
+
+    # Probes hit the vhost domain over TLS, so DNS, caddy, the certificate and
+    # the backend are all in the path. The name is both the reconcile key and
+    # what alerts show, hence the uniqueness guard below.
+    standaloneHealthChecks = let
+      checks =
+        lib.mapAttrsToList (_: vh: {
+          inherit (vh) name;
+          siteNiceId = vh.site;
+          hcHostname = vh.subdomain;
+          hcPort = 443;
+          hcScheme = "https";
+          hcPath = vh.healthcheck.path;
+          hcInterval = vh.healthcheck.interval;
+          hcUnhealthyInterval = vh.healthcheck."unhealthy-interval";
+        })
+        (lib.filterAttrs (_: vh: vh.private && vh.site == "sorbet" && !(vh.extra ? mode)) vhosts);
+      names = map (c: c.name) checks;
+      dupes = lib.filter (n: lib.count (x: x == n) names > 1) (lib.unique names);
+    in
+      if dupes != []
+      then throw "pangolin: private vhost names key the health checks, make them unique: ${lib.concatStringsSep ", " dupes}"
+      else checks;
 
     healthcheckFor = {
       hostname,
@@ -485,6 +532,7 @@ in {
         oidcIssuer
         sites
         ;
+      inherit standaloneHealthChecks;
     };
 
     eclairNixosModules.pangolin-server = {
@@ -865,6 +913,8 @@ in {
       };
 
       systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-sorbet".path;
+      # Health checks probe the vhost domains, so newt must verify the certificate too.
+      systemd.services."podman-newt".serviceConfig.Environment = ["ENFORCE_HC_CERT=true"];
 
       virtualisation.oci-containers.containers.newt = {
         image = "docker.io/fosrl/newt:1.19.1@sha256:c89f01cb387bf6c598959036cbf56306b068a43e8784345bee7398b7af8ee2e1";
