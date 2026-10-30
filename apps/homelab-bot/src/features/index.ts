@@ -11,10 +11,9 @@ import {
   type Feature,
 } from "../feature.ts";
 import { diagnostics } from "./diagnostics/index.ts";
-import { lab } from "./lab/index.ts";
 import { music } from "./music/index.ts";
 
-export const features: readonly Feature[] = [diagnostics, lab, music];
+export const features: readonly Feature[] = [diagnostics, music];
 
 interface Registered {
   readonly command: Command;

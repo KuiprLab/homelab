@@ -30,6 +30,4 @@ export const config = {
   beetsLibrary: optional("BEETS_LIBRARY"),
 
   beetsRetagDir: optional("BEETS_RETAG_DIR"),
-
-  gatusUrl: optional("GATUS_URL"),
 } as const;
