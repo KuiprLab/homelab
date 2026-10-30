@@ -10,7 +10,7 @@ _: {
     ];
     exportDir = "/media/data/Paperless-export";
     # Must match the web container's image: the exporter has to run the code that wrote the DB.
-    image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:9bc6e8248891bcfa6f52fffe8b81e4ea8cae75790c3ec1b9906961a7ba55c969";
+    image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:7c1d98afd200def9e2bad3a377d30829e8d486554b3c818995af5860114ea17f";
     dataDir = "/var/lib/paperless";
     mediaDir = "/media/data/data/Paperless-data";
     # Written by the retired nixpkgs module; the image's s6 init refuses to start without it.
