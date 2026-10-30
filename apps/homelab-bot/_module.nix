@@ -14,9 +14,6 @@
 
   retagDir = "/var/lib/beets-retag";
 
-  # Not the vhost: that sits behind authelia and answers API calls with a login page.
-  gatusUrl = "http://127.0.0.1:8888";
-
   # Same flag gates restartUnits: systemctl restart STARTS an inactive unit.
   enabled = true;
 
@@ -79,7 +76,6 @@ in {
         BEETS_HINTS_DIR = hintsDir;
         BEETS_LIBRARY = beetsLibrary;
         BEETS_RETAG_DIR = retagDir;
-        GATUS_URL = gatusUrl;
       };
 
       serviceConfig =
