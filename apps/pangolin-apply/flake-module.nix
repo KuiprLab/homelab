@@ -10,6 +10,7 @@
       orgSubnet
       orgUtilitySubnet
       sites
+      standaloneHealthChecks
       ;
   };
 }

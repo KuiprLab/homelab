@@ -7,6 +7,7 @@
   orgSubnet,
   orgUtilitySubnet,
   sites,
+  standaloneHealthChecks,
 }: {
   config,
   lib,
@@ -39,6 +40,7 @@ in {
       PANGOLIN_OIDC_ISSUER = oidcIssuer;
       PANGOLIN_EXPECTED_REDIRECT = expectedRedirect;
       PANGOLIN_SITES = builtins.toJSON sites;
+      PANGOLIN_HEALTH_CHECKS = builtins.toJSON standaloneHealthChecks;
     };
 
     serviceConfig = {

@@ -70,7 +70,85 @@ for site in "${site_list[@]}"; do
   fi
 done
 
-# Authelia's `pangolin` client hardcodes the redirect URL (idpId 1 on a fresh DB).
+# Standalone health checks: blueprints carry a check per public target only, so
+# the private probes are reconciled here against pangolin's own API.
+if [ "$(jq 'length' <<<"$PANGOLIN_HEALTH_CHECKS")" -gt 0 ]; then
+  site_ids=$(curl -sf -b "$jar" "$api/org/$org_id/sites" |
+    jq -c '[.data.sites[] | {key: .niceId, value: .siteId}] | from_entries')
+
+  unknown=$(jq -r --argjson s "$site_ids" \
+    '[.[] | select($s[.siteNiceId] == null) | .siteNiceId] | unique | join(",")' \
+    <<<"$PANGOLIN_HEALTH_CHECKS")
+  if [ -n "$unknown" ]; then
+    echo "health checks reference unknown sites: $unknown" >&2
+    exit 1
+  fi
+
+  current=$(curl -sf -b "$jar" "$api/org/$org_id/health-checks?limit=1000")
+
+  while IFS=$'\t' read -r action id body; do
+    case "$action" in
+    create)
+      echo "creating health check $(jq -r .name <<<"$body")"
+      curl -sf -b "$jar" -X PUT "$api/org/$org_id/health-check" \
+        -H 'Content-Type: application/json' \
+        -H 'x-csrf-token: x-csrf-protection' \
+        -d "$body" >/dev/null
+      ;;
+    update)
+      echo "updating health check $id"
+      curl -sf -b "$jar" -X POST "$api/org/$org_id/health-check/$id" \
+        -H 'Content-Type: application/json' \
+        -H 'x-csrf-token: x-csrf-protection' \
+        -d "$body" >/dev/null
+      ;;
+    delete)
+      echo "deleting health check $id ($body)"
+      curl -sf -b "$jar" -X DELETE "$api/org/$org_id/health-check/$id" \
+        -H 'x-csrf-token: x-csrf-protection' >/dev/null
+      ;;
+    esac
+  done < <(jq -r \
+    --argjson desired "$PANGOLIN_HEALTH_CHECKS" \
+    --argjson sites "$site_ids" '
+      def comparable: [
+        "siteId", "hcEnabled", "hcMode", "hcHostname", "hcPort", "hcPath",
+        "hcScheme", "hcMethod", "hcInterval", "hcUnhealthyInterval",
+        "hcTimeout", "hcFollowRedirects"
+      ];
+      # Target-attached checks belong to the blueprint; only standalone rows are ours.
+      [.data.healthChecks[] | select(.resourceId == null)] as $have
+      | ($desired | map(. + {
+          siteId: $sites[.siteNiceId],
+          hcEnabled: true,
+          hcMode: "http",
+          hcMethod: "GET",
+          hcFollowRedirects: true,
+          hcTimeout: 5
+        })) as $want
+      | (
+          (
+            $want[] as $d
+            | ($have | map(select(.name == $d.name)) | first) as $h
+            | if $h == null then
+                ["create", "-", ($d | del(.siteNiceId) | tojson)]
+              elif (comparable | any(.[]; $d[.] != $h[.])) then
+                ["update", ($h.targetHealthCheckId | tostring), ($d | del(.siteNiceId) | tojson)]
+              else empty
+              end
+          ),
+          (
+            (
+              $have[]
+              | select(.name as $n | ($want | map(.name) | index($n)) == null)
+            ),
+            ($have | group_by(.name) | map(.[1:][])[])
+            | ["delete", (.targetHealthCheckId | tostring), .name]
+          )
+        )
+      | @tsv' <<<"$current")
+fi
+
 if curl -sf -b "$jar" "$api/idp" |
   jq -e --arg n "$PANGOLIN_IDP_NAME" \
     '[.data.idps[]? | select(.name == $n)] | length > 0' >/dev/null; then
