@@ -10,13 +10,13 @@
         enable = true;
         user = "root";
         group = "root";
+        tailscaleServe.enable = true;
       }
       else {
         enable = true;
         user = "daniel";
         group = "rex";
-        extraListen = ["127.0.0.1:7297"];
-        allowAnonymous = true;
+        tailscaleServe.enable = true;
       };
   };
 in {
