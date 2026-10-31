@@ -6,6 +6,7 @@
       enable = true;
       user = "daniel";
       group = "rex";
+      #FIXME: This is very insecure, as anyone with access to the LAN can connect to Rex.
       extraListen = ["127.0.0.1:7297"];
       allowAnonymous = true;
     };
