@@ -47,6 +47,11 @@ deploy-status host="":
     fi
 
 
+# Push config to testing branch
+test host="sorbet":
+    @git push origin HEAD:testing-{{host}} --force
+
+
 # Format all Nix files
 fmt:
     nix fmt .
