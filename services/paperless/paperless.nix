@@ -45,7 +45,7 @@ _: {
 
       virtualisation.oci-containers.containers = {
         paperless = {
-          image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:7c1d98afd200def9e2bad3a377d30829e8d486554b3c818995af5860114ea17f";
+          image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:1a08d8dfc2b51a08de09652dd86ad4d0c611c362382f944533ad38b73125fbc4";
           volumes = [
             "${dataDir}:${containerData}"
             "${mediaDir}:${containerMedia}"
