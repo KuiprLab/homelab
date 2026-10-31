@@ -135,12 +135,6 @@ in {
     security.rtkit.enable = true;
 
     services = {
-      avahi = {
-        enable = true;
-        nssmdns4 = true;
-        allowInterfaces = ["enp0s31f6"];
-        publish.enable = true;
-      };
       hardware.openrgb = {
         enable = true;
       };

@@ -82,6 +82,11 @@ in {
           healthcheck = lib.mkOption {
             type = lib.types.submodule {
               options = {
+                enable = lib.mkOption {
+                  type = lib.types.bool;
+                  default = true;
+                  description = "Whether pangolin probes this vhost's backend.";
+                };
                 path = lib.mkOption {
                   type = lib.types.str;
                   default = "/";
@@ -420,7 +425,7 @@ in {
           hcInterval = vh.healthcheck.interval;
           hcUnhealthyInterval = vh.healthcheck."unhealthy-interval";
         })
-        (lib.filterAttrs (_: vh: vh.private && vh.site == "sorbet" && !(vh.extra ? mode)) vhosts);
+        (lib.filterAttrs (_: vh: vh.private && vh.site == "sorbet" && vh.healthcheck.enable && !(vh.extra ? mode)) vhosts);
       names = map (c: c.name) checks;
       dupes = lib.filter (n: lib.count (x: x == n) names > 1) (lib.unique names);
     in
@@ -434,7 +439,7 @@ in {
       protocol,
       hc,
     }: {
-      enabled = true;
+      enabled = hc.enable;
       inherit hostname;
       inherit port;
       scheme = protocol;
