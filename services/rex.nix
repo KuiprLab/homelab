@@ -1,17 +1,8 @@
 {inputs, ...}: let
-  rexModule = {config, ...}: let
-    isEclair = config.networking.hostName == "eclair";
-  in {
+  rexModule = _:{
     imports = [inputs.rex.nixosModules.default];
 
-    services.rex =
-      if isEclair
-      then {
-        enable = true;
-        user = "root";
-        group = "root";
-      }
-      else {
+    services.rex = {
         enable = true;
         user = "daniel";
         group = "rex";
@@ -31,6 +22,5 @@ in {
     };
 
     nixosModules.rex = rexModule;
-    eclairNixosModules.rex = rexModule;
   };
 }
