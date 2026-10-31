@@ -1,14 +1,14 @@
 {inputs, ...}: let
-  rexModule = _:{
+  rexModule = _: {
     imports = [inputs.rex.nixosModules.default];
 
     services.rex = {
-        enable = true;
-        user = "daniel";
-        group = "rex";
-        extraListen = ["127.0.0.1:7297"];
-        allowAnonymous = true;
-      };
+      enable = true;
+      user = "daniel";
+      group = "rex";
+      extraListen = ["127.0.0.1:7297"];
+      allowAnonymous = true;
+    };
   };
 in {
   flake = {
