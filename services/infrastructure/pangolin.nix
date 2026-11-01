@@ -11,6 +11,7 @@
   dashboardDomain = "pangolin.ext.kuipr.de";
   baseDomain = "kuipr.de";
   oidcIssuer = "https://auth.ext.kuipr.de";
+  tolerance = 5 * 60;
   # niceId is also the newt --id; secretEnv names the variable in secrets/eclair/pangolin-apply.env.
   sites = {
     eclair = {
@@ -411,7 +412,6 @@ in {
 
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
 
-    tolerance = 5 * 60;
     unhealthyThreshold = interval: 1 + builtins.div (tolerance + interval - 1) interval;
 
     # Probes hit the vhost domain over TLS, so DNS, caddy, the certificate and
@@ -584,6 +584,7 @@ in {
           maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
         };
         gerbil.base_endpoint = dashboardDomain;
+        offline_checker.newt_threshold_ms = tolerance * 1000;
         flags = {
           disable_signup_without_invite = true;
           enable_integration_api = false;
