@@ -366,6 +366,7 @@ in {
                 hcPath = lib.mkOption {type = lib.types.str;};
                 hcInterval = lib.mkOption {type = lib.types.int;};
                 hcUnhealthyInterval = lib.mkOption {type = lib.types.int;};
+                hcUnhealthyThreshold = lib.mkOption {type = lib.types.int;};
               };
             });
             default = [];
@@ -410,6 +411,9 @@ in {
 
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
 
+    tolerance = 5 * 60;
+    unhealthyThreshold = interval: 1 + builtins.div (tolerance + interval - 1) interval;
+
     # Probes hit the vhost domain over TLS, so DNS, caddy, the certificate and
     # the backend are all in the path. The name is both the reconcile key and
     # what alerts show, hence the uniqueness guard below.
@@ -424,6 +428,7 @@ in {
           hcPath = vh.healthcheck.path;
           hcInterval = vh.healthcheck.interval;
           hcUnhealthyInterval = vh.healthcheck."unhealthy-interval";
+          hcUnhealthyThreshold = unhealthyThreshold vh.healthcheck."unhealthy-interval";
         })
         (lib.filterAttrs (_: vh: vh.private && vh.site == "sorbet" && vh.healthcheck.enable && !(vh.extra ? mode)) vhosts);
       names = map (c: c.name) checks;
@@ -448,6 +453,7 @@ in {
       method = "GET";
       inherit (hc) interval;
       "unhealthy-interval" = hc."unhealthy-interval";
+      "unhealthy-threshold" = unhealthyThreshold hc."unhealthy-interval";
       "follow-redirects" = true;
     };
 
