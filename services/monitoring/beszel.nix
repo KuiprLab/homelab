@@ -1,4 +1,5 @@
 # Notifications are set in the hub UI; Gotify 3 tokens need the Shoutrrr generic:// syntax.
+# OIDC is a users-collection setting, not env: /_/#/settings, then the users collection options tab.
 _: {
   flake = {
     pangolinVirtualHosts."monitoring" = {
