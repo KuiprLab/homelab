@@ -5,11 +5,6 @@ _: {
       name = "Paperless";
       subdomain = "paperless.int.kuipr.de";
       port = 28981;
-      extra = {
-        mode = "http";
-        ssl = true;
-        sites = ["sorbet"];
-      };
     };
 
     nixosModules.paperless = {
