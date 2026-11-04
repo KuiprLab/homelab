@@ -70,7 +70,7 @@ _: {
       };
 
       virtualisation.oci-containers.containers.crowdsec-web-ui = {
-        image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.2@sha256:56d008d48fc01e81b29aae9cda55b60bac6a0bf80b640688a9a6035de29035db";
+        image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.3@sha256:54fabf0c6ac7895bd3b85971128145e54b4d84d9ec3276480d5abc4381a15afc";
         volumes = ["/var/lib/crowdsec-web-ui:/app/data:rw"];
 
         environment = {
