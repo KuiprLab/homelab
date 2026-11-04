@@ -833,7 +833,7 @@ in {
                   log-driver = "journald";
                 };
                 gerbil = {
-                  image = "docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f";
+                  image = "docker.io/fosrl/gerbil:1.6.0@sha256:420f5210b6d1a6d3035f15c3938b5289fee5aeff51ffdcb9b217838338908885";
                   volumes = ["${configDir}:/var/config"];
                   ports = [
                     "80:80"
@@ -891,7 +891,7 @@ in {
       systemd.services."podman-newt".serviceConfig.EnvironmentFile = config.sops.secrets."newt-eclair".path;
 
       virtualisation.oci-containers.containers.newt = {
-        image = "docker.io/fosrl/newt:1.19.1@sha256:c89f01cb387bf6c598959036cbf56306b068a43e8784345bee7398b7af8ee2e1";
+        image = "docker.io/fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e";
         volumes = ["${blueprint}:/blueprint.yml:ro"];
         cmd = [
           "--endpoint=https://pangolin.ext.kuipr.de"
@@ -929,7 +929,7 @@ in {
       systemd.services."podman-newt".serviceConfig.Environment = ["ENFORCE_HC_CERT=true"];
 
       virtualisation.oci-containers.containers.newt = {
-        image = "docker.io/fosrl/newt:1.19.1@sha256:c89f01cb387bf6c598959036cbf56306b068a43e8784345bee7398b7af8ee2e1";
+        image = "docker.io/fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e";
         volumes = ["${blueprint}:/blueprint.yml:ro"];
         cmd = [
           "--endpoint=https://pangolin.ext.kuipr.de"
