@@ -116,7 +116,7 @@ _: {
         };
 
         paperless-gotenberg = {
-          image = "docker.io/gotenberg/gotenberg:8@sha256:13672f317b443c793e972b1bd2155ec62a3e7b6891b411e8196442cc053ee5f5";
+          image = "docker.io/gotenberg/gotenberg:8@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996";
           log-driver = "journald";
           extraOptions = [
             "--network-alias=gotenberg"
