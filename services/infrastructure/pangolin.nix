@@ -817,7 +817,7 @@ in {
               backend = "podman";
               containers = {
                 pangolin = {
-                  image = "docker.io/fosrl/pangolin:ee-1.25.3@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e";
+                  image = "docker.io/fosrl/pangolin:ee-latest@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e";
                   volumes = [
                     "${configDir}:/app/config"
                     "${configFile}:/app/config/config.yml:ro"
