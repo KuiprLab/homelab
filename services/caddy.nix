@@ -89,6 +89,13 @@ in {
                     log {
                       output stderr
                       level INFO
+                      # Query strings carry admin tokens; journald must not keep them.
+                      format filter {
+                        request>uri query {
+                          hash token
+                        }
+                        request>headers>X-Csrftoken delete
+                      }
                     }
                     reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}
                   '';

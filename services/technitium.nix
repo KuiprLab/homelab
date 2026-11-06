@@ -88,6 +88,8 @@ in {
     systemd.services.technitium-dns-server = {
       after = ["network-online.target"];
       wants = ["network-online.target"];
+      # A switch that restarts DNS kills image pulls in the same transaction.
+      restartIfChanged = false;
       # Only read while Technitium creates auth.config on a fresh state dir.
       serviceConfig.EnvironmentFile = config.sops.secrets."technitium.env".path;
     };

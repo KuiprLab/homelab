@@ -48,7 +48,12 @@ _: {
       gc = {
         automatic = true;
         dates = "weekly";
-        options = "--delete-older-than 30d";
+        options = "--delete-older-than 5d";
+      };
+      # Hardlinks duplicate files in the store; nothing else deduplicates them.
+      optimise = {
+        automatic = true;
+        dates = ["weekly"];
       };
       extraOptions = ''
         experimental-features = nix-command flakes

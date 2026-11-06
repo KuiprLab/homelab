@@ -11,6 +11,7 @@
   dashboardDomain = "pangolin.ext.kuipr.de";
   baseDomain = "kuipr.de";
   oidcIssuer = "https://auth.ext.kuipr.de";
+  tolerance = 5 * 60;
   # niceId is also the newt --id; secretEnv names the variable in secrets/eclair/pangolin-apply.env.
   sites = {
     eclair = {
@@ -366,6 +367,7 @@ in {
                 hcPath = lib.mkOption {type = lib.types.str;};
                 hcInterval = lib.mkOption {type = lib.types.int;};
                 hcUnhealthyInterval = lib.mkOption {type = lib.types.int;};
+                hcUnhealthyThreshold = lib.mkOption {type = lib.types.int;};
               };
             });
             default = [];
@@ -410,6 +412,8 @@ in {
 
     labelsFor = edge: site: ["edge:${edge}" "site:${site}"];
 
+    unhealthyThreshold = interval: 1 + builtins.div (tolerance + interval - 1) interval;
+
     # Probes hit the vhost domain over TLS, so DNS, caddy, the certificate and
     # the backend are all in the path. The name is both the reconcile key and
     # what alerts show, hence the uniqueness guard below.
@@ -424,6 +428,7 @@ in {
           hcPath = vh.healthcheck.path;
           hcInterval = vh.healthcheck.interval;
           hcUnhealthyInterval = vh.healthcheck."unhealthy-interval";
+          hcUnhealthyThreshold = unhealthyThreshold vh.healthcheck."unhealthy-interval";
         })
         (lib.filterAttrs (_: vh: vh.private && vh.site == "sorbet" && vh.healthcheck.enable && !(vh.extra ? mode)) vhosts);
       names = map (c: c.name) checks;
@@ -448,6 +453,7 @@ in {
       method = "GET";
       inherit (hc) interval;
       "unhealthy-interval" = hc."unhealthy-interval";
+      "unhealthy-threshold" = unhealthyThreshold hc."unhealthy-interval";
       "follow-redirects" = true;
     };
 
@@ -578,6 +584,7 @@ in {
           maxmind_asn_path = "/var/lib/geoip/dbip-asn-lite.mmdb";
         };
         gerbil.base_endpoint = dashboardDomain;
+        offline_checker.newt_threshold_ms = tolerance * 1000;
         flags = {
           disable_signup_without_invite = true;
           enable_integration_api = false;
@@ -810,7 +817,7 @@ in {
               backend = "podman";
               containers = {
                 pangolin = {
-                  image = "docker.io/fosrl/pangolin:ee-1.25.3@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e";
+                  image = "docker.io/fosrl/pangolin:ee-latest@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e";
                   volumes = [
                     "${configDir}:/app/config"
                     "${configFile}:/app/config/config.yml:ro"

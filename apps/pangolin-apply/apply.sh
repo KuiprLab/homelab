@@ -114,7 +114,7 @@ if [ "$(jq 'length' <<<"$PANGOLIN_HEALTH_CHECKS")" -gt 0 ]; then
       def comparable: [
         "siteId", "hcEnabled", "hcMode", "hcHostname", "hcPort", "hcPath",
         "hcScheme", "hcMethod", "hcInterval", "hcUnhealthyInterval",
-        "hcTimeout", "hcFollowRedirects"
+        "hcUnhealthyThreshold", "hcTimeout", "hcFollowRedirects"
       ];
       # Target-attached checks belong to the blueprint; only standalone rows are ours.
       [.data.healthChecks[] | select(.resourceId == null)] as $have

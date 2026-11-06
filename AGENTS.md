@@ -81,9 +81,10 @@ Check status with `ssh <host> comin status`. Logs are in `journalctl -u comin`. 
 
 # Debugging
 
-In case its useful for debugging you can ssh into either server after asking. Then simply run `ssh <host>` to ssh into a
-host.
-
+In case its useful for debugging you can ssh into either server after asking. 
+Then simply run `ssh <host>` to ssh into a host. For sorbet, you can also use your **rex** skill 
+to interact with the server more effectively. **WARNING**: All servers run the **fish** shell so be mindful!
+ 
 # Committing
 
 Create a branch before you work (`feat/<name>` or `fix/<name>`). For a change that must be tested on a host, rebase it
