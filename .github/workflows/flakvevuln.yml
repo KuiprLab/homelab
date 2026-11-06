@@ -30,7 +30,7 @@ jobs:
       number: ${{ steps.issue.outputs.number }}
     steps:
       - id: issue
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             // Found by label, not title, so a same-named issue is never touched
@@ -61,7 +61,7 @@ jobs:
       matrix:
         host: [eclair, sorbet]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install dependencies
         run: |
@@ -92,7 +92,7 @@ jobs:
 
       - name: Update host comment
         if: github.event_name != 'pull_request'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           ISSUE: ${{ needs.issue.outputs.number }}
           HOST: ${{ matrix.host }}
