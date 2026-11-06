@@ -25,7 +25,7 @@ jobs:
   issue:
     name: CVE report issue
     if: github.event_name != 'pull_request'
-    runs-on: hla1-talos-dind
+    runs-on: ubuntu-latest
     outputs:
       number: ${{ steps.issue.outputs.number }}
     steps:
