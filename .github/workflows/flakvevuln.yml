@@ -54,12 +54,12 @@ jobs:
     needs: issue
     # Still run on PRs, where the issue job is skipped
     if: ${{ !cancelled() && !failure() }}
-    runs-on: hla1-talos-dind
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        host: [hla1-ai, hla1-lb-ext, hla1-lb-int]
+        host: [eclair, sorbet]
     steps:
       - uses: actions/checkout@v7
 
