@@ -116,7 +116,7 @@ _: {
         };
 
         paperless-gotenberg = {
-          image = "docker.io/gotenberg/gotenberg:8@sha256:13672f317b443c793e972b1bd2155ec62a3e7b6891b411e8196442cc053ee5f5";
+          image = "docker.io/gotenberg/gotenberg:8@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996";
           log-driver = "journald";
           extraOptions = [
             "--network-alias=gotenberg"
@@ -130,7 +130,7 @@ _: {
         };
 
         paperless-redis = {
-          image = "docker.io/library/redis:7@sha256:11b0dc8826c3383847878b058d7cb22b091dd59b842e8ff7a0e3405d1e610667";
+          image = "docker.io/library/redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90";
           log-driver = "journald";
           extraOptions = [
             "--network-alias=redis"
