@@ -1,0 +1,114 @@
+name: CVE Scan
+
+# Informational only: scans each host's build-time closure with flakevuln and keeps
+# one "CVE report" issue with a comment per host, edited in place on every run.
+# Nothing blocks on it. No SARIF upload, because code scanning needs GitHub
+# Code Security on private repos.
+on:
+  schedule:
+    # Weekly, Monday 03:41 UTC. Odd minute on purpose: flakevuln asks callers to
+    # stagger schedules to spread load on repology.org and the security tracker.
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+  # Only to test changes to the scan itself; PR runs never touch the issue
+  pull_request:
+    paths:
+      - .github/workflows/flakevuln.yml
+      - .github/scripts/flakevuln-comment.py
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  # Created up front so the parallel host jobs don't race to create it
+  issue:
+    name: CVE report issue
+    if: github.event_name != 'pull_request'
+    runs-on: hla1-talos-dind
+    outputs:
+      number: ${{ steps.issue.outputs.number }}
+    steps:
+      - id: issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Found by label, not title, so a same-named issue is never touched
+            const title = "CVE report";
+            const label = "cve-report";
+            const body = [
+              "Weekly [flakevuln](https://github.com/tiiuae/flakevuln) scan of each host's build-time closure.",
+              "One comment per host, edited in place by the `CVE Scan` workflow. Informational only.",
+            ].join("\n\n");
+            const { owner, repo } = context.repo;
+            const found = (await github.paginate(github.rest.issues.listForRepo,
+              { owner, repo, state: "all", labels: label, per_page: 100 }))
+              .find(i => !i.pull_request);
+            const number = found
+              ? (await github.rest.issues.update({ owner, repo, issue_number: found.number, body, state: "open" })).data.number
+              : (await github.rest.issues.create({ owner, repo, title, body, labels: [label] })).data.number;
+            core.setOutput("number", number);
+
+  scan:
+    name: CVE Scan (${{ matrix.host }})
+    needs: issue
+    # Still run on PRs, where the issue job is skipped
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: hla1-talos-dind
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [hla1-ai, hla1-lb-ext, hla1-lb-int]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update --fix-missing
+          sudo apt-get install -y zstd xz-utils --fix-missing
+
+      # Evaluation-only (build-time closure), so nothing gets built
+      - uses: tiiuae/flakevuln@680ffb867974ea6539be4a1509c8f7a7be262df8
+        id: flakevuln
+        with:
+          targets: nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+          strict-scanner: true
+
+      - name: Render comment
+        env:
+          REPORT_DIR: ${{ steps.flakevuln.outputs.report-path }}
+          HOST: ${{ matrix.host }}
+          EVENT: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          report=$(find "$REPORT_DIR" -maxdepth 1 -name '*.md' ! -name README.md)
+          [[ -n "$report" && $(wc -l <<<"$report") == 1 ]] || { echo "::error::expected one host report in $REPORT_DIR"; exit 1; }
+          nix run nixpkgs#python3 -- .github/scripts/flakevuln-comment.py "$report" "$HOST" "$RUN_URL" > comment.md
+          if [[ "$EVENT" == pull_request ]]; then
+            cat comment.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Update host comment
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v9
+        env:
+          ISSUE: ${{ needs.issue.outputs.number }}
+          HOST: ${{ matrix.host }}
+        with:
+          script: |
+            const fs = require("fs");
+            const body = fs.readFileSync("comment.md", "utf8");
+            const marker = `<!-- flakevuln:${process.env.HOST} -->`;
+            const { owner, repo } = context.repo;
+            const issue_number = Number(process.env.ISSUE);
+            const mine = (await github.paginate(github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 }))
+              // Only our own comments: a copied marker from someone else is never edited
+              .find(c => c.user?.login === "github-actions[bot]" && c.body.startsWith(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
