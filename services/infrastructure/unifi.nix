@@ -1,5 +1,14 @@
 _: {
   flake = {
+    pangolinVirtualHosts."unifi" = {
+      site = "sorbet";
+      name = "UniFi";
+      subdomain = "unifi.int.kuipr.de";
+      protocol = "https";
+      port = 11443;
+      tlsInsecureSkipVerify = true;
+    };
+
     nixosModules.unifi = _: {
       imports = [../../pkgs/unifi-os-server-image/module.nix];
 

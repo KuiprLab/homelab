@@ -80,6 +80,14 @@ in {
             default = "127.0.0.1";
             description = "Backend host as seen from the site's newt.";
           };
+          tlsInsecureSkipVerify = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Let caddy skip TLS verification of an https backend. Only for
+              backends that serve a self-signed certificate.
+            '';
+          };
           healthcheck = lib.mkOption {
             type = lib.types.submodule {
               options = {
