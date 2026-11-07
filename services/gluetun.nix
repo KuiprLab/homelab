@@ -46,7 +46,7 @@ _: {
         backend = "podman";
         containers = {
           "gluetun" = {
-            image = "ghcr.io/qdm12/gluetun:latest@sha256:6c80716ec1f48ea6c525f198dbb0a658fff4dfa3e1334de5b0457d1c8c6dec0c";
+            image = "ghcr.io/qdm12/gluetun:latest@sha256:44a82caf5b866193bfdfe8ffffbb11b20ce8138a917466c2c9bff9a52861c1a5";
             log-driver = "journald";
             environmentFiles = [
               "/run/secrets/gluetun.env"
