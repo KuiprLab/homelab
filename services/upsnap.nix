@@ -18,7 +18,7 @@ _: {
           TZ = "Europe/Berlin";
           UPSNAP_HTTP_LISTEN = "127.0.0.1:8090";
         };
-        image = "ghcr.io/seriousm4x/upsnap:latest@sha256:1e7c2345c493f9228a5dc2102be06b5a33331100f303fe0078502f4ef1068724";
+        image = "ghcr.io/seriousm4x/upsnap:latest@sha256:e01e61ac6bfbf34a2003364e1499faf2da0fba0a485e0f4b31c49b6576b95e9d";
         # Podman does not inherit image HEALTHCHECKs.
         extraOptions = [
           "--health-cmd=curl -fsS --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:8090/api/health >/dev/null"
