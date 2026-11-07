@@ -8,6 +8,10 @@
   byCaddy = lib.filterAttrs (_: v: v.private && v.site == "sorbet" && !(v.extra ? mode)) vhosts;
 
   stray = lib.filterAttrs (_: v: v.private && v.site != "sorbet" && !(v.extra ? mode)) vhosts;
+
+  reverseProxyFor = v:
+    "reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}"
+    + lib.optionalString v.tlsInsecureSkipVerify " {\n  transport http {\n    tls_insecure_skip_verify\n  }\n}";
 in {
   flake = {
     pangolinHostResources."int" = {
@@ -97,7 +101,7 @@ in {
                         request>headers>X-Csrftoken delete
                       }
                     }
-                    reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}
+                    ${reverseProxyFor v}
                   '';
                 })
               byCaddy
