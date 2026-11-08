@@ -3,6 +3,7 @@
   "nix": {
     "enabled": true
   },
+  "dependencyDashboard": true,
   "baseBranchPatterns": [
     "staging"
   ],
