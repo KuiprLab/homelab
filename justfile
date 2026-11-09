@@ -53,6 +53,8 @@ deploy-status host="":
 
 # Push config to testing branch
 test host="sorbet":
+    @git fetch origin main
+    @git rebase --gpg-sign origin/main     # re-signs the rebased commits
     @git push origin HEAD:testing-{{host}} --force
 
 
