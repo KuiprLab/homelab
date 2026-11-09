@@ -27,7 +27,7 @@ _: {
 
       virtualisation.oci-containers.containers = {
         "pocketid" = {
-          image = "ghcr.io/pocketid/pocket-id:v2";
+          image = "docker.io/pocketid/pocket-id:v2";
           volumes = [
             "pocketid_data:/app/data:rw"
           ];
