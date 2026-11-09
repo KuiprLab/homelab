@@ -4,7 +4,7 @@ _: {
       site = "sorbet";
       name = "LLDAP";
       subdomain = "lldap.int.kuipr.de";
-      port = 17107;
+      port = 17170;
       private = true;
     };
     
