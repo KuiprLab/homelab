@@ -33,7 +33,7 @@ _: {
             "${config.sops.secrets."homeassistant/configuration".path}:/config/configuration.yaml:ro"
           ];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:c6c1ca9931036bf3a2c4cc088d8db25dfea3b33935a5ecc83c40349462e2f69e";
+          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82";
           # A failed transient-unit check aborts activation; HA needs minutes to boot.
           extraOptions = [
             "--health-cmd=sh -c 'n=0; until wget -q --spider http://127.0.0.1:8123/; do n=$((n+1)); [ $n -ge 24 ] && exit 1; sleep 5; done'"
