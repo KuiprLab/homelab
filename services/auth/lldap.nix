@@ -47,7 +47,7 @@ _: {
             # "--health-timeout=30s"
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=lldap_default:ip=10.89.2.20"
+            "--network=lldap_default:ip=10.89.3.21"
             "--network=proxy"
             "--dns=192.168.0.85"
           ];
