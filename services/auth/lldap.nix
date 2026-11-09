@@ -84,7 +84,7 @@ _: {
 
       virtualisation.oci-containers.containers = {
         "lldap" = {
-          image = image;
+          inherit image;
           volumes = [
             "lldap_data:/data:rw"
           ];
