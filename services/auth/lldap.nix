@@ -40,11 +40,11 @@ _: {
           extraOptions = [
             # Podman does not inherit image HEALTHCHECKs.
             # "--health-cmd=sh -c 'n=0; until /app/healthcheck.sh; do n=$((n+1)); [ $n -ge 8 ] && exit 1; sleep 2; done'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=30s"
+            # "--health-interval=30s"
+            # "--health-on-failure=kill"
+            # "--health-retries=3"
+            # "--health-start-period=1m"
+            # "--health-timeout=30s"
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
             "--network=lldap_default:ip=10.89.2.20"
