@@ -48,7 +48,7 @@ _: {
             "--health-timeout=30s"
             "--network-alias=pocketid"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=pocketid_default:ip=10.89.3.24"
+            "--network=pocketid_default:ip=10.89.4.24"
             "--network=proxy"
             "--dns=192.168.0.85"
           ];
