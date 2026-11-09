@@ -7,26 +7,84 @@ _: {
       port = 17170;
       private = true;
     };
-    
+
     nixosModules.lldap = {
       pkgs,
       lib,
       config,
       ...
-    }: {
+    }: let
+      image = "ghcr.io/lldap/lldap:latest";
+
+      # bootstrap.sh reads one JSON object per file, so users.json and groups.json are split per entry.
+      splitConfigs = pkgs.writeShellScript "lldap-split-configs" ''
+        set -euo pipefail
+        umask 077
+
+        outputDir="$1"
+        mkdir -p "$outputDir"
+        rm -rf "$outputDir/user-configs" "$outputDir/group-configs"
+        mkdir -p "$outputDir/user-configs" "$outputDir/group-configs"
+
+        ${pkgs.jq}/bin/jq --compact-output 'to_entries[] | {id: .key} + .value' \
+          ${config.sops.secrets."lldap/users".path} |
+          while IFS= read -r userConfig; do
+            printf '%s' "$userConfig" >"$outputDir/user-configs/$(printf '%s' "$userConfig" | ${pkgs.jq}/bin/jq --raw-output .id).json"
+          done
+
+        ${pkgs.jq}/bin/jq --compact-output 'to_entries[] | {name: .key} + .value' \
+          ${config.sops.secrets."lldap/groups".path} |
+          while IFS= read -r groupConfig; do
+            printf '%s' "$groupConfig" >"$outputDir/group-configs/$(printf '%s' "$groupConfig" | ${pkgs.jq}/bin/jq --raw-output .name).json"
+          done
+      '';
+
+      runBootstrap = pkgs.writeShellScript "lldap-bootstrap" ''
+        set -euo pipefail
+
+        LLDAP_ADMIN_PASSWORD="$(sed -n 's/^LLDAP_LDAP_USER_PASS=//p' ${config.sops.secrets."lldap/lldap.env".path})"
+        : ''${LLDAP_ADMIN_PASSWORD:?LLDAP_LDAP_USER_PASS missing from lldap.env}
+        export LLDAP_ADMIN_PASSWORD
+
+        # --env without a value forwards the variable, so the password stays out of the process argv.
+        exec ${pkgs.podman}/bin/podman run --rm \
+          --network=lldap_default \
+          --entrypoint=/app/bootstrap.sh \
+          --env=LLDAP_URL \
+          --env=LLDAP_ADMIN_USERNAME \
+          --env=LLDAP_ADMIN_PASSWORD \
+          --env=DO_CLEANUP \
+          --volume=/run/lldap-bootstrap:/bootstrap:ro \
+          ${image}
+      '';
+    in {
       sops.secrets = {
-        "lldap.env" = {
-          sopsFile = ../../secrets/sorbet/lldap.env;
+        "lldap/lldap.env" = {
+          sopsFile = ../../secrets/sorbet/lldap/lldap.env;
           format = "dotenv";
           owner = "daniel";
           key = "";
-          restartUnits = ["podman-lldap.service"];
+          restartUnits = ["podman-lldap.service" "lldap-bootstrap.service"];
+        };
+
+        "lldap/users" = {
+          sopsFile = ../../secrets/sorbet/lldap/users.json;
+          format = "json";
+          key = "";
+          restartUnits = ["lldap-bootstrap.service"];
+        };
+
+        "lldap/groups" = {
+          sopsFile = ../../secrets/sorbet/lldap/groups.json;
+          format = "json";
+          key = "";
+          restartUnits = ["lldap-bootstrap.service"];
         };
       };
 
       virtualisation.oci-containers.containers = {
         "lldap" = {
-          image = "ghcr.io/lldap/lldap:latest";
+          image = image;
           volumes = [
             "lldap_data:/data:rw"
           ];
@@ -34,7 +92,7 @@ _: {
             "127.0.0.1:17170:17170/tcp"
           ];
           environmentFiles = [
-            "${config.sops.secrets."lldap.env".path}"
+            "${config.sops.secrets."lldap/lldap.env".path}"
           ];
           log-driver = "journald";
           extraOptions = [
@@ -55,6 +113,28 @@ _: {
       };
 
       systemd.services = {
+        "lldap-bootstrap" = {
+          description = "Reconcile LLDAP users, groups and memberships";
+          wantedBy = ["multi-user.target"];
+          after = ["network-online.target" "podman-lldap.service"];
+          wants = ["network-online.target"];
+          requires = ["podman-lldap.service"];
+
+          environment = {
+            DO_CLEANUP = "true";
+            LLDAP_ADMIN_USERNAME = "admin";
+            LLDAP_URL = "http://lldap:17170";
+          };
+
+          serviceConfig = {
+            Type = "oneshot";
+            # Remains active so a changed ExecStart re-runs the sync on switch-to-configuration.
+            RemainAfterExit = true;
+            ExecStartPre = "${splitConfigs} /run/lldap-bootstrap";
+            ExecStart = runBootstrap;
+          };
+        };
+
         "podman-lldap" = {
           serviceConfig = {
             Restart = lib.mkOverride 90 "always";
