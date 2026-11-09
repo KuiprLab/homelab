@@ -3,6 +3,10 @@ config := "sorbet"
 default:
     just --list
 
+
+randon-string:
+    @cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 50 | head -n 1
+
 # Build the NixOS config locally (requires a Linux builder on macOS)
 build: fmt check
     @git add .
