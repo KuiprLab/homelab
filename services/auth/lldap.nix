@@ -39,7 +39,6 @@ _: {
           done
       '';
 
-
       # For user and group configuration see: https://github.com/lldap/lldap/blob/main/example_configs/bootstrap/bootstrap.md
       runBootstrap = pkgs.writeShellScript "lldap-bootstrap" ''
         set -euo pipefail
