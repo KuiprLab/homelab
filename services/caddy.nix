@@ -18,9 +18,12 @@
 
   authVhosts = lib.filterAttrs (_: v: v.auth.enable) byCaddy;
 
-  trustLoginRedirects =
-    lib.concatMapStringsSep "\n        " (v: "trust login redirect uri domain exact ${v.subdomain} path prefix /")
-    (lib.attrValues authVhosts);
+  # Authcrunch matches the redirect URL host verbatim, port included, so the
+  # :443 form has to be listed as well: pangolin forwards the Host header with it.
+  trustLoginRedirects = lib.concatMapStringsSep "\n        " (v:
+    "trust login redirect uri domain exact ${v.subdomain} path prefix /\n        "
+    + "trust login redirect uri domain exact ${v.subdomain}:443 path prefix /")
+  (lib.attrValues authVhosts);
 
   # Bypass paths still reach the backend: the pangolin health check uses one and
   # must not be answered with a redirect to the login.
