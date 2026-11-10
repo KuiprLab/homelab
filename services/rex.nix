@@ -1,16 +1,17 @@
 {inputs, ...}: let
-  rexModule = _: {
+  mkRexModule = user: _: {
     imports = [inputs.rex.nixosModules.default];
 
     services.rex = {
       enable = true;
-      user = "daniel";
+      inherit user;
       group = "rex";
       allowAnonymous = false;
     };
   };
 in {
   flake = {
-    nixosModules.rex = rexModule;
+    nixosModules.rex = mkRexModule "daniel";
+    eclairNixosModules.rex = mkRexModule "rex";
   };
 }
