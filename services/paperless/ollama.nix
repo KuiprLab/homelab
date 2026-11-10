@@ -2,7 +2,7 @@
 _: {
   flake.nixosModules.ollama = {lib, ...}: {
     virtualisation.oci-containers.containers.ollama = {
-      image = "docker.io/ollama/ollama:latest@sha256:0e59999e0e8f9fd4e704bd788a89b7e4cad399367fb1365f8c102ac662288761";
+      image = "docker.io/ollama/ollama:latest@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592";
       volumes = [
         "/media/data/ollama:/root/.ollama"
       ];
