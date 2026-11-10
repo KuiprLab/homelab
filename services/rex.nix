@@ -12,6 +12,6 @@
 in {
   flake = {
     nixosModules.rex = mkRexModule "daniel";
-    eclairNixosModules.rex = mkRexModule "rex";
+    eclairNixosModules.rex = mkRexModule "root";
   };
 }
