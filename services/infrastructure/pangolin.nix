@@ -119,6 +119,32 @@ in {
             default = {};
             description = "Escape hatch: merged into the blueprint resource entry verbatim.";
           };
+          auth = lib.mkOption {
+            type = lib.types.submodule {
+              options = {
+                enable = lib.mkOption {
+                  type = lib.types.bool;
+                  default = false;
+                  description = ''
+                    Serve this vhost behind the Pocket ID login in caddy
+                    (services/caddy.nix). Applies to private vhosts on sorbet,
+                    which are the ones caddy serves.
+                  '';
+                };
+                bypassPaths = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  default = [];
+                  description = ''
+                    Paths that skip the login check and reach the backend
+                    directly. Use for unauthenticated health endpoints and
+                    point the pangolin health check at the same path.
+                  '';
+                };
+              };
+            };
+            default = {};
+            description = "Login gate for this vhost.";
+          };
         };
       });
       default = {};
