@@ -5,6 +5,11 @@ _: {
       name = "Koito";
       subdomain = "koito.int.kuipr.de";
       port = 4110;
+      healthcheck.path = "/apis/web/v1/health";
+      auth = {
+        enable = true;
+        bypassPaths = ["/apis/web/v1/health"];
+      };
     };
 
     nixosModules.koito = {config, ...}: {

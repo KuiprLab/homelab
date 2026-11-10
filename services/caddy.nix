@@ -12,6 +12,74 @@
   reverseProxyFor = v:
     "reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}"
     + lib.optionalString v.tlsInsecureSkipVerify " {\n  transport http {\n    tls_insecure_skip_verify\n  }\n}";
+
+  pocketIdUrl = "https://id.ext.kuipr.de";
+  oidcClientId = "caddy-security";
+
+  authVhosts = lib.filterAttrs (_: v: v.auth.enable) byCaddy;
+
+  # Authcrunch matches the redirect URL host verbatim, port included, so the
+  # :443 form has to be listed as well: pangolin forwards the Host header with it.
+  trustLoginRedirects = lib.concatMapStringsSep "\n        " (v:
+    "trust login redirect uri domain exact ${v.subdomain} path prefix /\n        "
+    + "trust login redirect uri domain exact ${v.subdomain}:443 path prefix /")
+  (lib.attrValues authVhosts);
+
+  # Bypass paths still reach the backend: the pangolin health check uses one and
+  # must not be answered with a redirect to the login.
+  siteRoutesFor = v: let
+    bypass =
+      lib.concatMapStringsSep "\n" (p: ''
+        route ${p} {
+          ${reverseProxyFor v}
+        }
+      '')
+      v.auth.bypassPaths;
+  in
+    if !v.auth.enable
+    then reverseProxyFor v
+    else ''
+      @login path /caddy-security/*
+      route @login {
+        authenticate with pocketid_portal
+      }
+      ${bypass}
+      route {
+        authorize with pocketid_policy
+        ${reverseProxyFor v}
+      }
+    '';
+
+  loginConfig = ''
+    order authenticate before respond
+    security {
+      oauth identity provider pocketid {
+        realm pocketid
+        driver generic
+        client_id ${oidcClientId}
+        client_secret {env.POCKETID_OIDC_CLIENT_SECRET}
+        scopes openid email profile
+        base_auth_url ${pocketIdUrl}
+        metadata_url ${pocketIdUrl}/.well-known/openid-configuration
+      }
+
+      authentication portal pocketid_portal {
+        crypto default token lifetime 3600
+        crypto key sign-verify {env.CADDY_SECURITY_JWT_KEY}
+        enable identity provider pocketid
+        ${trustLoginRedirects}
+        transform user {
+          match realm pocketid
+          action add role authp/user
+        }
+      }
+
+      authorization policy pocketid_policy {
+        set auth url /caddy-security/oauth2/pocketid
+        allow roles authp/user
+      }
+    }
+  '';
 in {
   flake = {
     pangolinHostResources."int" = {
@@ -72,16 +140,29 @@ in {
             owner = "caddy";
           };
 
+          sops.secrets."caddy/security" = {
+            sopsFile = ../secrets/sorbet/caddy-security.env;
+            format = "dotenv";
+            key = "";
+            owner = "caddy";
+            mode = "0400";
+            restartUnits = ["caddy.service"];
+          };
+
           services.caddy = {
             enable = true;
             # Admin port is pinned to 2020, so a reload cannot pick it up.
             enableReload = false;
             package = pkgs.caddy.withPlugins {
-              plugins = ["github.com/caddy-dns/bunny@v1.2.0"];
-              hash = "sha256-ymMx2tSs9hgRji+KalPig/rdPiFqbjaLO3UFwZYPggI=";
+              plugins = [
+                "github.com/caddy-dns/bunny@v1.2.0"
+                "github.com/greenpau/caddy-security@v1.6.2"
+              ];
+              hash = "sha256-TcG1GI0T8qiVUeha/e3izU0tz4MpSDj8S1JU51AA/ZA=";
             };
             globalConfig = ''
               admin localhost:2020
+              ${lib.optionalString (authVhosts != {}) loginConfig}
               acme_dns bunny {env.BUNNY_API_KEY}
               # ACME TXT records are public and deliberately not in the LAN zone.
               tls_resolvers 1.1.1.1 8.8.8.8
@@ -101,7 +182,7 @@ in {
                         request>headers>X-Csrftoken delete
                       }
                     }
-                    ${reverseProxyFor v}
+                    ${siteRoutesFor v}
                   '';
                 })
               byCaddy
@@ -117,6 +198,7 @@ in {
 
           systemd.services.caddy.serviceConfig.EnvironmentFile = [
             config.sops.secrets."caddy/bunny_api_key".path
+            config.sops.secrets."caddy/security".path
           ];
         };
   };
