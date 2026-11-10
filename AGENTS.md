@@ -81,9 +81,9 @@ Check status with `ssh <host> comin status`. Logs are in `journalctl -u comin`. 
 
 # Debugging
 
-In case its useful for debugging you can ssh into either server after asking. 
-Then simply run `ssh <host>` to ssh into a host. For sorbet, you can also use your **rex** skill 
-to interact with the server more effectively. **WARNING**: All servers run the **fish** shell so be mindful!
+In case its useful for debugging you can use rex to connect to  the server after asking. 
+Simply use your **rex** skill to connect to either remote host, drive panes, split etc.
+**WARNING**: All servers run the **fish** shell so be mindful!
  
 # Committing
 
