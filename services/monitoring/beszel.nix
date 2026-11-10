@@ -39,9 +39,10 @@ _: {
         ];
         ports = ["127.0.0.1:8091:8090"]; # image listens on 8090, agents use 8091
         environment = {
-          APP_URL = "https://mon.int.kuipr.de";
+          APP_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
           USER_CREATION = "true";
+          DISABLE_PASSWORD_AUTH = "true";
         };
         log-driver = "journald";
         # The image is FROM scratch, so there is nothing for --health-cmd to run.

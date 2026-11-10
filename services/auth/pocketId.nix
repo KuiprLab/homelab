@@ -55,9 +55,8 @@ _: {
           format = "dotenv";
           owner = "daniel";
           key = "";
-          restartUnits = ["podman-pocketid.service"];
+          restartUnits = ["podman-pocketid.service" "pocketid-provision.service"];
         };
-
       };
 
       virtualisation.oci-containers.containers = {
