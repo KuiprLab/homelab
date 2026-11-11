@@ -15,39 +15,44 @@ _: {
       ...
     }: let
       # The login link is single use and expires after an hour, so it is printed once instead of on every switch.
-      runBootstrap = pkgs.writeShellScript "pocketid-bootstrap" /* bash */ ''
-        set -euo pipefail
+      runBootstrap =
+        pkgs.writeShellScript "pocketid-bootstrap"
+        /*
+        bash
+        */
+        ''
+          set -euo pipefail
 
-        if [ -e "$BOOTSTRAP_MARKER" ]; then
-          echo "login link already issued; delete $BOOTSTRAP_MARKER and restart pocketid-bootstrap to print a new one"
-          exit 0
-        fi
-
-        attempt=0
-        until podman exec pocketid /app/pocket-id healthcheck >/dev/null 2>&1; do
-          attempt=$((attempt + 1))
-          if [ "$attempt" -ge 60 ]; then
-            echo "pocketid did not become healthy" >&2
-            exit 1
+          if [ -e "$BOOTSTRAP_MARKER" ]; then
+            echo "login link already issued; delete $BOOTSTRAP_MARKER and restart pocketid-bootstrap to print a new one"
+            exit 0
           fi
-          sleep 5
-        done
 
-        # The LDAP admin only exists after the first sync, so a failed lookup is retried instead of grepping the log.
-        attempt=0
-        until output=$(podman exec pocketid /app/pocket-id one-time-access-token "$POCKETID_ADMIN_USERNAME" 2>&1); do
-          attempt=$((attempt + 1))
-          if [ "$attempt" -ge 60 ]; then
-            printf '%s\n' "$output" >&2
-            echo "no LDAP user $POCKETID_ADMIN_USERNAME after 5 minutes; check the sync in podman-pocketid" >&2
-            exit 1
-          fi
-          sleep 5
-        done
+          attempt=0
+          until podman exec pocketid /app/pocket-id healthcheck >/dev/null 2>&1; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge 60 ]; then
+              echo "pocketid did not become healthy" >&2
+              exit 1
+            fi
+            sleep 5
+          done
 
-        printf '%s\n' "$output"
-        : >"$BOOTSTRAP_MARKER"
-      '';
+          # The LDAP admin only exists after the first sync, so a failed lookup is retried instead of grepping the log.
+          attempt=0
+          until output=$(podman exec pocketid /app/pocket-id one-time-access-token "$POCKETID_ADMIN_USERNAME" 2>&1); do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge 60 ]; then
+              printf '%s\n' "$output" >&2
+              echo "no LDAP user $POCKETID_ADMIN_USERNAME after 5 minutes; check the sync in podman-pocketid" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          printf '%s\n' "$output"
+          : >"$BOOTSTRAP_MARKER"
+        '';
     in {
       sops.secrets = {
         "pocketid/pocketid.env" = {
