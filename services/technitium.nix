@@ -24,7 +24,7 @@ _: let
   };
 
   sso = {
-    authority = "https://auth.ext.kuipr.de";
+    authority = "https://id.ext.kuipr.de";
     clientId = "technitium";
     scopes = "openid|profile|email|groups";
     groupMap = "admin|Administrators";
