@@ -43,6 +43,7 @@ _: {
           DISABLE_SSH = "true";
           USER_CREATION = "true";
           DISABLE_PASSWORD_AUTH = "true";
+          SHARE_ALL_SYSTEMS = "true";
         };
         log-driver = "journald";
         # The image is FROM scratch, so there is nothing for --health-cmd to run.
