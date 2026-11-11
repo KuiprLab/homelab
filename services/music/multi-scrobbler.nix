@@ -5,6 +5,11 @@ _: {
       name = "Multi-scrobbler";
       subdomain = "scrobble.int.kuipr.de";
       port = 9078;
+      healthcheck.path = "/api/version";
+      auth = {
+        enable = true;
+        bypassPaths = ["/api/version"];
+      };
     };
 
     nixosModules.multi-scrobbler = {config, ...}: {

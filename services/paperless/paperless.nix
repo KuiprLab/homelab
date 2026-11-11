@@ -77,7 +77,7 @@ _: {
             PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https";
             PAPERLESS_ACCOUNT_EMAIL_VERIFICATION = "none";
             PAPERLESS_SOCIAL_AUTO_SIGNUP = "true";
-            PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "paperless-admins";
+            PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP = "admin";
             PAPERLESS_DISABLE_REGULAR_LOGIN = "true";
             PAPERLESS_REDIRECT_LOGIN_TO_SSO = "true";
             PAPERLESS_AI_ENABLED = "true";

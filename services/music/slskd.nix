@@ -6,6 +6,11 @@ _: {
       subdomain = "slskd.int.kuipr.de";
       # published through the gluetun container's netns; loopback on sorbet
       port = 5030;
+      healthcheck.path = "/health";
+      auth = {
+        enable = true;
+        bypassPaths = ["/health" "/api/*"];
+      };
     };
 
     nixosModules.slskd = {config, ...}: {

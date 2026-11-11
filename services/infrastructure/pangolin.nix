@@ -80,6 +80,14 @@ in {
             default = "127.0.0.1";
             description = "Backend host as seen from the site's newt.";
           };
+          tlsInsecureSkipVerify = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Let caddy skip TLS verification of an https backend. Only for
+              backends that serve a self-signed certificate.
+            '';
+          };
           healthcheck = lib.mkOption {
             type = lib.types.submodule {
               options = {
@@ -110,6 +118,32 @@ in {
             type = lib.types.attrsOf lib.types.raw;
             default = {};
             description = "Escape hatch: merged into the blueprint resource entry verbatim.";
+          };
+          auth = lib.mkOption {
+            type = lib.types.submodule {
+              options = {
+                enable = lib.mkOption {
+                  type = lib.types.bool;
+                  default = false;
+                  description = ''
+                    Serve this vhost behind the Pocket ID login in caddy
+                    (services/caddy.nix). Applies to private vhosts on sorbet,
+                    which are the ones caddy serves.
+                  '';
+                };
+                bypassPaths = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  default = [];
+                  description = ''
+                    Paths that skip the login check and reach the backend
+                    directly. Use for unauthenticated health endpoints and
+                    point the pangolin health check at the same path.
+                  '';
+                };
+              };
+            };
+            default = {};
+            description = "Login gate for this vhost.";
           };
         };
       });
@@ -330,7 +364,7 @@ in {
           };
           oidcIssuer = lib.mkOption {
             type = lib.types.str;
-            description = "Authelia base URL used as the OIDC issuer.";
+            description = "Pocket ID base URL used as the OIDC issuer.";
           };
           sites = lib.mkOption {
             description = "Pangolin tunnel sites, one newt each.";

@@ -55,7 +55,7 @@ _: {
           # Local auth only because the reconciler uses HTTP Basic auth.
           GOTIFY_LOCALAUTH_ENABLED = "true";
           GOTIFY_OIDC_ENABLED = "true";
-          GOTIFY_OIDC_ISSUER = "https://auth.ext.kuipr.de";
+          GOTIFY_OIDC_ISSUER = "https://id.ext.kuipr.de";
           GOTIFY_OIDC_CLIENTID = "gotify";
           GOTIFY_OIDC_REDIRECTURL = "https://gotify.ext.kuipr.de/auth/oidc/callback";
           GOTIFY_OIDC_AUTOREGISTER = "true";
