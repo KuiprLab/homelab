@@ -42,7 +42,7 @@ _: {
           APP_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
           USER_CREATION = "true";
-          DISABLE_PASSWORD_AUTH = "true";
+          # DISABLE_PASSWORD_AUTH = "true";
           SHARE_ALL_SYSTEMS = "true";
         };
         log-driver = "journald";
