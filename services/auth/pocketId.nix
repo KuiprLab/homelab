@@ -15,7 +15,7 @@ _: {
       ...
     }: let
       # The login link is single use and expires after an hour, so it is printed once instead of on every switch.
-      runBootstrap = pkgs.writeShellScript "pocketid-bootstrap" ''
+      runBootstrap = pkgs.writeShellScript "pocketid-bootstrap" /* bash */ ''
         set -euo pipefail
 
         if [ -e "$BOOTSTRAP_MARKER" ]; then
