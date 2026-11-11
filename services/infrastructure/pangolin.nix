@@ -364,7 +364,7 @@ in {
           };
           oidcIssuer = lib.mkOption {
             type = lib.types.str;
-            description = "Authelia base URL used as the OIDC issuer.";
+            description = "Pocket ID base URL used as the OIDC issuer.";
           };
           sites = lib.mkOption {
             description = "Pangolin tunnel sites, one newt each.";
