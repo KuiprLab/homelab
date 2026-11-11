@@ -9,7 +9,7 @@ _: {
       healthcheck.path = "/health";
       auth = {
         enable = true;
-        bypassPaths = ["/health" "/api"];
+        bypassPaths = ["/health" "/api/*"];
       };
     };
 

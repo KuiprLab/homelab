@@ -76,6 +76,7 @@
 
       authorization policy pocketid_policy {
         set auth url /caddy-security/oauth2/pocketid
+        crypto key verify {env.CADDY_SECURITY_JWT_KEY}
         allow roles authp/user
       }
     }
