@@ -3,7 +3,8 @@
     "allowedDomains": [
       "127.0.0.1",
       "sorbet",
-      "192.168.0.85"
+      "192.168.0.85",
+      "docs.podman.io"
     ]
   }
 }
