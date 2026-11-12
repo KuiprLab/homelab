@@ -46,6 +46,17 @@ in {
       };
 
       virtualisation.oci-containers.containers.sorbet-forward-auth = {
+        # The login endpoint itself stays outside the gate, or the redirect loops.
+        labels = {
+          "traefik.enable" = "true";
+          "traefik.docker.network" = "proxy";
+          "traefik.http.routers.auth.rule" = "Host(`auth.int.kuipr.de`)";
+          "traefik.http.routers.auth.entrypoints" = "websecure";
+          "traefik.http.routers.auth.tls.certresolver" = "letsencrypt";
+          "traefik.http.routers.auth.service" = "sorbet-forward-auth";
+          "traefik.http.routers.auth.middlewares" = "sec-headers@file";
+          "traefik.http.services.sorbet-forward-auth.loadbalancer.server.port" = "4181";
+        };
         image = "ghcr.io/italypaleale/traefik-forward-auth:4";
         volumes = [
           "/run/sorbet-forward-auth:/etc/traefik-forward-auth:ro"
