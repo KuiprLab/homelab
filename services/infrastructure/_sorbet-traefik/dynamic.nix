@@ -1,7 +1,11 @@
 # Backends that cannot be routed by label: the Docker provider only knows
 # container addresses, and these are a native service and two host-networked
 # containers, all listening on the podman bridge gateway.
-{
+let
+  # The plugin resolves ${file:...} at runtime; split so it is not parsed as a Nix
+  # URI interpolation (statix rejects the single-token form).
+  clientSecretFile = "$" + "{file:/run/secrets/oidc-client-secret}";
+in {
   http = {
     serversTransports.unifi-insecure.insecureSkipVerify = true;
 
@@ -14,14 +18,20 @@
         customFrameOptionsValue = "DENY";
       };
 
-      forward-auth.forwardAuth = {
-        address = "http://sorbet-forward-auth:4181/portals/main";
-        authResponseHeaders = [
-          "X-Forwarded-User"
-          "X-Forwarded-Displayname"
-          "X-Authenticated-User"
-        ];
-        trustForwardHeader = true;
+      # One session cookie for the whole zone, so a login on one app covers the
+      # others. The plugin resolves ${file:...} at runtime, which keeps the client
+      # secret out of the store; the same value signs the session cookie.
+      oidc-auth.plugin.traefik-oidc-auth = {
+        Secret = clientSecretFile;
+        Provider = {
+          Url = "https://id.ext.kuipr.de";
+          ClientId = "sorbet-forward-auth";
+          ClientSecret = clientSecretFile;
+          # The Pocket ID client has PKCE enabled; the plugin opts in explicitly.
+          UsePkce = "true";
+        };
+        Scopes = ["openid" "profile" "email" "groups"];
+        SessionCookie.Domain = "int.kuipr.de";
       };
     };
 

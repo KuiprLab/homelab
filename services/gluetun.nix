@@ -8,8 +8,22 @@
     "traefik.http.routers.slskd.entrypoints" = "websecure";
     "traefik.http.routers.slskd.tls.certresolver" = "letsencrypt";
     "traefik.http.routers.slskd.service" = "slskd";
-    "traefik.http.routers.slskd.middlewares" = "sec-headers@file";
+    "traefik.http.routers.slskd.middlewares" = "sec-headers@file,oidc-auth@file";
     "traefik.http.services.slskd.loadbalancer.server.port" = toString vhost.port;
+    # slskd keeps its own API auth (/api/*) and health endpoint; both must stay
+    # reachable without the login so the app and pangolin's probe work.
+    "traefik.http.routers.slskd-bypass-health.rule" = "Host(`${vhost.subdomain}`) && Path(`/health`)";
+    "traefik.http.routers.slskd-bypass-health.entrypoints" = "websecure";
+    "traefik.http.routers.slskd-bypass-health.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd-bypass-health.service" = "slskd";
+    "traefik.http.routers.slskd-bypass-health.priority" = "1000";
+    "traefik.http.routers.slskd-bypass-health.middlewares" = "sec-headers@file";
+    "traefik.http.routers.slskd-bypass-api.rule" = "Host(`${vhost.subdomain}`) && PathPrefix(`/api/`)";
+    "traefik.http.routers.slskd-bypass-api.entrypoints" = "websecure";
+    "traefik.http.routers.slskd-bypass-api.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd-bypass-api.service" = "slskd";
+    "traefik.http.routers.slskd-bypass-api.priority" = "1000";
+    "traefik.http.routers.slskd-bypass-api.middlewares" = "sec-headers@file";
   };
 in {
   flake = {

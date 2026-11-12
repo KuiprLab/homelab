@@ -8,7 +8,7 @@
     "traefik.http.routers.scrobble.entrypoints" = "websecure";
     "traefik.http.routers.scrobble.tls.certresolver" = "letsencrypt";
     "traefik.http.routers.scrobble.service" = "scrobble";
-    "traefik.http.routers.scrobble.middlewares" = "sec-headers@file,forward-auth@file";
+    "traefik.http.routers.scrobble.middlewares" = "sec-headers@file,oidc-auth@file";
     "traefik.http.services.scrobble.loadbalancer.server.port" = toString vhost.port;
     "traefik.http.routers.scrobble-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/api/version`)";
     "traefik.http.routers.scrobble-bypass-0.entrypoints" = "websecure";

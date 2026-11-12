@@ -32,6 +32,12 @@
     };
   };
 
+  # Fetched at start and cached in the plugins volume.
+  experimental.plugins.traefik-oidc-auth = {
+    moduleName = "github.com/sevensolutions/traefik-oidc-auth";
+    version = "v0.23.0";
+  };
+
   # Query strings carry admin tokens; journald must not keep them.
   accessLog.fields.names.request_Query = "drop";
   log.level = "INFO";

@@ -36,13 +36,25 @@ in {
         restartUnits = ["podman-sorbet-traefik.service"];
       };
 
+      # The plugin reads its client secret from a file, so only that one value is
+      # extracted here instead of the whole dotenv file.
+      sops.secrets."traefik/oidc_client_secret" = {
+        sopsFile = ../../secrets/sorbet/sorbet-forward-auth.env;
+        format = "dotenv";
+        key = "POCKETID_CLIENT_SECRET";
+        owner = "root";
+        restartUnits = ["podman-sorbet-traefik.service"];
+      };
+
       virtualisation.oci-containers.containers.sorbet-traefik = {
         image = "docker.io/library/traefik:v3.7.18@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a";
         volumes = [
           "${staticConfig}:/etc/traefik/traefik.yml:ro"
           "${dynamicConfig}:/etc/traefik/dynamic/dynamic.yml:ro"
+          "${config.sops.secrets."traefik/oidc_client_secret".path}:/run/secrets/oidc-client-secret:ro"
           "/run/podman/podman.sock:/var/run/docker.sock:ro"
           "sorbet-traefik-acme:/data"
+          "sorbet-traefik-plugins:/plugins-storage"
         ];
         # 80/443 stay published: LAN clients reach the edge on 192.168.0.85, which a
         # bridged container can only serve through a host publish.

@@ -9,7 +9,7 @@
     "traefik.http.routers.koito.entrypoints" = "websecure";
     "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
     "traefik.http.routers.koito.service" = "koito";
-    "traefik.http.routers.koito.middlewares" = "sec-headers@file,forward-auth@file";
+    "traefik.http.routers.koito.middlewares" = "sec-headers@file,oidc-auth@file";
     "traefik.http.services.koito.loadbalancer.server.port" = toString vhost.port;
     "traefik.http.routers.koito-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/apis/web/v1/health`)";
     "traefik.http.routers.koito-bypass-0.entrypoints" = "websecure";

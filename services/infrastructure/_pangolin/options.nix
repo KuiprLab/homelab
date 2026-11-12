@@ -106,7 +106,7 @@
                   default = false;
                   description = ''
                     Serve this vhost behind the Pocket ID login at the edge
-                    (forward-auth in sorbet-traefik). Applies to private vhosts
+                    (oidc-auth plugin in sorbet-traefik). Applies to private vhosts
                     on sorbet, which are the ones the edge serves.
                   '';
                 };
