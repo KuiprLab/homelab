@@ -6,7 +6,6 @@
   vhost = config.flake.pangolinVirtualHosts."paperless";
   traefikLabels = {
     "traefik.enable" = "true";
-    "traefik.docker.network" = "proxy";
     "traefik.http.routers.paperless.rule" = "Host(`${vhost.subdomain}`)";
     "traefik.http.routers.paperless.entrypoints" = "websecure";
     "traefik.http.routers.paperless.tls.certresolver" = "letsencrypt";

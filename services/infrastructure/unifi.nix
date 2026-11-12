@@ -3,7 +3,6 @@
   vhost = config.flake.pangolinVirtualHosts."unifi";
   traefikLabels = {
     "traefik.enable" = "true";
-    "traefik.docker.network" = "proxy";
     "traefik.http.routers.unifi.rule" = "Host(`${vhost.subdomain}`)";
     "traefik.http.routers.unifi.entrypoints" = "websecure";
     "traefik.http.routers.unifi.tls.certresolver" = "letsencrypt";
@@ -24,7 +23,6 @@ in {
       hostname = "unifi-os-server";
       protocol = "https";
       port = 443;
-      tlsInsecureSkipVerify = true;
     };
 
     nixosModules.unifi = _: {

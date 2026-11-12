@@ -59,14 +59,6 @@
               host-networked services (technitium, homeassistant, upsnap).
             '';
           };
-          tlsInsecureSkipVerify = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = ''
-              Let the edge skip TLS verification of an https backend. Only for
-              backends that serve a self-signed certificate.
-            '';
-          };
           healthcheck = lib.mkOption {
             type = lib.types.submodule {
               options = {

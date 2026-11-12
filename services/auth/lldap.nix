@@ -3,7 +3,6 @@
   vhost = config.flake.pangolinVirtualHosts."lldap";
   traefikLabels = {
     "traefik.enable" = "true";
-    "traefik.docker.network" = "proxy";
     "traefik.http.routers.lldap.rule" = "Host(`${vhost.subdomain}`)";
     "traefik.http.routers.lldap.entrypoints" = "websecure";
     "traefik.http.routers.lldap.tls.certresolver" = "letsencrypt";

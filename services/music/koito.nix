@@ -4,7 +4,6 @@
   vhost = config.flake.pangolinVirtualHosts."koito";
   traefikLabels = {
     "traefik.enable" = "true";
-    "traefik.docker.network" = "proxy";
     "traefik.http.routers.koito.rule" = "Host(`${vhost.subdomain}`)";
     "traefik.http.routers.koito.entrypoints" = "websecure";
     "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
