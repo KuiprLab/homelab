@@ -1,5 +1,9 @@
-_: {
+_: let
+  proxyIp = "10.89.0.20";
+in {
   flake = {
+    podmanProxyHosts.gluetun.ip = proxyIp;
+
     nixosModules.gluetun = {lib, ...}: {
       sops.secrets = {
         "gluetun.env" = {
@@ -12,19 +16,6 @@ _: {
 
       systemd = {
         services = {
-          podman-create-network-proxy = {
-            description = "Create podman proxy network";
-            before = ["podman-gluetun.service"];
-            wantedBy = ["podman-compose-gluetun-root.target"];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              # --ip-range keeps dynamic allocation away from gluetun's pinned 10.89.0.20.
-              ExecStart = "/bin/sh -c 'podman network exists proxy || podman network create --subnet 10.89.0.0/24 --ip-range 10.89.0.128/25 proxy'";
-            };
-            path = ["/run/current-system/sw"];
-          };
-
           podman-gluetun = {
             serviceConfig = {
               Restart = lib.mkOverride 90 "always";
@@ -64,11 +55,9 @@ _: {
               "--health-timeout=90s"
               "--network-alias=gluetun"
               # Pinned for a stable identity in the DNS query log.
-              "--network=proxy:ip=10.89.0.20"
+              "--network=proxy:ip=${proxyIp}"
             ];
             ports = [
-              "127.0.0.1:8081:8080"
-              "127.0.0.1:5030:5030"
               "47594/tcp"
               "47594/udp"
             ];

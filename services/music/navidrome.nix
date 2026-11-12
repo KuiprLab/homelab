@@ -1,10 +1,15 @@
-_: {
+_: let
+  proxyIp = "10.89.0.63";
+in {
   flake = {
+    podmanProxyHosts.navidrome.ip = proxyIp;
+
     # navidrome ext-auth header injection does not work through pangolin
     pangolinVirtualHosts."music" = {
       site = "sorbet";
       name = "Navidrome (ext)";
       subdomain = "music.ext.kuipr.de";
+      hostname = "navidrome";
       port = 4533;
       private = false;
     };
@@ -34,7 +39,6 @@ _: {
           "${dataDir}:/data"
         ];
         user = "${toString config.users.users.navidrome.uid}:${toString config.users.groups.navidrome.gid}";
-        ports = ["127.0.0.1:4533:4533"];
         environmentFiles = [config.sops.secrets."navidrome/env".path];
         environment = {
           ND_MUSICFOLDER = "/music";
@@ -51,8 +55,8 @@ _: {
           ND_ENABLESHARING = "true";
           ND_AUTOIMPORTPLAYLISTS = "true";
           ND_SUBSONIC_DEFAULTREPORTREALPATH = "true";
-          # caddy is native: the header arrives from the podman bridge gateway, not loopback
-          ND_EXTAUTH_TRUSTEDSOURCES = "10.88.0.1/32";
+          # caddy is native: the header arrives from the proxy network gateway, not loopback
+          ND_EXTAUTH_TRUSTEDSOURCES = "10.89.0.1/32";
           ND_EXTAUTH_USERHEADER = "Remote-User";
           ND_EXTAUTH_LOGOUTURL = "https://auth.ext.kuipr.de/logout";
           ND_ENABLEUSEREDITING = "false";
@@ -60,6 +64,7 @@ _: {
         log-driver = "journald";
         extraOptions = [
           "--group-add=${toString config.users.groups.music.gid}"
+          "--network=proxy:ip=${proxyIp}"
           # podman's first health check fires immediately; retry or activation fails
           "--health-cmd=wget -q -O /dev/null http://127.0.0.1:4533/ping"
           "--health-interval=30s"

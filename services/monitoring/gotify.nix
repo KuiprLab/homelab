@@ -1,11 +1,16 @@
-_: {
+_: let
+  proxyIp = "10.89.0.60";
+in {
   flake = {
+    podmanProxyHosts.gotify.ip = proxyIp;
+
     pangolinVirtualHosts."gotify" = {
       site = "sorbet";
       name = "Gotify";
       subdomain = "gotify.ext.kuipr.de";
       private = false;
-      port = 8085;
+      hostname = "gotify";
+      port = 80;
       healthcheck.path = "/health";
     };
 
@@ -42,9 +47,6 @@ _: {
         volumes = [
           "/var/lib/gotify:/app/data"
         ];
-        ports = [
-          "127.0.0.1:8085:80"
-        ];
         environment = {
           GOTIFY_SERVER_PORT = "80";
           GOTIFY_SERVER_SECURECOOKIE = "true";
@@ -74,6 +76,7 @@ _: {
         log-driver = "journald";
         extraOptions = [
           "--dns=192.168.0.85"
+          "--network=proxy:ip=${proxyIp}"
           "--health-cmd=curl -fsS http://127.0.0.1:80/health"
           "--health-interval=30s"
           "--health-on-failure=kill"

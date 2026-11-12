@@ -58,7 +58,7 @@ _: {
             jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
               '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
               | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                  "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN" \
+                  "http://gotify:80/message?token=$GOTIFY_TOKEN" \
               || echo "gotify notification failed" >&2
           }
 
@@ -106,7 +106,7 @@ _: {
             jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
               '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
               | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                  "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN" \
+                  "http://gotify:80/message?token=$GOTIFY_TOKEN" \
               || echo "gotify notification failed" >&2
           }
 
@@ -210,7 +210,7 @@ _: {
           jq -n --arg t "🎵 slskd → beets" --arg m "❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" \
             '{title: $t, message: $m, priority: 8, extras: {"client::display": {contentType: "text/markdown"}}}' \
             | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                "http://127.0.0.1:8085/message?token=$GOTIFY_TOKEN"
+                "http://gotify:80/message?token=$GOTIFY_TOKEN"
         '';
       };
     in {

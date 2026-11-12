@@ -1,12 +1,17 @@
 # Notifications are set in the hub UI; Gotify 3 tokens need the Shoutrrr generic:// syntax.
-_: {
+_: let
+  proxyIp = "10.89.0.62";
+in {
   flake = {
+    podmanProxyHosts.beszel-hub.ip = proxyIp;
+
     pangolinVirtualHosts."monitoring" = {
       site = "sorbet";
       name = "Beszel";
       subdomain = "monitoring.ext.kuipr.de";
       private = false;
-      port = 8091;
+      hostname = "beszel-hub";
+      port = 8090;
     };
 
     nixosModules.beszel = {
@@ -37,7 +42,6 @@ _: {
         volumes = [
           "/var/lib/beszel:/beszel_data"
         ];
-        ports = ["127.0.0.1:8091:8090"]; # image listens on 8090, agents use 8091
         environment = {
           APP_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
@@ -46,6 +50,7 @@ _: {
           SHARE_ALL_SYSTEMS = "true";
         };
         log-driver = "journald";
+        extraOptions = ["--network=proxy:ip=${proxyIp}"];
         # The image is FROM scratch, so there is nothing for --health-cmd to run.
       };
 
@@ -71,7 +76,7 @@ _: {
           enable = true;
           smartmon.enable = true;
           environment = {
-            HUB_URL = "http://127.0.0.1:8091";
+            HUB_URL = "http://beszel-hub:8090";
             DISABLE_SSH = "true";
           };
           # sops env file: freeform env would end up world-readable in /nix/store.

@@ -1,9 +1,14 @@
-_: {
+_: let
+  proxyIp = "10.89.0.50";
+in {
   flake = {
+    podmanProxyHosts.lldap.ip = proxyIp;
+
     pangolinVirtualHosts."lldap" = {
       site = "sorbet";
       name = "LLDAP";
       subdomain = "lldap.int.kuipr.de";
+      hostname = "lldap";
       port = 17170;
       private = true;
     };
@@ -89,9 +94,6 @@ _: {
           volumes = [
             "lldap_data:/data:rw"
           ];
-          ports = [
-            "127.0.0.1:17170:17170/tcp"
-          ];
           environmentFiles = [
             "${config.sops.secrets."lldap/lldap.env".path}"
           ];
@@ -107,7 +109,7 @@ _: {
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
             "--network=lldap_default:ip=10.89.3.21"
-            "--network=proxy"
+            "--network=proxy:ip=${proxyIp}"
             "--dns=192.168.0.85"
           ];
         };

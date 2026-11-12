@@ -1,9 +1,14 @@
-_: {
+_: let
+  proxyIp = "10.89.0.22";
+in {
   flake = {
+    podmanProxyHosts.multi-scrobbler.ip = proxyIp;
+
     pangolinVirtualHosts."scrobble" = {
       site = "sorbet";
       name = "Multi-scrobbler";
       subdomain = "scrobble.int.kuipr.de";
+      hostname = "multi-scrobbler";
       port = 9078;
       healthcheck.path = "/api/version";
       auth = {
@@ -50,7 +55,6 @@ _: {
           BASE_URL = "https://scrobble.int.kuipr.de";
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
-        ports = ["127.0.0.1:9078:9078"];
         # probe / not /api/health: that answers 500 while any source is down
         # retry: podman's first check fires immediately; pinned IP + --dns keep attribution
         extraOptions = [
@@ -60,7 +64,7 @@ _: {
           "--health-retries=3"
           "--health-start-period=2m"
           "--health-timeout=40s"
-          "--network=podman:ip=10.88.3.21"
+          "--network=proxy:ip=${proxyIp}"
           "--network=msv6"
           "--dns=192.168.0.85"
         ];

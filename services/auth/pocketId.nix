@@ -1,9 +1,14 @@
-_: {
+_: let
+  proxyIp = "10.89.0.51";
+in {
   flake = {
+    podmanProxyHosts.pocketid.ip = proxyIp;
+
     pangolinVirtualHosts."pocketid" = {
       site = "sorbet";
       name = "PocketID";
       subdomain = "id.ext.kuipr.de";
+      hostname = "pocketid";
       port = 1411;
       private = false;
     };
@@ -70,9 +75,6 @@ _: {
           volumes = [
             "pocketid_data:/app/data:rw"
           ];
-          ports = [
-            "127.0.0.1:1411:1411/tcp"
-          ];
           environmentFiles = [
             "${config.sops.secrets."pocketid/pocketid.env".path}"
           ];
@@ -103,7 +105,7 @@ _: {
             "--network-alias=pocketid"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
             "--network=pocketid_default:ip=10.89.4.24"
-            "--network=proxy"
+            "--network=proxy:ip=${proxyIp}"
             "--dns=192.168.0.85"
           ];
         };

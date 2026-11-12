@@ -73,12 +73,16 @@ in {
           };
           port = lib.mkOption {
             type = lib.types.port;
-            description = "Backend port on the site's host.";
+            description = "Backend port as seen from the site: the container's own port, not a published one.";
           };
           hostname = lib.mkOption {
             type = lib.types.str;
             default = "127.0.0.1";
-            description = "Backend host as seen from the site's newt.";
+            description = ''
+              Backend host as seen from the site. Container names on the podman
+              proxy network resolve for both caddy and newt; 127.0.0.1 stays for
+              host-networked services (technitium, homeassistant, upsnap).
+            '';
           };
           tlsInsecureSkipVerify = lib.mkOption {
             type = lib.types.bool;

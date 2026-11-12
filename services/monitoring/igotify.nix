@@ -1,12 +1,17 @@
 # No Authelia in front: the iOS app cannot complete a browser SSO flow.
-_: {
+_: let
+  proxyIp = "10.89.0.61";
+in {
   flake = {
+    podmanProxyHosts.igotify.ip = proxyIp;
+
     pangolinVirtualHosts."igotify" = {
       site = "sorbet";
       name = "iGotify";
       subdomain = "igotify.ext.kuipr.de";
       private = false;
-      port = 8681;
+      hostname = "igotify";
+      port = 8080;
       healthcheck.path = "/Version";
     };
 
@@ -20,9 +25,6 @@ _: {
         volumes = [
           "/var/lib/igotify:/app/data"
         ];
-        ports = [
-          "127.0.0.1:8681:8080"
-        ];
         environment = {
           ENABLE_CONSOLE_LOG = "true";
           ENABLE_USER_UI = "true";
@@ -34,6 +36,7 @@ _: {
         log-driver = "journald";
         extraOptions = [
           "--dns=192.168.0.85"
+          "--network=proxy:ip=${proxyIp}"
           "--health-cmd=curl -fsS http://127.0.0.1:8080/Version"
           "--health-interval=30s"
           "--health-on-failure=kill"

@@ -1,10 +1,15 @@
-_: {
+_: let
+  proxyIp = "10.89.0.64";
+in {
   flake = {
+    podmanProxyHosts.subtidal.ip = proxyIp;
+
     pangolinVirtualHosts."subtidal" = {
       site = "sorbet";
       name = "Subtidal";
       subdomain = "subtidal.ext.kuipr.de";
-      port = 4234;
+      hostname = "subtidal";
+      port = 8000;
       private = false;
     };
 
@@ -38,7 +43,6 @@ _: {
             "${config.sops.secrets."subtidal".path}:/config/subtidal/settings.toml:ro"
           ];
           user = "${toString uid}:${toString gid}";
-          ports = ["127.0.0.1:4234:8000"];
           environment = {
             TZ = "Europe/Berlin";
             XDG_CONFIG_HOME = "/config";
@@ -47,6 +51,7 @@ _: {
           };
           # podman ignores image HEALTHCHECK; retry the first check or activation fails
           extraOptions = [
+            "--network=proxy:ip=${proxyIp}"
             "--health-cmd=curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null"
             "--health-interval=30s"
             "--health-on-failure=kill"

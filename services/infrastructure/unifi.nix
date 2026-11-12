@@ -1,11 +1,16 @@
-_: {
+_: let
+  proxyIp = "10.89.0.40";
+in {
   flake = {
+    podmanProxyHosts.unifi-os-server.ip = proxyIp;
+
     pangolinVirtualHosts."unifi" = {
       site = "sorbet";
       name = "UniFi";
       subdomain = "unifi.int.kuipr.de";
+      hostname = "unifi-os-server";
       protocol = "https";
-      port = 11443;
+      port = 443;
       tlsInsecureSkipVerify = true;
     };
 
@@ -28,7 +33,6 @@ _: {
             "unifi-os-server--etc-rabbitmq-ssl:/etc/rabbitmq/ssl"
           ];
           ports = [
-            "127.0.0.1:11443:443"
             # LAN IP, not loopback: device adoption talks to UOS_SYSTEM_IP.
             "192.168.0.85:5005:5005"
             "192.168.0.85:9543:9543"
@@ -55,6 +59,7 @@ _: {
           image = "ghcr.io/lemker/unifi-os-server:latest@sha256:c0136d42d238b9574d93676aada3f61971ffb6bcbe2a3050627a9fa7ced7c878";
           # The image has no curl/wget; a failed check aborts activation, so retry with /dev/tcp.
           extraOptions = [
+            "--network=proxy:ip=${proxyIp}"
             "--health-cmd=bash -c 'n=0; until (exec 3<>/dev/tcp/127.0.0.1/443) 2>/dev/null; do n=$((n+1)); [ $n -ge 30 ] && exit 1; sleep 5; done'"
             "--health-interval=30s"
             "--health-on-failure=kill"
