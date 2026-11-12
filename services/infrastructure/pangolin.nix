@@ -418,6 +418,14 @@ in {
 
     forSite = site: lib.filterAttrs (_nick: v: v.site == site) vhosts;
 
+    # Every newt applies only its own blueprint, so each file carries one site entry.
+    siteSettings = site: {
+      "${sites.${site}.niceId}" = {
+        name = sites.${site}.niceId;
+        "docker-socket-enabled" = true;
+      };
+    };
+
     # Priorities must be unique; 1000 leaves room for hand-written rules.
     geoRules =
       lib.imap0 (i: cc: {
@@ -911,6 +919,7 @@ in {
       ...
     }: let
       blueprint = (pkgs.formats.yaml {}).generate "blueprint-eclair.yml" {
+        sites = siteSettings "eclair";
         client-resources = (clientResources "eclair") // (exitNodeResources "eclair");
         proxy-resources = proxyResources "eclair";
       };
@@ -947,6 +956,7 @@ in {
       ...
     }: let
       blueprint = (pkgs.formats.yaml {}).generate "blueprint-sorbet.yml" {
+        sites = siteSettings "sorbet";
         client-resources = (clientResources "sorbet") // (exitNodeResources "sorbet");
         proxy-resources = proxyResources "sorbet";
       };
