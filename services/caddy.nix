@@ -159,7 +159,7 @@ in {
                 "github.com/caddy-dns/bunny@v1.2.0"
                 "github.com/greenpau/caddy-security@v1.6.2"
               ];
-              hash = "sha256-TcG1GI0T8qiVUeha/e3izU0tz4MpSDj8S1JU51AA/ZA=";
+              hash = "sha256-tHiNFJdo6Yg8N7gj8BpOFqoUGa+646uT7N8DMdlaaMc=";
             };
             globalConfig = ''
               admin localhost:2020
