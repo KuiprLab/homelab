@@ -8,6 +8,10 @@ _: {
     };
 
     nixosModules.upsnap = {pkgs, ...}: {
+      # Bound to the bridge gateway for the edge container; nothing listens on the
+      # LAN address, so allowing the port exposes nothing to the LAN.
+      networking.firewall.allowedTCPPorts = [8090];
+
       virtualisation.oci-containers.containers.upsnap = {
         volumes = [
           "upsnap-data:/app/pb_data"

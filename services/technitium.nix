@@ -65,6 +65,11 @@ in {
   };
 
   flake.nixosModules.technitium = {config, ...}: {
+    # The web service listens on 10.89.0.1 only, so the edge container can reach
+    # it; its own LAN address serves DNS:53, not the UI. Opening the port here
+    # exposes nothing on 192.168.0.85.
+    networking.firewall.allowedTCPPorts = [5380];
+
     imports = [
       (import ../apps/technitium-converge/_module.nix {
         inherit
