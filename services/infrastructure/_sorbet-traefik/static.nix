@@ -7,7 +7,20 @@
         scheme = "https";
       };
     };
-    websecure.address = ":443";
+    websecure = {
+      address = ":443";
+      # One wildcard certificate for the zone through DNS-01, issued once instead
+      # of one per host; routers only need their certResolver.
+      http.tls = {
+        certResolver = "letsencrypt";
+        domains = [
+          {
+            main = "int.kuipr.de";
+            sans = ["*.int.kuipr.de"];
+          }
+        ];
+      };
+    };
   };
 
   # DNS-01 so the wildcard cert needs no inbound reachability; the key is passed
