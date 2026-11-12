@@ -35,7 +35,7 @@ in {
               - pocketID:
                   endpoint: "https://id.ext.kuipr.de"
                   clientID: "sorbet-forward-auth"
-                  clientSecret: "\$POCKETID_CLIENT_SECRET"
+                  clientSecret: "$POCKETID_CLIENT_SECRET"
         EOF
 
         chown ${configUid}:${configUid} /run/sorbet-forward-auth/config.yaml
@@ -66,6 +66,9 @@ in {
         volumes = [
           "/run/sorbet-forward-auth:/etc/traefik-forward-auth:ro"
         ];
+        # distroless nonroot; stated explicitly so the runtime user and the config
+        # ownership above cannot drift apart.
+        user = "65532:65532";
         log-driver = "journald";
         extraOptions = [
           "--network=proxy:ip=${proxyIp}"
