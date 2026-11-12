@@ -15,7 +15,11 @@ in {
       configUid = "65532";
       writeConfig = pkgs.writeShellScript "sorbet-forward-auth-config" ''
         set -eu
-        install -d -m 0755 -o ${configUid} -g ${configUid} /run/sorbet-forward-auth
+        install -d /run/sorbet-forward-auth
+        # Force the mode: install -d leaves an existing directory's mode alone, and
+        # an earlier run left this one at 0750 root, which uid 65532 cannot enter.
+        chown ${configUid}:${configUid} /run/sorbet-forward-auth
+        chmod 0755 /run/sorbet-forward-auth
 
         # The app takes no secrets from the environment, so the file is rendered
         # from the sops dotenv at start instead of living in the store.
