@@ -83,6 +83,14 @@ in {
           environmentFile = config.sops.secrets."beszel/agent".path;
         };
       };
+
+      # The unit's default Restart=on-failure leaves the agent dead for good if it
+      # starts before the hub is reachable and exits cleanly.
+      systemd.services.beszel-agent = {
+        wants = ["podman-beszel-hub.service"];
+        after = ["podman-beszel-hub.service"];
+        serviceConfig.Restart = lib.mkOverride 90 "always";
+      };
     };
 
     eclairNixosModules.beszelAgent = {config, ...}: {
