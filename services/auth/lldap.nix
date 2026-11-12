@@ -55,7 +55,7 @@ in {
 
         # --env without a value forwards the variable, so the password stays out of the process argv.
         exec ${pkgs.podman}/bin/podman run --rm \
-          --network=lldap_default \
+          --network=proxy \
           --entrypoint=/app/bootstrap.sh \
           --env=LLDAP_URL \
           --env=LLDAP_ADMIN_USERNAME \
@@ -63,6 +63,18 @@ in {
           --env=DO_CLEANUP \
           --volume=/run/lldap-bootstrap:/bootstrap:ro \
           ${image}
+      '';
+
+      # The image's wait loop never gives up and never says why; this one does both differ for.
+      waitForLldap = pkgs.writeShellScript "lldap-wait" ''
+        for _ in $(seq 1 40); do
+          if ${pkgs.curl}/bin/curl -fsS -m 3 "$LLDAP_URL/health" >/dev/null; then
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "lldap did not answer $LLDAP_URL within 200s; check podman logs lldap" >&2
+        exit 1
       '';
     in {
       sops.secrets = {
@@ -109,7 +121,9 @@ in {
             # "--health-timeout=30s"
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=lldap_default:ip=10.89.3.21"
+            # One network only: lldap_default was a systemd unit whose ExecStop ran
+            # `podman network rm -f`, so a switch could delete the network under the
+            # running container, stranding its DNS name and wedging the bootstrap.
             "--network=proxy:ip=${proxyIp}"
             "--dns=192.168.0.85"
           ];
@@ -134,8 +148,14 @@ in {
             Type = "oneshot";
             # Remains active so a changed ExecStart re-runs the sync on switch-to-configuration.
             RemainAfterExit = true;
-            ExecStartPre = "${splitConfigs} /run/lldap-bootstrap";
+            ExecStartPre = [
+              "${splitConfigs} /run/lldap-bootstrap"
+              waitForLldap
+            ];
             ExecStart = runBootstrap;
+            # A sync that cannot reach lldap must fail, not hold multi-user.target and
+            # with it the entire switch-to-configuration.
+            TimeoutStartSec = 300;
           };
         };
 
@@ -143,14 +163,6 @@ in {
           serviceConfig = {
             Restart = lib.mkOverride 90 "always";
           };
-          after = [
-            "podman-network-lldap_default.service"
-            "podman-create-network-proxy.service"
-          ];
-          requires = [
-            "podman-network-lldap_default.service"
-            "podman-create-network-proxy.service"
-          ];
           partOf = [
             "podman-compose-lldap-root.target"
           ];
@@ -163,20 +175,6 @@ in {
           serviceConfig.Type = "oneshot";
           script = "${pkgs.podman}/bin/podman volume create lldap_data || true";
           wantedBy = ["multi-user.target"];
-        };
-
-        "podman-network-lldap_default" = {
-          path = [pkgs.podman];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
-            ExecStop = "podman network rm -f lldap_default";
-          };
-          script = ''
-            podman network inspect lldap_default || podman network create lldap_default
-          '';
-          partOf = ["podman-compose-lldap-root.target"];
-          wantedBy = ["podman-compose-lldap-root.target"];
         };
       };
 

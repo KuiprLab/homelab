@@ -118,12 +118,10 @@ in {
           };
           after = [
             "podman-network-pocketid_default.service"
-            "podman-create-network-proxy.service"
             "podman-lldap.service"
           ];
           requires = [
             "podman-network-pocketid_default.service"
-            "podman-create-network-proxy.service"
           ];
           wants = ["podman-lldap.service"];
           partOf = [
