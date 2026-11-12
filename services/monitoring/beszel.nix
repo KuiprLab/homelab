@@ -61,7 +61,7 @@ in {
           APP_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
           USER_CREATION = "true";
-          DISABLE_PASSWORD_AUTH = "true";
+          DISABLE_PASSWORD_AUTH = "false"; # needed for home assistant integration
           SHARE_ALL_SYSTEMS = "true";
         };
         log-driver = "journald";
