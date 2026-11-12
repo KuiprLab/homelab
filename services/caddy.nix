@@ -9,9 +9,31 @@
 
   stray = lib.filterAttrs (_: v: v.private && v.site != "sorbet" && !(v.extra ? mode)) vhosts;
 
+  # Upstreams come from the docker module: caddy dials whatever the container
+  # carrying this selector label reports, so no host port is published.
+  # containerHost is explicit because reading the containers option here would
+  # recurse through the labels this module attaches.
+  caddyLabelsFor = v: {
+    "homelab.caddy.vhost" = v.subdomain;
+    "com.caddyserver.http.enable" = "true";
+    "com.caddyserver.http.upstream.port" = toString v.port;
+  };
+
   reverseProxyFor = v:
-    "reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}"
-    + lib.optionalString v.tlsInsecureSkipVerify " {\n  transport http {\n    tls_insecure_skip_verify\n  }\n}";
+    "reverse_proxy {\n"
+    + "  dynamic docker {\n"
+    + "    label homelab.caddy.vhost ${v.subdomain}\n"
+    + "  }\n"
+    + lib.optionalString (v.protocol == "https") (
+      "  transport http {\n    tls"
+      + lib.optionalString v.tlsInsecureSkipVerify "\n    tls_insecure_skip_verify"
+      + "\n  }\n"
+    )
+    + "}";
+
+  staticReverseProxyFor = v:
+    ''reverse_proxy ${v.protocol}://${v.hostname}:${toString v.port}''
+    + lib.optionalString v.tlsInsecureSkipVerify " {\n      transport http {\n        tls_insecure_skip_verify\n      }\n    }";
 
   pocketIdUrl = "https://id.ext.kuipr.de";
   oidcClientId = "caddy-security";
@@ -27,17 +49,20 @@
 
   # Bypass paths still reach the backend: the pangolin health check uses one and
   # must not be answered with a redirect to the login.
-  siteRoutesFor = v: let
+  indentBy = spaces: lib.replaceStrings ["\n"] ["\n${spaces}"];
+
+  siteRoutesFor = proxyFor: v: let
+    proxied = indentBy "  " (proxyFor v);
     bypass =
       lib.concatMapStringsSep "\n" (p: ''
         route ${p} {
-          ${reverseProxyFor v}
+          ${proxied}
         }
       '')
       v.auth.bypassPaths;
   in
     if !v.auth.enable
-    then reverseProxyFor v
+    then proxyFor v
     else ''
       @login path /caddy-security/*
       route @login {
@@ -46,7 +71,7 @@
       ${bypass}
       route {
         authorize with pocketid_policy
-        ${reverseProxyFor v}
+        ${proxied}
       }
     '';
 
@@ -98,6 +123,14 @@ in {
       pkgs,
       ...
     }: let
+      # Container upstreams win over static ones; technitium is a systemd service.
+      usesDocker = v: v.containerHost != null;
+      proxyFor = v:
+        if usesDocker v
+        then reverseProxyFor v
+        else staticReverseProxyFor v;
+      dockerVhosts = lib.filter usesDocker (lib.attrValues byCaddy);
+
       renderEntry = v: "<li><a href=\"https://${v.subdomain}\">${
         lib.optionalString (v.name != null) (v.name + " ")
       }(${v.subdomain})</a></li>";
@@ -158,8 +191,9 @@ in {
               plugins = [
                 "github.com/caddy-dns/bunny@v1.2.0"
                 "github.com/greenpau/caddy-security@v1.6.2"
+                "github.com/invzhi/caddy-docker-upstreams@v1.2.0"
               ];
-              hash = "sha256-TcG1GI0T8qiVUeha/e3izU0tz4MpSDj8S1JU51AA/ZA=";
+              hash = "sha256-7LvXpl/SLLw6TNcVeAZHcZA7TMB9xtRHDmprU1f+NIc=";
             };
             globalConfig = ''
               admin localhost:2020
@@ -183,7 +217,7 @@ in {
                         request>headers>X-Csrftoken delete
                       }
                     }
-                    ${siteRoutesFor v}
+                    ${siteRoutesFor proxyFor v}
                   '';
                 })
               byCaddy
@@ -197,10 +231,31 @@ in {
               };
           };
 
-          systemd.services.caddy.serviceConfig.EnvironmentFile = [
-            config.sops.secrets."caddy/bunny_api_key".path
-            config.sops.secrets."caddy/security".path
+          virtualisation.oci-containers.containers =
+            lib.listToAttrs (map (v: lib.nameValuePair v.containerHost {labels = caddyLabelsFor v;}) dockerVhosts);
+
+          assertions = [
+            {
+              assertion = lib.all (v: config.virtualisation.oci-containers.containers ? ${v.containerHost}) dockerVhosts;
+              message = "caddy: containerHost of a vhost names no container: ${lib.concatStringsSep ", " (map (v: v.subdomain) (lib.filter (v: !(config.virtualisation.oci-containers.containers ? ${v.containerHost})) dockerVhosts))}";
+            }
           ];
+
+          # The docker module reads the podman socket at /run/podman/podman.sock.
+          # Caddy fails to provision at all without it, so order the start.
+          users.users.caddy.extraGroups = ["podman"];
+
+          systemd.services.caddy = {
+            requires = ["podman.socket"];
+            after = ["podman.socket"];
+            serviceConfig = {
+              Environment = ["DOCKER_HOST=unix:///run/podman/podman.sock"];
+              EnvironmentFile = [
+                config.sops.secrets."caddy/bunny_api_key".path
+                config.sops.secrets."caddy/security".path
+              ];
+            };
+          };
         };
   };
 }

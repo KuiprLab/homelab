@@ -5,6 +5,8 @@ _: {
       name = "Home Assistant";
       subdomain = "has.int.kuipr.de";
       port = 8123;
+      # host networking: the container has no address of its own to label
+      containerHost = "homeassistant";
     };
 
     nixosModules.homeassistant = {config, ...}: {

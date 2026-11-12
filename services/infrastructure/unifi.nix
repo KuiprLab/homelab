@@ -9,6 +9,7 @@ in {
       name = "UniFi";
       subdomain = "unifi.int.kuipr.de";
       hostname = "unifi-os-server";
+      containerHost = "unifi-os-server";
       protocol = "https";
       port = 443;
       tlsInsecureSkipVerify = true;

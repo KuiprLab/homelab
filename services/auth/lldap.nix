@@ -9,6 +9,7 @@ in {
       name = "LLDAP";
       subdomain = "lldap.int.kuipr.de";
       hostname = "lldap";
+      containerHost = "lldap";
       port = 17170;
       private = true;
     };

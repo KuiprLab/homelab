@@ -13,6 +13,7 @@ in {
       name = "Koito";
       subdomain = "koito.int.kuipr.de";
       hostname = "koito";
+      containerHost = "koito";
       port = 4110;
       healthcheck.path = "/apis/web/v1/health";
       auth = {

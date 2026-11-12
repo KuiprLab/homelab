@@ -9,6 +9,7 @@ in {
       name = "Multi-scrobbler";
       subdomain = "scrobble.int.kuipr.de";
       hostname = "multi-scrobbler";
+      containerHost = "multi-scrobbler";
       port = 9078;
       healthcheck.path = "/api/version";
       auth = {

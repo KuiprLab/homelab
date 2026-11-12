@@ -5,6 +5,8 @@ _: {
       name = "Upsnap";
       subdomain = "up.int.kuipr.de";
       port = 8090;
+      # host networking: the container has no address of its own to label
+      containerHost = "upsnap";
     };
 
     nixosModules.upsnap = {pkgs, ...}: {

@@ -84,6 +84,15 @@ in {
               host-networked services (technitium, homeassistant, upsnap).
             '';
           };
+          containerHost = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              Container whose labels carry this public resource. Defaults to
+              `hostname`; set it when the vhost points at 127.0.0.1 because the
+              container is host-networked.
+            '';
+          };
           tlsInsecureSkipVerify = lib.mkOption {
             type = lib.types.bool;
             default = false;
@@ -535,35 +544,67 @@ in {
       (lib.filterAttrs (_: vh: vh.private && vh.extra ? mode) (forSite site))
       // hostResourcesFor site;
 
-    proxyResources = site:
-      lib.mapAttrs (_nick: vh:
-        lib.recursiveUpdate
-        ({
-            inherit (vh) name;
-            mode = "http";
-            "full-domain" = vh.subdomain;
-            labels = labelsFor "public" vh.site;
-            targets = [
-              ({
+    # One public resource per vhost, shared by blueprint and container labels.
+    publicResource = vh:
+      lib.recursiveUpdate
+      ({
+          inherit (vh) name;
+          mode = "http";
+          "full-domain" = vh.subdomain;
+          labels = labelsFor "public" vh.site;
+          targets = [
+            ({
+                inherit (vh) hostname;
+                inherit (vh) port;
+                healthcheck = healthcheckFor {
                   inherit (vh) hostname;
                   inherit (vh) port;
-                  healthcheck = healthcheckFor {
-                    inherit (vh) hostname;
-                    inherit (vh) port;
-                    inherit (vh) protocol;
-                    hc = vh.healthcheck;
-                  };
-                }
-                // lib.optionalAttrs (vh.protocol != null) {
-                  method = vh.protocol;
-                })
-            ];
-          }
-          // lib.optionalAttrs (asnRules != [] || geoRules != []) {
-            rules = asnRules ++ geoRules;
-          })
-        vh.extra)
-      (lib.filterAttrs (_: vh: !vh.private) (forSite site));
+                  inherit (vh) protocol;
+                  hc = vh.healthcheck;
+                };
+              }
+              // lib.optionalAttrs (vh.protocol != null) {
+                method = vh.protocol;
+              })
+          ];
+        }
+        // lib.optionalAttrs (asnRules != [] || geoRules != []) {
+          rules = asnRules ++ geoRules;
+        })
+      vh.extra;
+
+    publicResourcesFor = site: lib.filterAttrs (_: vh: !vh.private) (forSite site);
+
+    labelValue = value:
+      if lib.isBool value
+      then lib.boolToString value
+      else if lib.isInt value
+      then toString value
+      else value;
+
+    # Container labels carry the blueprint schema in dot notation: attrs become
+    # a.b and list items a[0].
+    flattenLabels = prefix: value:
+      if lib.isAttrs value
+      then lib.concatMapAttrs (key: sub: flattenLabels "${prefix}.${key}" sub) value
+      else if lib.isList value
+      then
+        lib.foldl' (labels: entry: labels // flattenLabels "${prefix}[${toString entry.index}]" entry.value) {}
+        (lib.imap0 (index: value: {inherit index value;}) value)
+      else {${prefix} = labelValue value;};
+
+    # Pangolin applies these itself: newt reads the socket and pushes the labels
+    # on every container event, so the site blueprint must not repeat them.
+    dockerLabelsFor = site:
+      lib.concatMapAttrs (name: vh: let
+        containerHost =
+          if vh.containerHost != null
+          then vh.containerHost
+          else vh.hostname;
+      in {
+        ${containerHost}.labels = flattenLabels "pangolin.proxy-resources.${name}" (publicResource vh);
+      })
+      (publicResourcesFor site);
 
     exitNodeResources = site:
       lib.mapAttrs (_nick: en:
@@ -925,7 +966,6 @@ in {
       blueprint = (pkgs.formats.yaml {}).generate "blueprint-eclair.yml" {
         sites = siteSettings "eclair";
         client-resources = (clientResources "eclair") // (exitNodeResources "eclair");
-        proxy-resources = proxyResources "eclair";
       };
     in {
       sops.secrets."newt-eclair" = {
@@ -939,7 +979,10 @@ in {
 
       virtualisation.oci-containers.containers.newt = {
         image = "docker.io/fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e";
-        volumes = ["${blueprint}:/blueprint.yml:ro"];
+        volumes = [
+          "${blueprint}:/blueprint.yml:ro"
+          "/run/podman/podman.sock:/var/run/docker.sock:ro"
+        ];
         cmd = [
           "--endpoint=https://pangolin.ext.kuipr.de"
           "--id=eclair"
@@ -949,6 +992,7 @@ in {
           "--network=host"
           "--env-host"
           "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          "--env=DOCKER_SOCKET=unix:///var/run/docker.sock"
         ];
         log-driver = "journald";
       };
@@ -962,9 +1006,17 @@ in {
       blueprint = (pkgs.formats.yaml {}).generate "blueprint-sorbet.yml" {
         sites = siteSettings "sorbet";
         client-resources = (clientResources "sorbet") // (exitNodeResources "sorbet");
-        proxy-resources = proxyResources "sorbet";
       };
+      dockerLabels = dockerLabelsFor "sorbet";
+      orphanedLabels = lib.filter (containerHost: !(config.virtualisation.oci-containers.containers ? ${containerHost})) (lib.attrNames dockerLabels);
     in {
+      assertions = [
+        {
+          assertion = orphanedLabels == [];
+          message = "pangolin: public vhost labels target containers that do not exist: ${lib.concatStringsSep ", " orphanedLabels}";
+        }
+      ];
+
       sops.secrets."newt-sorbet" = {
         sopsFile = ../../secrets/sorbet/newt.env;
         format = "dotenv";
@@ -976,21 +1028,29 @@ in {
       # Health checks probe the vhost domains, so newt must verify the certificate too.
       systemd.services."podman-newt".serviceConfig.Environment = ["ENFORCE_HC_CERT=true"];
 
-      virtualisation.oci-containers.containers.newt = {
-        image = "docker.io/fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e";
-        volumes = ["${blueprint}:/blueprint.yml:ro"];
-        cmd = [
-          "--endpoint=https://pangolin.ext.kuipr.de"
-          "--id=sorbet"
-          "--blueprint-file=/blueprint.yml"
-        ];
-        extraOptions = [
-          "--network=host"
-          "--env-host"
-          "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        ];
-        log-driver = "journald";
-      };
+      virtualisation.oci-containers.containers =
+        dockerLabels
+        // {
+          newt = {
+            image = "docker.io/fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e";
+            volumes = [
+              "${blueprint}:/blueprint.yml:ro"
+              "/run/podman/podman.sock:/var/run/docker.sock:ro"
+            ];
+            cmd = [
+              "--endpoint=https://pangolin.ext.kuipr.de"
+              "--id=sorbet"
+              "--blueprint-file=/blueprint.yml"
+            ];
+            extraOptions = [
+              "--network=host"
+              "--env-host"
+              "--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              "--env=DOCKER_SOCKET=unix:///var/run/docker.sock"
+            ];
+            log-driver = "journald";
+          };
+        };
     };
   };
 }

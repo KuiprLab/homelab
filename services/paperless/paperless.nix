@@ -17,6 +17,7 @@ in {
       name = "Paperless";
       subdomain = "paperless.int.kuipr.de";
       hostname = "paperless";
+      containerHost = "paperless";
       port = 8000;
     };
 
