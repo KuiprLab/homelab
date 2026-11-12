@@ -1,12 +1,31 @@
 # Notifications are set in the hub UI; Gotify 3 tokens need the Shoutrrr generic:// syntax.
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.62";
+  vhost = config.flake.pangolinVirtualHosts."monitoring";
+  labels =
+    config.flake.pangolinRuleLabels "monitoring"
+    // config.flake.pangolinHealthcheckLabels "monitoring" vhost
+    // {
+      "pangolin.proxy-resources.monitoring.name" = vhost.name;
+      "pangolin.proxy-resources.monitoring.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.monitoring.mode" = "http";
+      "pangolin.proxy-resources.monitoring.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.monitoring.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.monitoring.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.monitoring.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.monitoring.targets[0].method" = vhost.protocol;
+    };
+in {
   flake = {
+    podmanProxyHosts.beszel-hub.ip = proxyIp;
+
     pangolinVirtualHosts."monitoring" = {
       site = "sorbet";
       name = "Beszel";
       subdomain = "monitoring.ext.kuipr.de";
       private = false;
-      port = 8091;
+      hostname = "beszel-hub";
+      port = 8090;
     };
 
     nixosModules.beszel = {
@@ -33,19 +52,20 @@ _: {
 
       # PocketBase's data dir is relative to cwd, and the image's cwd is /.
       virtualisation.oci-containers.containers.beszel-hub = {
+        inherit labels;
         image = "docker.io/henrygd/beszel:latest@sha256:8514a69d9bbbcb74f371a3205561ee231fc0289739cea64e8131f341d695b770";
         volumes = [
           "/var/lib/beszel:/beszel_data"
         ];
-        ports = ["127.0.0.1:8091:8090"]; # image listens on 8090, agents use 8091
         environment = {
           APP_URL = "https://monitoring.ext.kuipr.de";
           DISABLE_SSH = "true";
           USER_CREATION = "true";
-          DISABLE_PASSWORD_AUTH = "true";
+          DISABLE_PASSWORD_AUTH = "false"; # needed for home assistant integration
           SHARE_ALL_SYSTEMS = "true";
         };
         log-driver = "journald";
+        extraOptions = ["--network=proxy:ip=${proxyIp}"];
         # The image is FROM scratch, so there is nothing for --health-cmd to run.
       };
 
@@ -71,12 +91,20 @@ _: {
           enable = true;
           smartmon.enable = true;
           environment = {
-            HUB_URL = "http://127.0.0.1:8091";
+            HUB_URL = "http://beszel-hub:8090";
             DISABLE_SSH = "true";
           };
           # sops env file: freeform env would end up world-readable in /nix/store.
           environmentFile = config.sops.secrets."beszel/agent".path;
         };
+      };
+
+      # The unit's default Restart=on-failure leaves the agent dead for good if it
+      # starts before the hub is reachable and exits cleanly.
+      systemd.services.beszel-agent = {
+        wants = ["podman-beszel-hub.service"];
+        after = ["podman-beszel-hub.service"];
+        serviceConfig.Restart = lib.mkOverride 90 "always";
       };
     };
 

@@ -1,10 +1,29 @@
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.63";
+  vhost = config.flake.pangolinVirtualHosts."music";
+  labels =
+    config.flake.pangolinRuleLabels "music"
+    // config.flake.pangolinHealthcheckLabels "music" vhost
+    // {
+      "pangolin.proxy-resources.music.name" = vhost.name;
+      "pangolin.proxy-resources.music.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.music.mode" = "http";
+      "pangolin.proxy-resources.music.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.music.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.music.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.music.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.music.targets[0].method" = vhost.protocol;
+    };
+in {
   flake = {
+    podmanProxyHosts.navidrome.ip = proxyIp;
+
     # navidrome ext-auth header injection does not work through pangolin
     pangolinVirtualHosts."music" = {
       site = "sorbet";
       name = "Navidrome (ext)";
       subdomain = "music.ext.kuipr.de";
+      hostname = "navidrome";
       port = 4533;
       private = false;
     };
@@ -28,13 +47,13 @@ _: {
       };
 
       virtualisation.oci-containers.containers.navidrome = {
+        inherit labels;
         image = "docker.io/deluan/navidrome:latest@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52";
         volumes = [
           "${musicFolder}:/music:ro"
           "${dataDir}:/data"
         ];
         user = "${toString config.users.users.navidrome.uid}:${toString config.users.groups.navidrome.gid}";
-        ports = ["127.0.0.1:4533:4533"];
         environmentFiles = [config.sops.secrets."navidrome/env".path];
         environment = {
           ND_MUSICFOLDER = "/music";
@@ -51,8 +70,8 @@ _: {
           ND_ENABLESHARING = "true";
           ND_AUTOIMPORTPLAYLISTS = "true";
           ND_SUBSONIC_DEFAULTREPORTREALPATH = "true";
-          # caddy is native: the header arrives from the podman bridge gateway, not loopback
-          ND_EXTAUTH_TRUSTEDSOURCES = "10.88.0.1/32";
+          # the edge is a container: the header arrives from the proxy network gateway
+          ND_EXTAUTH_TRUSTEDSOURCES = "10.89.0.1/32";
           ND_EXTAUTH_USERHEADER = "Remote-User";
           ND_EXTAUTH_LOGOUTURL = "https://auth.ext.kuipr.de/logout";
           ND_ENABLEUSEREDITING = "false";
@@ -60,6 +79,7 @@ _: {
         log-driver = "journald";
         extraOptions = [
           "--group-add=${toString config.users.groups.music.gid}"
+          "--network=proxy:ip=${proxyIp}"
           # podman's first health check fires immediately; retry or activation fails
           "--health-cmd=wget -q -O /dev/null http://127.0.0.1:4533/ping"
           "--health-interval=30s"

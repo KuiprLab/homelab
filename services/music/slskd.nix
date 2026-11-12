@@ -4,7 +4,8 @@ _: {
       site = "sorbet";
       name = "slskd";
       subdomain = "slskd.int.kuipr.de";
-      # published through the gluetun container's netns; loopback on sorbet
+      # slskd shares gluetun's netns, so the proxy network sees it as gluetun
+      hostname = "gluetun";
       port = 5030;
       healthcheck.path = "/health";
       auth = {

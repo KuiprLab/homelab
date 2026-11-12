@@ -1,4 +1,21 @@
-_: {
+{config, ...}: let
+  vhost = config.flake.pangolinVirtualHosts."crowdsec";
+  labels =
+    config.flake.pangolinRuleLabels "crowdsec"
+    // config.flake.pangolinHealthcheckLabels "crowdsec" vhost
+    // {
+      "pangolin.proxy-resources.crowdsec.name" = vhost.name;
+      "pangolin.proxy-resources.crowdsec.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.crowdsec.mode" = "http";
+      "pangolin.proxy-resources.crowdsec.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.crowdsec.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.crowdsec.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.crowdsec.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.crowdsec.targets[0].method" = vhost.protocol;
+      "pangolin.proxy-resources.crowdsec.auth.sso-enabled" = "true";
+      "pangolin.proxy-resources.crowdsec.auth.sso-roles[0]" = "Member";
+    };
+in {
   flake = {
     pangolinVirtualHosts."crowdsec" = {
       site = "sorbet";
@@ -6,6 +23,7 @@ _: {
       subdomain = "crowdsec.ext.kuipr.de";
       port = 3010;
       private = false;
+      # host networking: the vhost points at loopback, the labels live on the container
       extra.auth = {
         "sso-enabled" = true;
         "sso-roles" = ["Member"];
@@ -70,6 +88,7 @@ _: {
       };
 
       virtualisation.oci-containers.containers.crowdsec-web-ui = {
+        inherit labels;
         image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.8@sha256:c531d36780cfb072023aa273849ea081e2a6dc18df15326dde6af7dcc6cda160";
         volumes = ["/var/lib/crowdsec-web-ui:/app/data:rw"];
 

@@ -1,5 +1,33 @@
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.20";
+  vhost = config.flake.pangolinVirtualHosts."slskd";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.http.routers.slskd.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.slskd.entrypoints" = "websecure";
+    "traefik.http.routers.slskd.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd.service" = "slskd";
+    "traefik.http.routers.slskd.middlewares" = "sec-headers@file,oidc-auth@file";
+    "traefik.http.services.slskd.loadbalancer.server.port" = toString vhost.port;
+    # slskd keeps its own API auth (/api/*) and health endpoint; both must stay
+    # reachable without the login so the app and pangolin's probe work.
+    "traefik.http.routers.slskd-bypass-health.rule" = "Host(`${vhost.subdomain}`) && Path(`/health`)";
+    "traefik.http.routers.slskd-bypass-health.entrypoints" = "websecure";
+    "traefik.http.routers.slskd-bypass-health.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd-bypass-health.service" = "slskd";
+    "traefik.http.routers.slskd-bypass-health.priority" = "1000";
+    "traefik.http.routers.slskd-bypass-health.middlewares" = "sec-headers@file";
+    "traefik.http.routers.slskd-bypass-api.rule" = "Host(`${vhost.subdomain}`) && PathPrefix(`/api/`)";
+    "traefik.http.routers.slskd-bypass-api.entrypoints" = "websecure";
+    "traefik.http.routers.slskd-bypass-api.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd-bypass-api.service" = "slskd";
+    "traefik.http.routers.slskd-bypass-api.priority" = "1000";
+    "traefik.http.routers.slskd-bypass-api.middlewares" = "sec-headers@file";
+  };
+in {
   flake = {
+    podmanProxyHosts.gluetun.ip = proxyIp;
+
     nixosModules.gluetun = {lib, ...}: {
       sops.secrets = {
         "gluetun.env" = {
@@ -12,19 +40,6 @@ _: {
 
       systemd = {
         services = {
-          podman-create-network-proxy = {
-            description = "Create podman proxy network";
-            before = ["podman-gluetun.service"];
-            wantedBy = ["podman-compose-gluetun-root.target"];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              # --ip-range keeps dynamic allocation away from gluetun's pinned 10.89.0.20.
-              ExecStart = "/bin/sh -c 'podman network exists proxy || podman network create --subnet 10.89.0.0/24 --ip-range 10.89.0.128/25 proxy'";
-            };
-            path = ["/run/current-system/sw"];
-          };
-
           podman-gluetun = {
             serviceConfig = {
               Restart = lib.mkOverride 90 "always";
@@ -46,6 +61,7 @@ _: {
         backend = "podman";
         containers = {
           "gluetun" = {
+            labels = traefikLabels;
             image = "ghcr.io/qdm12/gluetun:latest@sha256:75df789dea20551fa973f808133a712700bf198518f9d49ed581287777508556";
             log-driver = "journald";
             environmentFiles = [
@@ -64,11 +80,9 @@ _: {
               "--health-timeout=90s"
               "--network-alias=gluetun"
               # Pinned for a stable identity in the DNS query log.
-              "--network=proxy:ip=10.89.0.20"
+              "--network=proxy:ip=${proxyIp}"
             ];
             ports = [
-              "127.0.0.1:8081:8080"
-              "127.0.0.1:5030:5030"
               "47594/tcp"
               "47594/udp"
             ];

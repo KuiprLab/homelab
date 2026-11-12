@@ -1,9 +1,24 @@
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.50";
+  vhost = config.flake.pangolinVirtualHosts."lldap";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.http.routers.lldap.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.lldap.entrypoints" = "websecure";
+    "traefik.http.routers.lldap.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.lldap.service" = "lldap";
+    "traefik.http.routers.lldap.middlewares" = "sec-headers@file";
+    "traefik.http.services.lldap.loadbalancer.server.port" = toString vhost.port;
+  };
+in {
   flake = {
+    podmanProxyHosts.lldap.ip = proxyIp;
+
     pangolinVirtualHosts."lldap" = {
       site = "sorbet";
       name = "LLDAP";
       subdomain = "lldap.int.kuipr.de";
+      hostname = "lldap";
       port = 17170;
       private = true;
     };
@@ -49,7 +64,7 @@ _: {
 
         # --env without a value forwards the variable, so the password stays out of the process argv.
         exec ${pkgs.podman}/bin/podman run --rm \
-          --network=lldap_default \
+          --network=proxy \
           --entrypoint=/app/bootstrap.sh \
           --env=LLDAP_URL \
           --env=LLDAP_ADMIN_USERNAME \
@@ -57,6 +72,18 @@ _: {
           --env=DO_CLEANUP \
           --volume=/run/lldap-bootstrap:/bootstrap:ro \
           ${image}
+      '';
+
+      # The image's wait loop never gives up and never says why; this one does both differ for.
+      waitForLldap = pkgs.writeShellScript "lldap-wait" ''
+        for _ in $(seq 1 40); do
+          if ${pkgs.curl}/bin/curl -fsS -m 3 "$LLDAP_URL/health" >/dev/null; then
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "lldap did not answer $LLDAP_URL within 200s; check podman logs lldap" >&2
+        exit 1
       '';
     in {
       sops.secrets = {
@@ -85,12 +112,10 @@ _: {
 
       virtualisation.oci-containers.containers = {
         "lldap" = {
+          labels = traefikLabels;
           inherit image;
           volumes = [
             "lldap_data:/data:rw"
-          ];
-          ports = [
-            "127.0.0.1:17170:17170/tcp"
           ];
           environmentFiles = [
             "${config.sops.secrets."lldap/lldap.env".path}"
@@ -106,8 +131,10 @@ _: {
             # "--health-timeout=30s"
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=lldap_default:ip=10.89.3.21"
-            "--network=proxy"
+            # One network only: lldap_default was a systemd unit whose ExecStop ran
+            # `podman network rm -f`, so a switch could delete the network under the
+            # running container, stranding its DNS name and wedging the bootstrap.
+            "--network=proxy:ip=${proxyIp}"
             "--dns=192.168.0.85"
           ];
         };
@@ -131,8 +158,14 @@ _: {
             Type = "oneshot";
             # Remains active so a changed ExecStart re-runs the sync on switch-to-configuration.
             RemainAfterExit = true;
-            ExecStartPre = "${splitConfigs} /run/lldap-bootstrap";
+            ExecStartPre = [
+              "${splitConfigs} /run/lldap-bootstrap"
+              waitForLldap
+            ];
             ExecStart = runBootstrap;
+            # A sync that cannot reach lldap must fail, not hold multi-user.target and
+            # with it the entire switch-to-configuration.
+            TimeoutStartSec = 300;
           };
         };
 
@@ -140,14 +173,6 @@ _: {
           serviceConfig = {
             Restart = lib.mkOverride 90 "always";
           };
-          after = [
-            "podman-network-lldap_default.service"
-            "podman-create-network-proxy.service"
-          ];
-          requires = [
-            "podman-network-lldap_default.service"
-            "podman-create-network-proxy.service"
-          ];
           partOf = [
             "podman-compose-lldap-root.target"
           ];
@@ -160,20 +185,6 @@ _: {
           serviceConfig.Type = "oneshot";
           script = "${pkgs.podman}/bin/podman volume create lldap_data || true";
           wantedBy = ["multi-user.target"];
-        };
-
-        "podman-network-lldap_default" = {
-          path = [pkgs.podman];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
-            ExecStop = "podman network rm -f lldap_default";
-          };
-          script = ''
-            podman network inspect lldap_default || podman network create lldap_default
-          '';
-          partOf = ["podman-compose-lldap-root.target"];
-          wantedBy = ["podman-compose-lldap-root.target"];
         };
       };
 
