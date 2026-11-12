@@ -318,6 +318,26 @@
       ];
     };
 
+    pangolinRuleLabels = lib.mkOption {
+      type = lib.types.functionTo (lib.types.attrsOf lib.types.str);
+      description = ''
+        Geo/ASN rule labels for one public resource, keyed by the resource name
+        (the pangolinVirtualHosts attribute). 42 rules over 4 fields, generated
+        from pangolinGeoAllow and pangolinAsnDeny so a public resource does not
+        repeat them in its service file.
+      '';
+    };
+
+    pangolinHealthcheckLabels = lib.mkOption {
+      type = lib.types.functionTo (lib.types.functionTo (lib.types.attrsOf lib.types.str));
+      description = ''
+        Target health check labels for one public resource: resource name, then
+        its vhost. The probe fields come from the vhost; the unhealthy threshold
+        is arithmetic over the tolerance, so it is expanded here rather than in
+        every service file.
+      '';
+    };
+
     pangolinServer = lib.mkOption {
       description = ''
         Server-side identifiers that otherwise only exist in pangolin's

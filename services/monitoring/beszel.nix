@@ -1,6 +1,20 @@
 # Notifications are set in the hub UI; Gotify 3 tokens need the Shoutrrr generic:// syntax.
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.62";
+  vhost = config.flake.pangolinVirtualHosts."monitoring";
+  labels =
+    config.flake.pangolinRuleLabels "monitoring"
+    // config.flake.pangolinHealthcheckLabels "monitoring" vhost
+    // {
+      "pangolin.proxy-resources.monitoring.name" = vhost.name;
+      "pangolin.proxy-resources.monitoring.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.monitoring.mode" = "http";
+      "pangolin.proxy-resources.monitoring.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.monitoring.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.monitoring.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.monitoring.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.monitoring.targets[0].method" = vhost.protocol;
+    };
 in {
   flake = {
     podmanProxyHosts.beszel-hub.ip = proxyIp;
@@ -38,6 +52,7 @@ in {
 
       # PocketBase's data dir is relative to cwd, and the image's cwd is /.
       virtualisation.oci-containers.containers.beszel-hub = {
+        inherit labels;
         image = "docker.io/henrygd/beszel:latest@sha256:8514a69d9bbbcb74f371a3205561ee231fc0289739cea64e8131f341d695b770";
         volumes = [
           "/var/lib/beszel:/beszel_data"

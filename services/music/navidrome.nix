@@ -1,5 +1,19 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.63";
+  vhost = config.flake.pangolinVirtualHosts."music";
+  labels =
+    config.flake.pangolinRuleLabels "music"
+    // config.flake.pangolinHealthcheckLabels "music" vhost
+    // {
+      "pangolin.proxy-resources.music.name" = vhost.name;
+      "pangolin.proxy-resources.music.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.music.mode" = "http";
+      "pangolin.proxy-resources.music.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.music.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.music.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.music.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.music.targets[0].method" = vhost.protocol;
+    };
 in {
   flake = {
     podmanProxyHosts.navidrome.ip = proxyIp;
@@ -33,6 +47,7 @@ in {
       };
 
       virtualisation.oci-containers.containers.navidrome = {
+        inherit labels;
         image = "docker.io/deluan/navidrome:latest@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52";
         volumes = [
           "${musicFolder}:/music:ro"

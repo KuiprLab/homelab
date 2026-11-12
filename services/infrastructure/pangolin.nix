@@ -17,23 +17,26 @@ in {
   imports = [
     ./_pangolin/options.nix
     (import ./_pangolin/server.nix {inherit constants;})
-    (import ./_pangolin/newt.nix {
-      inherit lib resources;
-    })
+    (import ./_pangolin/newt.nix {inherit resources;})
   ];
 
-  config.flake.pangolinServer = {
-    inherit
-      (constants)
-      apiUrl
-      orgId
-      orgName
-      orgSubnet
-      orgUtilitySubnet
-      dashboardDomain
-      oidcIssuer
-      sites
-      ;
-    inherit (resources) standaloneHealthChecks;
+  config.flake = {
+    pangolinRuleLabels = resources.ruleLabels;
+    pangolinHealthcheckLabels = resources.healthcheckLabels;
+
+    pangolinServer = {
+      inherit
+        (constants)
+        apiUrl
+        orgId
+        orgName
+        orgSubnet
+        orgUtilitySubnet
+        dashboardDomain
+        oidcIssuer
+        sites
+        ;
+      inherit (resources) standaloneHealthChecks;
+    };
   };
 }

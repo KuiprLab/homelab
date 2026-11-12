@@ -1,6 +1,20 @@
 # No Authelia in front: the iOS app cannot complete a browser SSO flow.
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.61";
+  vhost = config.flake.pangolinVirtualHosts."igotify";
+  labels =
+    config.flake.pangolinRuleLabels "igotify"
+    // config.flake.pangolinHealthcheckLabels "igotify" vhost
+    // {
+      "pangolin.proxy-resources.igotify.name" = vhost.name;
+      "pangolin.proxy-resources.igotify.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.igotify.mode" = "http";
+      "pangolin.proxy-resources.igotify.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.igotify.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.igotify.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.igotify.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.igotify.targets[0].method" = vhost.protocol;
+    };
 in {
   flake = {
     podmanProxyHosts.igotify.ip = proxyIp;
@@ -21,6 +35,7 @@ in {
       ];
 
       virtualisation.oci-containers.containers.igotify = {
+        inherit labels;
         image = "ghcr.io/androidseb25/igotify-notification-assist:v1.6.0.1@sha256:69fc3469e8461284f5b7794bad3466cead0030cc7e2e182239125360a6befd9d";
         volumes = [
           "/var/lib/igotify:/app/data"

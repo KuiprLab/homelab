@@ -123,37 +123,6 @@
     (lib.filterAttrs (_: vh: vh.private && vh.extra ? mode) (forSite site))
     // hostResourcesFor site;
 
-  # One public resource per vhost, shared by blueprint and container labels.
-  publicResource = vh:
-    lib.recursiveUpdate
-    ({
-        inherit (vh) name;
-        mode = "http";
-        "full-domain" = vh.subdomain;
-        labels = labelsFor "public" vh.site;
-        targets = [
-          ({
-              inherit (vh) hostname;
-              inherit (vh) port;
-              healthcheck = healthcheckFor {
-                inherit (vh) hostname;
-                inherit (vh) port;
-                inherit (vh) protocol;
-                hc = vh.healthcheck;
-              };
-            }
-            // lib.optionalAttrs (vh.protocol != null) {
-              method = vh.protocol;
-            })
-        ];
-      }
-      // lib.optionalAttrs (asnRules != [] || geoRules != []) {
-        rules = asnRules ++ geoRules;
-      })
-    vh.extra;
-
-  publicResourcesFor = site: lib.filterAttrs (_: vh: !vh.private) (forSite site);
-
   labelValue = value:
     if lib.isBool value
     then lib.boolToString value
@@ -172,18 +141,18 @@
       (lib.imap0 (index: value: {inherit index value;}) value)
     else {${prefix} = labelValue value;};
 
-  # Pangolin applies these itself: newt reads the socket and pushes the labels
-  # on every container event, so the site blueprint must not repeat them.
-  dockerLabelsFor = site:
-    lib.concatMapAttrs (name: vh: let
-      containerHost =
-        if vh.containerHost != null
-        then vh.containerHost
-        else vh.hostname;
-    in {
-      ${containerHost}.labels = flattenLabels "pangolin.proxy-resources.${name}" (publicResource vh);
-    })
-    (publicResourcesFor site);
+  # The geo/ASN block is 42 rules over 4 fields and derives from the flake
+  # options, so it stays generated; the resource identity lives next to the
+  # container that carries it.
+  ruleLabels = name: flattenLabels "pangolin.proxy-resources.${name}.rules" (asnRules ++ geoRules);
+
+  # Probe settings come from the vhost, but the unhealthy threshold is arithmetic
+  # over tolerance; expand it here instead of in every service file.
+  healthcheckLabels = name: vh:
+    flattenLabels "pangolin.proxy-resources.${name}.targets[0].healthcheck" (healthcheckFor {
+      inherit (vh) hostname port protocol;
+      hc = vh.healthcheck;
+    });
 
   exitNodeResources = site:
     lib.mapAttrs (_nick: en:
@@ -202,7 +171,8 @@ in {
     siteSettings
     clientResources
     exitNodeResources
-    dockerLabelsFor
+    ruleLabels
+    healthcheckLabels
     standaloneHealthChecks
     ;
 }

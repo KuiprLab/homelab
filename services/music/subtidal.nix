@@ -1,5 +1,19 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.64";
+  vhost = config.flake.pangolinVirtualHosts."subtidal";
+  labels =
+    config.flake.pangolinRuleLabels "subtidal"
+    // config.flake.pangolinHealthcheckLabels "subtidal" vhost
+    // {
+      "pangolin.proxy-resources.subtidal.name" = vhost.name;
+      "pangolin.proxy-resources.subtidal.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.subtidal.mode" = "http";
+      "pangolin.proxy-resources.subtidal.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.subtidal.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.subtidal.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.subtidal.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.subtidal.targets[0].method" = vhost.protocol;
+    };
 in {
   flake = {
     podmanProxyHosts.subtidal.ip = proxyIp;
@@ -37,6 +51,7 @@ in {
       virtualisation = {
         oci-containers.backend = "podman";
         oci-containers.containers.subtidal = {
+          inherit labels;
           image = "ghcr.io/frostplexx/subtidal:latest@sha256:c1cc682ef0e1db824c16d256fe739a3ba8bd599e77c29f8bebd8902b4199c291";
           volumes = [
             "/var/lib/subtidal:/data:rw"

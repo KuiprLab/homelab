@@ -1,5 +1,19 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.51";
+  vhost = config.flake.pangolinVirtualHosts."pocketid";
+  labels =
+    config.flake.pangolinRuleLabels "pocketid"
+    // config.flake.pangolinHealthcheckLabels "pocketid" vhost
+    // {
+      "pangolin.proxy-resources.pocketid.name" = vhost.name;
+      "pangolin.proxy-resources.pocketid.full-domain" = vhost.subdomain;
+      "pangolin.proxy-resources.pocketid.mode" = "http";
+      "pangolin.proxy-resources.pocketid.labels[0]" = "edge:public";
+      "pangolin.proxy-resources.pocketid.labels[1]" = "site:${vhost.site}";
+      "pangolin.proxy-resources.pocketid.targets[0].hostname" = vhost.hostname;
+      "pangolin.proxy-resources.pocketid.targets[0].port" = toString vhost.port;
+      "pangolin.proxy-resources.pocketid.targets[0].method" = vhost.protocol;
+    };
 in {
   flake = {
     podmanProxyHosts.pocketid.ip = proxyIp;
@@ -71,6 +85,7 @@ in {
 
       virtualisation.oci-containers.containers = {
         "pocketid" = {
+          inherit labels;
           image = "docker.io/pocketid/pocket-id:v2";
           volumes = [
             "pocketid_data:/app/data:rw"
