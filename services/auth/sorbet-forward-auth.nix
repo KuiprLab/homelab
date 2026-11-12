@@ -50,7 +50,8 @@ in {
         sopsFile = ../../secrets/sorbet/sorbet-forward-auth.env;
         format = "dotenv";
         key = "";
-        owner = "root";
+        owner = "65532";
+        group = "65532";
         restartUnits = ["podman-sorbet-forward-auth.service"];
       };
 
