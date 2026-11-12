@@ -33,6 +33,12 @@ _: {
         ];
       };
 
+      # Binds the bridge gateway, so the network must exist first.
+      systemd.services."podman-upsnap" = {
+        requires = ["podman-create-network-proxy.service"];
+        after = ["podman-create-network-proxy.service"];
+      };
+
       systemd.services = {
         "podman-volume-upsnap-data" = {
           serviceConfig.Type = "oneshot";

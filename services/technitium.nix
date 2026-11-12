@@ -2,7 +2,7 @@ _: let
   serverIp = "192.168.0.85";
   zone = "int.kuipr.de";
 
-  apiUrl = "http://10.89.0.1:5380/api";
+  apiUrl = "http://127.0.0.1:5380/api";
 
   blocklists = [
     "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
@@ -16,7 +16,10 @@ _: let
     forwarders = "1.1.1.1,9.9.9.9";
     forwarderProtocol = "Udp";
     logQueries = true;
-    webServiceLocalAddresses = "10.89.0.1";
+    # Keep loopback (this converge talks to it) and add the bridge gateway so the
+    # edge container can reach it; binding only the bridge locks the converge out
+    # of the instance that is supposed to apply the binding.
+    webServiceLocalAddresses = "127.0.0.1,10.89.0.1";
     enableBlocking = true;
     blockingType = "AnyAddress";
     blockListUrls = builtins.concatStringsSep "," blocklists;
