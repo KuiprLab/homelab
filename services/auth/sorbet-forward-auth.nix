@@ -10,10 +10,12 @@ in {
       ...
     }: let
       clientSecret = config.sops.secrets."sorbet-forward-auth".path;
+      # The image is distroless nonroot (uid 65532), so the rendered file has to
+      # be owned by that uid; root-owned 0600 makes the process exit on start.
+      configUid = "65532";
       writeConfig = pkgs.writeShellScript "sorbet-forward-auth-config" ''
         set -eu
-        install -d -m 0750 /run/sorbet-forward-auth
-        umask 077
+        install -d -m 0755 -o ${configUid} -g ${configUid} /run/sorbet-forward-auth
 
         # The app takes no secrets from the environment, so the file is rendered
         # from the sops dotenv at start instead of living in the store.
@@ -35,6 +37,9 @@ in {
                   clientID: "sorbet-forward-auth"
                   clientSecret: "\$POCKETID_CLIENT_SECRET"
         EOF
+
+        chown ${configUid}:${configUid} /run/sorbet-forward-auth/config.yaml
+        chmod 0400 /run/sorbet-forward-auth/config.yaml
       '';
     in {
       sops.secrets."sorbet-forward-auth" = {
