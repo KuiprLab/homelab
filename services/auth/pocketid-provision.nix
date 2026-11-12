@@ -2,7 +2,7 @@
   flake.nixosModules.pocketidProvision = {
     imports = [
       (import ../../apps/pocket-id-provision/_module.nix {
-        baseUrl = "http://127.0.0.1:1411";
+        baseUrl = "http://pocketid:1411";
       })
     ];
 

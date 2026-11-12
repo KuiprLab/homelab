@@ -1,10 +1,33 @@
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.30";
+  tikaIp = "10.89.0.31";
+  gotenbergIp = "10.89.0.32";
+  redisIp = "10.89.0.33";
+  vhost = config.flake.pangolinVirtualHosts."paperless";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.http.routers.paperless.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.paperless.entrypoints" = "websecure";
+    "traefik.http.routers.paperless.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.paperless.service" = "paperless";
+    "traefik.http.routers.paperless.middlewares" = "sec-headers@file";
+    "traefik.http.services.paperless.loadbalancer.server.port" = toString vhost.port;
+  };
+in {
   flake = {
+    podmanProxyHosts = {
+      paperless.ip = proxyIp;
+      paperless-tika.ip = tikaIp;
+      paperless-gotenberg.ip = gotenbergIp;
+      paperless-redis.ip = redisIp;
+    };
+
     pangolinVirtualHosts."paperless" = {
       site = "sorbet";
       name = "Paperless";
       subdomain = "paperless.int.kuipr.de";
-      port = 28981;
+      hostname = "paperless";
+      port = 8000;
     };
 
     nixosModules.paperless = {
@@ -45,13 +68,13 @@ _: {
 
       virtualisation.oci-containers.containers = {
         paperless = {
+          labels = traefikLabels;
           image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:d704e84f88300eb6ab001ab15720a2330ff99169cf9f94d6b8fcc44b63a84c84";
           volumes = [
             "${dataDir}:${containerData}"
             "${mediaDir}:${containerMedia}"
             "${consumeDir}:${containerConsume}"
           ];
-          ports = ["127.0.0.1:28981:8000"];
           environment = {
             USERMAP_UID = uid;
             USERMAP_GID = gid;
@@ -92,6 +115,7 @@ _: {
             # --env-file cannot unescape the systemd-escaped OIDC JSON.
             "--env=PAPERLESS_SOCIALACCOUNT_PROVIDERS"
             "--env=PAPERLESS_SECRET_KEY"
+            "--network=proxy:ip=${proxyIp}"
             "--health-cmd=sh -c 'n=0; until curl -fsS -o /dev/null http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
             "--health-interval=30s"
             "--health-on-failure=kill"
@@ -105,6 +129,7 @@ _: {
           image = "docker.io/apache/tika:latest@sha256:b99f19c4fd76237dafe7d22f719b9bddfa9a449da687c597a41e2f6d9a595418";
           log-driver = "journald";
           extraOptions = [
+            "--network=proxy:ip=${tikaIp}"
             "--network-alias=tika"
             (tcpProbe 9998)
             "--health-interval=30s"
@@ -119,6 +144,7 @@ _: {
           image = "docker.io/gotenberg/gotenberg:8@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996";
           log-driver = "journald";
           extraOptions = [
+            "--network=proxy:ip=${gotenbergIp}"
             "--network-alias=gotenberg"
             (tcpProbe 3000)
             "--health-interval=30s"
@@ -133,6 +159,7 @@ _: {
           image = "docker.io/library/redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90";
           log-driver = "journald";
           extraOptions = [
+            "--network=proxy:ip=${redisIp}"
             "--network-alias=redis"
             "--health-cmd=redis-cli ping"
             "--health-interval=30s"

@@ -6,7 +6,7 @@
   }: let
     gotifyBase =
       if config.networking.hostName == "sorbet"
-      then "http://127.0.0.1:8085"
+      then "http://gotify:80"
       else "https://gotify.ext.kuipr.de";
     gotifyTokenFile = "/var/lib/gotify-provision/comin-${config.networking.hostName}.token";
   in {

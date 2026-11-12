@@ -1,9 +1,34 @@
-_: {
+{config, ...}: let
+  proxyIp = "10.89.0.21";
+  presenceIp = "10.89.0.23";
+  vhost = config.flake.pangolinVirtualHosts."koito";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.http.routers.koito.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.koito.entrypoints" = "websecure";
+    "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.koito.service" = "koito";
+    "traefik.http.routers.koito.middlewares" = "sec-headers@file,oidc-auth@file";
+    "traefik.http.services.koito.loadbalancer.server.port" = toString vhost.port;
+    "traefik.http.routers.koito-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/apis/web/v1/health`)";
+    "traefik.http.routers.koito-bypass-0.entrypoints" = "websecure";
+    "traefik.http.routers.koito-bypass-0.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.koito-bypass-0.service" = "koito";
+    "traefik.http.routers.koito-bypass-0.priority" = "1000";
+    "traefik.http.routers.koito-bypass-0.middlewares" = "sec-headers@file";
+  };
+in {
   flake = {
+    podmanProxyHosts = {
+      koito.ip = proxyIp;
+      last-fm-presence.ip = presenceIp;
+    };
+
     pangolinVirtualHosts."koito" = {
       site = "sorbet";
       name = "Koito";
       subdomain = "koito.int.kuipr.de";
+      hostname = "koito";
       port = 4110;
       healthcheck.path = "/apis/web/v1/health";
       auth = {
@@ -23,6 +48,7 @@ _: {
 
       virtualisation.oci-containers.containers = {
         koito = {
+          labels = traefikLabels;
           image = "docker.io/gabehf/koito:latest@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857";
           volumes = [
             "koito-data:/etc/koito"
@@ -31,7 +57,6 @@ _: {
             TZ = "Europe/Berlin";
             KOITO_DEFAULT_USERNAME = "daniel";
           };
-          ports = ["127.0.0.1:4110:4110"];
           # bookworm-slim image ships no curl/wget: TCP probe via bash /dev/tcp
           # podman's first health check fires immediately; retry or activation fails
           # pinned IP + --dns bypass aardvark-dns so the query log keeps per-container attribution
@@ -42,7 +67,7 @@ _: {
             "--health-retries=3"
             "--health-start-period=1m"
             "--health-timeout=5s"
-            "--network=podman:ip=10.88.3.22"
+            "--network=proxy:ip=${proxyIp}"
             "--dns=192.168.0.85"
           ];
         };
@@ -52,7 +77,7 @@ _: {
           volumes = [];
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
           extraOptions = [
-            "--network=podman:ip=10.88.3.23"
+            "--network=proxy:ip=${presenceIp}"
             "--dns=192.168.0.85"
           ];
         };
