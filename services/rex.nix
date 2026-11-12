@@ -12,13 +12,15 @@
 
   # Rex embeds Tailscale (tsnet): no tailscaled on the host, no tailscale0, no
   # 100.64.0.0/10 routes, so pangolin's CGNAT site subnets stay untouched.
+  # sops-nix ignores `key` for dotenv/binary/ini and hands over the whole file,
+  # which would pass `TS_AUTHKEY=...` to tsnet as the key. yaml extracts it.
   mkRexTailscale = {
     hostname,
     sopsFile,
   }: {config, ...}: {
     sops.secrets."rex-tailscale-authkey" = {
       inherit sopsFile;
-      format = "dotenv";
+      format = "yaml";
       key = "TS_AUTHKEY";
       owner = "root";
       restartUnits = ["rex.service"];
@@ -37,7 +39,7 @@ in {
         (mkRexModule "daniel")
         (mkRexTailscale {
           hostname = "sorbet-rex";
-          sopsFile = ../secrets/sorbet/tailscale.env;
+          sopsFile = ../secrets/sorbet/tailscale.yaml;
         })
       ];
     };
@@ -46,7 +48,7 @@ in {
         (mkRexModule "root")
         (mkRexTailscale {
           hostname = "eclair-rex";
-          sopsFile = ../secrets/eclair/tailscale.env;
+          sopsFile = ../secrets/eclair/tailscale.yaml;
         })
       ];
     };
