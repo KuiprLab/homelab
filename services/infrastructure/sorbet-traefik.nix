@@ -62,6 +62,13 @@ in {
           "80:80"
           "443:443"
         ];
+        # The oidc plugin insists on a 32-character session key. base64 of 24 bytes
+        # is exactly that; keep it in the volume so a restart does not log everyone out.
+        entrypoint = "/bin/sh";
+        cmd = [
+          "-c"
+          "test -s /data/oidc-session-secret || head -c 24 /dev/urandom | base64 > /data/oidc-session-secret; exec traefik"
+        ];
         log-driver = "journald";
         extraOptions = [
           "--network=proxy:ip=${proxyIp}"

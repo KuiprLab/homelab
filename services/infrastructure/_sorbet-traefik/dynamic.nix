@@ -5,6 +5,9 @@ let
   # The plugin resolves ${file:...} at runtime; split so it is not parsed as a Nix
   # URI interpolation (statix rejects the single-token form).
   clientSecretFile = "$" + "{file:/run/secrets/oidc-client-secret}";
+  # The plugin requires exactly 32 characters; generated once into the data volume
+  # so sessions survive restarts.
+  sessionSecretFile = "$" + "{file:/data/oidc-session-secret}";
 in {
   http = {
     serversTransports.unifi-insecure.insecureSkipVerify = true;
@@ -22,7 +25,7 @@ in {
       # others. The plugin resolves ${file:...} at runtime, which keeps the client
       # secret out of the store; the same value signs the session cookie.
       oidc-auth.plugin.traefik-oidc-auth = {
-        Secret = clientSecretFile;
+        Secret = sessionSecretFile;
         Provider = {
           Url = "https://id.ext.kuipr.de";
           ClientId = "sorbet-forward-auth";
