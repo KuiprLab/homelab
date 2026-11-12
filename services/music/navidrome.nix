@@ -70,7 +70,7 @@ in {
           ND_ENABLESHARING = "true";
           ND_AUTOIMPORTPLAYLISTS = "true";
           ND_SUBSONIC_DEFAULTREPORTREALPATH = "true";
-          # caddy is native: the header arrives from the proxy network gateway, not loopback
+          # the edge is a container: the header arrives from the proxy network gateway
           ND_EXTAUTH_TRUSTEDSOURCES = "10.89.0.1/32";
           ND_EXTAUTH_USERHEADER = "Remote-User";
           ND_EXTAUTH_LOGOUTURL = "https://auth.ext.kuipr.de/logout";

@@ -1,8 +1,19 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.30";
   tikaIp = "10.89.0.31";
   gotenbergIp = "10.89.0.32";
   redisIp = "10.89.0.33";
+  vhost = config.flake.pangolinVirtualHosts."paperless";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.paperless.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.paperless.entrypoints" = "websecure";
+    "traefik.http.routers.paperless.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.paperless.service" = "paperless";
+    "traefik.http.routers.paperless.middlewares" = "sec-headers@file";
+    "traefik.http.services.paperless.loadbalancer.server.port" = toString vhost.port;
+  };
 in {
   flake = {
     podmanProxyHosts = {
@@ -17,7 +28,6 @@ in {
       name = "Paperless";
       subdomain = "paperless.int.kuipr.de";
       hostname = "paperless";
-      containerHost = "paperless";
       port = 8000;
     };
 
@@ -59,6 +69,7 @@ in {
 
       virtualisation.oci-containers.containers = {
         paperless = {
+          labels = traefikLabels;
           image = "ghcr.io/paperless-ngx/paperless-ngx:latest@sha256:d704e84f88300eb6ab001ab15720a2330ff99169cf9f94d6b8fcc44b63a84c84";
           volumes = [
             "${dataDir}:${containerData}"

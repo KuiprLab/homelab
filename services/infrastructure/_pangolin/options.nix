@@ -31,14 +31,14 @@
             type = lib.types.bool;
             default = true;
             description = ''
-              true  -> int service: served by caddy on sorbet
-                       (services/caddy.nix), reached through the wildcard
+              true  -> int service: served by the sorbet edge
+                       (services/infrastructure/sorbet-traefik.nix), reached through the wildcard
                        flake.pangolinHostResources route and, on the LAN,
                        directly. `site` must be "sorbet" unless `extra.mode`
                        is set.
               false -> public proxy-resource routed by pangolin's traefik.
               Either way, an explicit `extra.mode` (ssh, exit-node) makes it a
-              pangolin client-resource instead of a caddy vhost.
+              pangolin client-resource instead of an edge vhost.
             '';
           };
           protocol = lib.mkOption {
@@ -55,24 +55,15 @@
             default = "127.0.0.1";
             description = ''
               Backend host as seen from the site. Container names on the podman
-              proxy network resolve for both caddy and newt; 127.0.0.1 stays for
+              proxy network and /etc/hosts resolve for newt; 127.0.0.1 stays for
               host-networked services (technitium, homeassistant, upsnap).
-            '';
-          };
-          containerHost = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = ''
-              Container whose labels carry this public resource. Defaults to
-              `hostname`; set it when the vhost points at 127.0.0.1 because the
-              container is host-networked.
             '';
           };
           tlsInsecureSkipVerify = lib.mkOption {
             type = lib.types.bool;
             default = false;
             description = ''
-              Let caddy skip TLS verification of an https backend. Only for
+              Let the edge skip TLS verification of an https backend. Only for
               backends that serve a self-signed certificate.
             '';
           };
@@ -114,9 +105,9 @@
                   type = lib.types.bool;
                   default = false;
                   description = ''
-                    Serve this vhost behind the Pocket ID login in caddy
-                    (services/caddy.nix). Applies to private vhosts on sorbet,
-                    which are the ones caddy serves.
+                    Serve this vhost behind the Pocket ID login at the edge
+                    (forward-auth in sorbet-traefik). Applies to private vhosts
+                    on sorbet, which are the ones the edge serves.
                   '';
                 };
                 bypassPaths = lib.mkOption {

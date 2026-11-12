@@ -1,5 +1,16 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.20";
+  vhost = config.flake.pangolinVirtualHosts."slskd";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.slskd.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.slskd.entrypoints" = "websecure";
+    "traefik.http.routers.slskd.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.slskd.service" = "slskd";
+    "traefik.http.routers.slskd.middlewares" = "sec-headers@file";
+    "traefik.http.services.slskd.loadbalancer.server.port" = toString vhost.port;
+  };
 in {
   flake = {
     podmanProxyHosts.gluetun.ip = proxyIp;
@@ -37,6 +48,7 @@ in {
         backend = "podman";
         containers = {
           "gluetun" = {
+            labels = traefikLabels;
             image = "ghcr.io/qdm12/gluetun:latest@sha256:75df789dea20551fa973f808133a712700bf198518f9d49ed581287777508556";
             log-driver = "journald";
             environmentFiles = [

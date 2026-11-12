@@ -1,5 +1,16 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.50";
+  vhost = config.flake.pangolinVirtualHosts."lldap";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.lldap.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.lldap.entrypoints" = "websecure";
+    "traefik.http.routers.lldap.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.lldap.service" = "lldap";
+    "traefik.http.routers.lldap.middlewares" = "sec-headers@file";
+    "traefik.http.services.lldap.loadbalancer.server.port" = toString vhost.port;
+  };
 in {
   flake = {
     podmanProxyHosts.lldap.ip = proxyIp;
@@ -9,7 +20,6 @@ in {
       name = "LLDAP";
       subdomain = "lldap.int.kuipr.de";
       hostname = "lldap";
-      containerHost = "lldap";
       port = 17170;
       private = true;
     };
@@ -103,6 +113,7 @@ in {
 
       virtualisation.oci-containers.containers = {
         "lldap" = {
+          labels = traefikLabels;
           inherit image;
           volumes = [
             "lldap_data:/data:rw"

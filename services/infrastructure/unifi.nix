@@ -1,5 +1,18 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.40";
+  vhost = config.flake.pangolinVirtualHosts."unifi";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.unifi.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.unifi.entrypoints" = "websecure";
+    "traefik.http.routers.unifi.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.unifi.service" = "unifi";
+    "traefik.http.routers.unifi.middlewares" = "sec-headers@file";
+    "traefik.http.services.unifi.loadbalancer.server.port" = toString vhost.port;
+    "traefik.http.services.unifi.loadbalancer.server.scheme" = "https";
+    "traefik.http.services.unifi.loadbalancer.serverstransport" = "unifi-insecure@file";
+  };
 in {
   flake = {
     podmanProxyHosts.unifi-os-server.ip = proxyIp;
@@ -9,7 +22,6 @@ in {
       name = "UniFi";
       subdomain = "unifi.int.kuipr.de";
       hostname = "unifi-os-server";
-      containerHost = "unifi-os-server";
       protocol = "https";
       port = 443;
       tlsInsecureSkipVerify = true;
@@ -23,6 +35,7 @@ in {
       virtualisation.oci-containers = {
         backend = "podman";
         containers.unifi-os-server = {
+          labels = traefikLabels;
           volumes = [
             "/sys/fs/cgroup:/sys/fs/cgroup:rw"
             "unifi-os-server--persistent:/persistent"

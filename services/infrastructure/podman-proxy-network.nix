@@ -10,9 +10,9 @@ in {
   options.flake.podmanProxyHosts = lib.mkOption {
     description = ''
       Containers on the shared podman `proxy` network, keyed by container name.
-      Addresses are pinned because caddy and newt run on the host, outside
-      podman's DNS: /etc/hosts hands them the same names the containers resolve
-      inside the network, so no host port has to be published.
+      Addresses are pinned because newt runs on the host, outside podman's DNS:
+      /etc/hosts hands it the same names the containers resolve inside the
+      network, so containers need no published port to be addressable by name.
     '';
     type = lib.types.attrsOf (lib.types.submodule {
       options.ip = lib.mkOption {

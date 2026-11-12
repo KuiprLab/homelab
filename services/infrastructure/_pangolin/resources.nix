@@ -48,7 +48,7 @@
 
   unhealthyThreshold = interval: 1 + builtins.div (tolerance + interval - 1) interval;
 
-  # Probes hit the vhost domain over TLS, so DNS, caddy, the certificate and
+  # Probes hit the vhost domain over TLS, so DNS, the edge, the certificate and
   # the backend are all in the path. The name is both the reconcile key and
   # what alerts show, hence the uniqueness guard below.
   standaloneHealthChecks = let
@@ -106,7 +106,7 @@
       // r.extra)
     (lib.filterAttrs (_: r: r.site == site) hostRoutes);
 
-  # Plain private vhosts are served by caddy on sorbet; only explicit modes are real client-resources.
+  # Plain private vhosts are served by the sorbet edge; only explicit modes are real client-resources.
   clientResources = site:
     lib.mapAttrs (_nick: vh:
       lib.recursiveUpdate

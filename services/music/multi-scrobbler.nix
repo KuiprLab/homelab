@@ -1,5 +1,22 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.22";
+  vhost = config.flake.pangolinVirtualHosts."scrobble";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.scrobble.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.scrobble.entrypoints" = "websecure";
+    "traefik.http.routers.scrobble.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.scrobble.service" = "scrobble";
+    "traefik.http.routers.scrobble.middlewares" = "sec-headers@file,forward-auth@file";
+    "traefik.http.services.scrobble.loadbalancer.server.port" = toString vhost.port;
+    "traefik.http.routers.scrobble-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/api/version`)";
+    "traefik.http.routers.scrobble-bypass-0.entrypoints" = "websecure";
+    "traefik.http.routers.scrobble-bypass-0.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.scrobble-bypass-0.service" = "scrobble";
+    "traefik.http.routers.scrobble-bypass-0.priority" = "1000";
+    "traefik.http.routers.scrobble-bypass-0.middlewares" = "sec-headers@file";
+  };
 in {
   flake = {
     podmanProxyHosts.multi-scrobbler.ip = proxyIp;
@@ -9,7 +26,6 @@ in {
       name = "Multi-scrobbler";
       subdomain = "scrobble.int.kuipr.de";
       hostname = "multi-scrobbler";
-      containerHost = "multi-scrobbler";
       port = 9078;
       healthcheck.path = "/api/version";
       auth = {
@@ -46,6 +62,7 @@ in {
       };
 
       virtualisation.oci-containers.containers.multi-scrobbler = {
+        labels = traefikLabels;
         image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:74c306b059f6953bc38d69372ca57260b616f2d98502189d32e14caba3c9e419";
         volumes = [
           "multi-scrobbler-config:/config"

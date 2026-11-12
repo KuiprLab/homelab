@@ -1,6 +1,23 @@
-_: let
+{config, ...}: let
   proxyIp = "10.89.0.21";
   presenceIp = "10.89.0.23";
+  vhost = config.flake.pangolinVirtualHosts."koito";
+  traefikLabels = {
+    "traefik.enable" = "true";
+    "traefik.docker.network" = "proxy";
+    "traefik.http.routers.koito.rule" = "Host(`${vhost.subdomain}`)";
+    "traefik.http.routers.koito.entrypoints" = "websecure";
+    "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.koito.service" = "koito";
+    "traefik.http.routers.koito.middlewares" = "sec-headers@file,forward-auth@file";
+    "traefik.http.services.koito.loadbalancer.server.port" = toString vhost.port;
+    "traefik.http.routers.koito-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/apis/web/v1/health`)";
+    "traefik.http.routers.koito-bypass-0.entrypoints" = "websecure";
+    "traefik.http.routers.koito-bypass-0.tls.certresolver" = "letsencrypt";
+    "traefik.http.routers.koito-bypass-0.service" = "koito";
+    "traefik.http.routers.koito-bypass-0.priority" = "1000";
+    "traefik.http.routers.koito-bypass-0.middlewares" = "sec-headers@file";
+  };
 in {
   flake = {
     podmanProxyHosts = {
@@ -13,7 +30,6 @@ in {
       name = "Koito";
       subdomain = "koito.int.kuipr.de";
       hostname = "koito";
-      containerHost = "koito";
       port = 4110;
       healthcheck.path = "/apis/web/v1/health";
       auth = {
@@ -33,6 +49,7 @@ in {
 
       virtualisation.oci-containers.containers = {
         koito = {
+          labels = traefikLabels;
           image = "docker.io/gabehf/koito:latest@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857";
           volumes = [
             "koito-data:/etc/koito"

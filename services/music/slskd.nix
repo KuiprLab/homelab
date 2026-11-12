@@ -6,7 +6,6 @@ _: {
       subdomain = "slskd.int.kuipr.de";
       # slskd shares gluetun's netns, so the proxy network sees it as gluetun
       hostname = "gluetun";
-      containerHost = "gluetun";
       port = 5030;
       healthcheck.path = "/health";
       auth = {

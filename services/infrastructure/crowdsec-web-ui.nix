@@ -24,7 +24,6 @@ in {
       port = 3010;
       private = false;
       # host networking: the vhost points at loopback, the labels live on the container
-      containerHost = "crowdsec-web-ui";
       extra.auth = {
         "sso-enabled" = true;
         "sso-roles" = ["Member"];
