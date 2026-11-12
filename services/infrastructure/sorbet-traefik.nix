@@ -36,12 +36,12 @@ in {
         restartUnits = ["podman-sorbet-traefik.service"];
       };
 
-      # The plugin reads its client secret from a file, so only that one value is
-      # extracted here instead of the whole dotenv file.
+      # Only one value of the client definition is secret: the plugin reads it from
+      # a file, so extract exactly that path from the file the provisioner applies.
       sops.secrets."traefik/oidc_client_secret" = {
-        sopsFile = ../../secrets/sorbet/sorbet-forward-auth.env;
-        format = "dotenv";
-        key = "POCKETID_CLIENT_SECRET";
+        sopsFile = ../../secrets/sorbet/pocketid/clients.json;
+        format = "json";
+        key = "sorbet-forward-auth/secret";
         owner = "root";
         restartUnits = ["podman-sorbet-traefik.service"];
       };

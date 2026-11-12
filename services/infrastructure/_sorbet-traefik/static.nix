@@ -28,7 +28,13 @@
   certificatesResolvers.letsencrypt.acme = {
     email = "62436912+frostplexx@users.noreply.github.com";
     storage = "/data/acme.json";
-    dnsChallenge.provider = "bunny";
+    dnsChallenge = {
+      provider = "bunny";
+      # Technitium serves int.kuipr.de authoritatively inside the LAN, so lego's
+      # propagation check through the container resolver can never see the TXT
+      # record bunny just published.
+      resolvers = ["1.1.1.1:53" "9.9.9.9:53"];
+    };
   };
 
   providers = {
