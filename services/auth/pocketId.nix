@@ -86,7 +86,7 @@ in {
       virtualisation.oci-containers.containers = {
         "pocketid" = {
           inherit labels;
-          image = "docker.io/pocketid/pocket-id:v2";
+          image = "docker.io/pocketid/pocket-id:next";
           volumes = [
             "pocketid_data:/app/data:rw"
           ];
