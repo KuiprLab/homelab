@@ -53,7 +53,7 @@ in {
       # PocketBase's data dir is relative to cwd, and the image's cwd is /.
       virtualisation.oci-containers.containers.beszel-hub = {
         inherit labels;
-        image = "docker.io/henrygd/beszel:latest@sha256:8514a69d9bbbcb74f371a3205561ee231fc0289739cea64e8131f341d695b770";
+        image = "docker.io/henrygd/beszel:latest@sha256:b0be90bd4aee2993fde763032a5098ce4386fba43cfe5031ec017b8d9e8c97a2";
         volumes = [
           "/var/lib/beszel:/beszel_data"
         ];

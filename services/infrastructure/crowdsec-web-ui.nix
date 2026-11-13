@@ -89,7 +89,7 @@ in {
 
       virtualisation.oci-containers.containers.crowdsec-web-ui = {
         inherit labels;
-        image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.9@sha256:89bdb861af3b4e8159b5ab630d54a1aef9f43bcfe3fdf704d0880d3181483c40";
+        image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.10@sha256:9822833b0359983bc8f70b7142028050a4c1dc5569eb6b3bc1b20a9970e61641";
         volumes = ["/var/lib/crowdsec-web-ui:/app/data:rw"];
 
         environment = {
