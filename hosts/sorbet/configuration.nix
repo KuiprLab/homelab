@@ -151,32 +151,6 @@ in {
           PermitRootLogin = "prohibit-password";
         };
       };
-      pulseaudio.enable = false;
-      pipewire = {
-        enable = true;
-        alsa = {
-          enable = true;
-          support32Bit = true;
-        };
-        pulse.enable = true;
-        jack.enable = true;
-        wireplumber = {
-          enable = true;
-          extraConfig = {
-            "10-bluez" = {
-              "monitor.bluez.properties" = {
-                "bluez5.enable-sbc-xq" = true;
-                "bluez5.enable-msbc" = true;
-                "bluez5.enable-hw-volume" = true;
-                "bluez5.roles" = ["a2dp_sink" "a2dp_source" "hsp_hs" "hfp_hf"];
-              };
-            };
-            "51-bluez-no-seat" = {
-              "wireplumber.profiles".main."monitor.bluez.seat-monitoring" = "disabled";
-            };
-          };
-        };
-      };
     };
 
     programs.fish.enable = true;
