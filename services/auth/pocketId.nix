@@ -183,9 +183,6 @@ in {
       };
 
       systemd.targets."podman-compose-pocketid-root" = {
-        unitConfig = {
-          Description = "Root target generated for Authelia.";
-        };
         wantedBy = ["multi-user.target"];
       };
     };

@@ -21,7 +21,6 @@ export const config = {
 
   guildId: optional("DISCORD_GUILD_ID"),
 
-  // Container address: the vhost is behind authelia and answers with its login page.
   slskdUrl: optional("SLSKD_URL"),
   slskdApiKey: optional("SLSKD_API_KEY"),
 

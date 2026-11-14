@@ -1,5 +1,3 @@
-/** SLSKD_URL must point at the container: the public vhost returns authelia's login page. */
-
 import { randomUUID } from "node:crypto";
 
 import { config } from "../../config.ts";
@@ -400,7 +398,7 @@ export class SlskdClient {
       throw new SlskdError(
         `${method} ${path} answered with ${contentType || "no content type"} ` +
           `instead of JSON. If SLSKD_URL points at slskd.int.kuipr.de, that ` +
-          `vhost is behind authelia -- use the container's address instead.`,
+          `vhost sits behind a login gate -- use the container's address instead.`,
         { status: response.status },
       );
     }

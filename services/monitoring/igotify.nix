@@ -1,4 +1,3 @@
-# No Authelia in front: the iOS app cannot complete a browser SSO flow.
 {config, ...}: let
   constants = config.flake.constants;
   proxyIp = "10.89.0.61";

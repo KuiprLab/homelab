@@ -3,7 +3,6 @@
   baseUrl,
   gotifyDeps ? [],
   defineAdminSecret ? false,
-  # Same name as the Authelia user; GOTIFY_OIDC_LINK_BY_USERNAME links the two.
   provisionUser ? "daniel",
 }: {
   config,

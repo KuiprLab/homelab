@@ -268,12 +268,12 @@ SLSKD_API_KEY=<a key from web.authentication.api_keys>
 The key comes from `sops secrets/sorbet/slskd.yml`; add the pair to
 `sops secrets/sorbet/homelab-bot.env` so the unit sees them.
 
-**Use the container's address, not `slskd.int.kuipr.de`.** That vhost is gated
-by authelia, which answers an API-key request with its login page — a 200 full
-of HTML, not a 401, so nothing about the failure looks like auth. The client
-checks the content type and says so, but the fix is the URL. slskd shares
-gluetun's network namespace and gluetun publishes 5030 on the host, so the bot
-reaches it on loopback and skips caddy entirely.
+**Use the container's address, not `slskd.int.kuipr.de`.** That vhost answers
+an API-key request with a login page: a 200 full of HTML, not a 401, so nothing
+about the failure looks like auth. The client checks the content type and says
+so, but the fix is the URL. slskd shares gluetun's network namespace and gluetun
+publishes 5030 on the host, so the bot reaches it on loopback and skips caddy
+entirely.
 
 Searching is asynchronous over there: creating a search returns nothing and
 responses arrive over the following seconds. `search()` polls until slskd
