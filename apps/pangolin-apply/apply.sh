@@ -176,6 +176,6 @@ else
   redirect=$(jq -r '.data.redirectUrl' <<<"$created")
   echo "registered idp $(jq -r '.data.idpId' <<<"$created"), redirect $redirect"
   if [ "$redirect" != "$expected_redirect" ]; then
-    echo "WARNING: redirect $redirect != authelia redirect_uris $expected_redirect" >&2
+    echo "WARNING: redirect $redirect != expected redirect $expected_redirect" >&2
   fi
 fi

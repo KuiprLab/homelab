@@ -1,20 +1,13 @@
 {config, ...}: let
+  # Eclair's loopback carries this address so the pangolin tunnel can reach the
+  # LAPI without an alias, which would drag the client into DNS.
+  lapiTunnelAddress = "10.90.0.1";
   vhost = config.flake.pangolinVirtualHosts."crowdsec";
+  healthFlags = config.flake.healthFlags;
   labels =
     config.flake.pangolinRuleLabels "crowdsec"
     // config.flake.pangolinHealthcheckLabels "crowdsec" vhost
-    // {
-      "pangolin.proxy-resources.crowdsec.name" = vhost.name;
-      "pangolin.proxy-resources.crowdsec.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.crowdsec.mode" = "http";
-      "pangolin.proxy-resources.crowdsec.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.crowdsec.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.crowdsec.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.crowdsec.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.crowdsec.targets[0].method" = vhost.protocol;
-      "pangolin.proxy-resources.crowdsec.auth.sso-enabled" = "true";
-      "pangolin.proxy-resources.crowdsec.auth.sso-roles[0]" = "Member";
-    };
+    // config.flake.pangolinPublicLabels "crowdsec" vhost;
 in {
   flake = {
     pangolinVirtualHosts."crowdsec" = {
@@ -30,61 +23,21 @@ in {
       };
     };
 
-    nixosModules.crowdsecWebUi = {
-      config,
-      lib,
-      pkgs,
-      ...
-    }: {
+    # Private host resource: reachable only by pangolin clients granted access.
+    pangolinHostResources."lapi" = {
+      site = "eclair";
+      name = "CrowdSec LAPI (eclair)";
+      destination = lapiTunnelAddress;
+      tcpPorts = "9090,6060";
+    };
+
+    nixosModules.crowdsecWebUi = {config, ...}: {
       sops.secrets."crowdsec-web-ui" = {
         sopsFile = ../../secrets/shared/crowdsec-web-ui.env;
         format = "dotenv";
         key = "";
         owner = "root";
         restartUnits = ["podman-crowdsec-web-ui.service"];
-      };
-
-      # Key for the loopback forward into eclair; the public half is restricted in eclair's authorized_keys.
-      sops.secrets."crowdsec-lapi-tunnel.key" = {
-        sopsFile = ../../secrets/sorbet/crowdsec-lapi-tunnel.key;
-        format = "binary";
-        key = "";
-        owner = "root";
-        mode = "0400";
-      };
-
-      environment.etc."crowdsec-lapi-tunnel/known_hosts".text = ''
-        eclair.kuipr.de ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOV5Cly7esQDTdNmO0SsgHagaaewbWZeF4g86i17HsJc
-      '';
-
-      # ExitOnForwardFailure: a half-open tunnel must not look healthy.
-      systemd.services.crowdsec-lapi-tunnel = {
-        description = "SSH forward to eclair's CrowdSec LAPI";
-        wantedBy = ["multi-user.target"];
-        after = ["network-online.target"];
-        wants = ["network-online.target"];
-        serviceConfig = {
-          Restart = "always";
-          RestartSec = "10s";
-          Environment = ["HOME=/root"];
-          ExecStart = lib.concatStringsSep " " [
-            "${pkgs.openssh}/bin/ssh"
-            "-N"
-            "-i ${config.sops.secrets."crowdsec-lapi-tunnel.key".path}"
-            "-o IdentitiesOnly=yes"
-            "-o BatchMode=yes"
-            "-o StrictHostKeyChecking=yes"
-            "-o UserKnownHostsFile=/etc/crowdsec-lapi-tunnel/known_hosts"
-            "-o GlobalKnownHostsFile=/dev/null"
-            "-o UpdateHostKeys=no"
-            "-o ServerAliveInterval=15"
-            "-o ServerAliveCountMax=3"
-            "-o ExitOnForwardFailure=yes"
-            "-L 127.0.0.1:19090:127.0.0.1:9090"
-            "-L 127.0.0.1:19091:127.0.0.1:6060"
-            "root@eclair.kuipr.de"
-          ];
-        };
       };
 
       virtualisation.oci-containers.containers.crowdsec-web-ui = {
@@ -99,11 +52,11 @@ in {
 
           CONFIG_INSTANCES_0_ID = "eclair";
           CONFIG_INSTANCES_0_NAME = "Eclair";
-          CONFIG_INSTANCES_0_LAPI_URL = "http://127.0.0.1:19090";
+          CONFIG_INSTANCES_0_LAPI_URL = "http://${lapiTunnelAddress}:9090";
           CONFIG_INSTANCES_0_LAPI_AUTH_USERNAME = "crowdsec-web-ui";
           CONFIG_INSTANCES_0_METRICS_0_ID = "lapi";
           CONFIG_INSTANCES_0_METRICS_0_NAME = "Eclair LAPI";
-          CONFIG_INSTANCES_0_METRICS_0_URL = "http://127.0.0.1:19091/metrics";
+          CONFIG_INSTANCES_0_METRICS_0_URL = "http://${lapiTunnelAddress}:6060/metrics";
         };
 
         environmentFiles = [
@@ -112,16 +65,16 @@ in {
 
         log-driver = "journald";
 
-        extraOptions = [
-          "--network=host"
-          # Podman does not inherit image HEALTHCHECKs and the image has no curl.
-          "--health-cmd=node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3010/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\""
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=30s"
-        ];
+        extraOptions =
+          [
+            "--network=host"
+            # Podman does not inherit image HEALTHCHECKs and the image has no curl.
+          ]
+          ++ healthFlags {
+            cmd = "node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3010/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\"";
+            startPeriod = "30s";
+            timeout = "30s";
+          };
       };
 
       systemd = {
@@ -132,14 +85,31 @@ in {
 
         # Ordering only: a tunnel restart must not take the container down.
         services.podman-crowdsec-web-ui = {
-          after = ["crowdsec-lapi-tunnel.service"];
-          wants = ["crowdsec-lapi-tunnel.service"];
+          after = ["pangolin-client.service"];
+          wants = ["pangolin-client.service"];
         };
       };
     };
 
-    eclairNixosModules.crowdsecWebUi = {config, ...}: let
+    eclairNixosModules.crowdsecWebUi = {
+      config,
+      pkgs,
+      ...
+    }: let
       cscli = "${config.services.crowdsec.package}/bin/cscli";
+
+      mkForwarder = port: {
+        description = "Expose CrowdSec port ${toString port} on the tunnel address";
+        wantedBy = ["multi-user.target"];
+        after = ["crowdsec.service"];
+        wants = ["crowdsec.service"];
+        startLimitIntervalSec = 0;
+        serviceConfig = {
+          ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString port},bind=${lapiTunnelAddress},fork,reuseaddr TCP:127.0.0.1:${toString port}";
+          Restart = "always";
+          RestartSec = 3;
+        };
+      };
     in {
       sops.secrets."crowdsec-web-ui" = {
         sopsFile = ../../secrets/shared/crowdsec-web-ui.env;
@@ -148,10 +118,17 @@ in {
         owner = "root";
       };
 
-      # restrict drops pty, agent/X11 forwarding and command execution.
-      users.users.root.openssh.authorizedKeys.keys = [
-        ''restrict,port-forwarding,permitopen="127.0.0.1:9090",permitopen="127.0.0.1:6060" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKHrJy0LptdihGPCHzzNivs4RkmTkkozzByaKqw2oR3N crowdsec-lapi-tunnel@sorbet''
+      networking.interfaces.lo.ipv4.addresses = [
+        {
+          address = lapiTunnelAddress;
+          prefixLength = 32;
+        }
       ];
+
+      systemd.services = {
+        crowdsec-tunnel-lapi = mkForwarder 9090;
+        crowdsec-tunnel-metrics = mkForwarder 6060;
+      };
 
       systemd.services.crowdsec-web-ui-machine = {
         description = "Register the CrowdSec Web UI as a CrowdSec machine";

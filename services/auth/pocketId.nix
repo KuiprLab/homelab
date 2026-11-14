@@ -1,19 +1,12 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.51";
   vhost = config.flake.pangolinVirtualHosts."pocketid";
   labels =
     config.flake.pangolinRuleLabels "pocketid"
     // config.flake.pangolinHealthcheckLabels "pocketid" vhost
-    // {
-      "pangolin.proxy-resources.pocketid.name" = vhost.name;
-      "pangolin.proxy-resources.pocketid.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.pocketid.mode" = "http";
-      "pangolin.proxy-resources.pocketid.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.pocketid.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.pocketid.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.pocketid.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.pocketid.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "pocketid" vhost;
 in {
   flake = {
     podmanProxyHosts.pocketid.ip = proxyIp;
@@ -109,20 +102,20 @@ in {
             LDAP_URL = "ldap://lldap:3890";
           };
           log-driver = "journald";
-          extraOptions = [
-            # Podman does not inherit image HEALTHCHECKs.
-            "--health-cmd=sh -c '/app/pocket-id healthcheck || exit 1'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=30s"
-            "--network-alias=pocketid"
-            # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=pocketid_default:ip=10.89.4.24"
-            "--network=proxy:ip=${proxyIp}"
-            "--dns=192.168.0.85"
-          ];
+          extraOptions =
+            [
+              # Podman does not inherit image HEALTHCHECKs.
+              "--network-alias=pocketid"
+              # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
+              "--network=pocketid_default:ip=10.89.4.24"
+              "--network=proxy:ip=${proxyIp}"
+              "--dns=${constants.lanIp}"
+            ]
+            ++ healthFlags {
+              cmd = "sh -c '/app/pocket-id healthcheck || exit 1'";
+              startPeriod = "1m";
+              timeout = "30s";
+            };
         };
       };
 
@@ -191,9 +184,6 @@ in {
       };
 
       systemd.targets."podman-compose-pocketid-root" = {
-        unitConfig = {
-          Description = "Root target generated for Authelia.";
-        };
         wantedBy = ["multi-user.target"];
       };
     };

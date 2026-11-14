@@ -1,22 +1,10 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.21";
   presenceIp = "10.89.0.23";
   vhost = config.flake.pangolinVirtualHosts."koito";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.koito.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.koito.entrypoints" = "websecure";
-    "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.koito.service" = "koito";
-    "traefik.http.routers.koito.middlewares" = "sec-headers@file,oidc-auth@file";
-    "traefik.http.services.koito.loadbalancer.server.port" = toString vhost.port;
-    "traefik.http.routers.koito-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/apis/web/v1/health`)";
-    "traefik.http.routers.koito-bypass-0.entrypoints" = "websecure";
-    "traefik.http.routers.koito-bypass-0.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.koito-bypass-0.service" = "koito";
-    "traefik.http.routers.koito-bypass-0.priority" = "1000";
-    "traefik.http.routers.koito-bypass-0.middlewares" = "sec-headers@file";
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "koito" vhost;
 in {
   flake = {
     podmanProxyHosts = {
@@ -60,16 +48,16 @@ in {
           # bookworm-slim image ships no curl/wget: TCP probe via bash /dev/tcp
           # podman's first health check fires immediately; retry or activation fails
           # pinned IP + --dns bypass aardvark-dns so the query log keeps per-container attribution
-          extraOptions = [
-            "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=5s"
-            "--network=proxy:ip=${proxyIp}"
-            "--dns=192.168.0.85"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${proxyIp}"
+              "--dns=${constants.lanIp}"
+            ]
+            ++ healthFlags {
+              cmd = "bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+              startPeriod = "1m";
+              timeout = "5s";
+            };
         };
 
         last-fm-presence = {
@@ -78,7 +66,7 @@ in {
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
           extraOptions = [
             "--network=proxy:ip=${presenceIp}"
-            "--dns=192.168.0.85"
+            "--dns=${constants.lanIp}"
           ];
         };
       };

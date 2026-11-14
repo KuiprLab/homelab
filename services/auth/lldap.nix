@@ -1,15 +1,8 @@
 {config, ...}: let
+  constants = config.flake.constants;
   proxyIp = "10.89.0.50";
   vhost = config.flake.pangolinVirtualHosts."lldap";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.lldap.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.lldap.entrypoints" = "websecure";
-    "traefik.http.routers.lldap.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.lldap.service" = "lldap";
-    "traefik.http.routers.lldap.middlewares" = "sec-headers@file";
-    "traefik.http.services.lldap.loadbalancer.server.port" = toString vhost.port;
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "lldap" vhost;
 in {
   flake = {
     podmanProxyHosts.lldap.ip = proxyIp;
@@ -122,20 +115,13 @@ in {
           ];
           log-driver = "journald";
           extraOptions = [
-            # Podman does not inherit image HEALTHCHECKs.
-            # "--health-cmd=sh -c 'n=0; until /app/healthcheck.sh; do n=$((n+1)); [ $n -ge 8 ] && exit 1; sleep 2; done'"
-            # "--health-interval=30s"
-            # "--health-on-failure=kill"
-            # "--health-retries=3"
-            # "--health-start-period=1m"
-            # "--health-timeout=30s"
             "--network-alias=lldap"
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
             # One network only: lldap_default was a systemd unit whose ExecStop ran
             # `podman network rm -f`, so a switch could delete the network under the
             # running container, stranding its DNS name and wedging the bootstrap.
             "--network=proxy:ip=${proxyIp}"
-            "--dns=192.168.0.85"
+            "--dns=${constants.lanIp}"
           ];
         };
       };
@@ -189,9 +175,6 @@ in {
       };
 
       systemd.targets."podman-compose-lldap-root" = {
-        unitConfig = {
-          Description = "Root target generated for Authelia.";
-        };
         wantedBy = ["multi-user.target"];
       };
     };

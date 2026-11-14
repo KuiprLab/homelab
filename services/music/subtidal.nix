@@ -1,19 +1,11 @@
 {config, ...}: let
   proxyIp = "10.89.0.64";
+  healthFlags = config.flake.healthFlags;
   vhost = config.flake.pangolinVirtualHosts."subtidal";
   labels =
     config.flake.pangolinRuleLabels "subtidal"
     // config.flake.pangolinHealthcheckLabels "subtidal" vhost
-    // {
-      "pangolin.proxy-resources.subtidal.name" = vhost.name;
-      "pangolin.proxy-resources.subtidal.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.subtidal.mode" = "http";
-      "pangolin.proxy-resources.subtidal.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.subtidal.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.subtidal.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.subtidal.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.subtidal.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "subtidal" vhost;
 in {
   flake = {
     podmanProxyHosts.subtidal.ip = proxyIp;
@@ -65,15 +57,15 @@ in {
             RUST_LOG = "info";
           };
           # podman ignores image HEALTHCHECK; retry the first check or activation fails
-          extraOptions = [
-            "--network=proxy:ip=${proxyIp}"
-            "--health-cmd=curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=30s"
-            "--health-timeout=20s"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${proxyIp}"
+            ]
+            ++ healthFlags {
+              cmd = "curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null";
+              startPeriod = "30s";
+              timeout = "20s";
+            };
         };
       };
 

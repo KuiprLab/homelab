@@ -1,4 +1,5 @@
-_: let
+{config, ...}: let
+  constants = config.flake.constants;
   user = "daniel";
 in {
   flake.nixosModules.sorbetConfiguration = {
@@ -27,96 +28,45 @@ in {
       };
     };
 
-    networking = {
-      firewall.trustedInterfaces = ["incusbr0"];
-      nftables.enable = true;
-    };
-
     virtualisation = {
       incus = {
         enable = true;
         ui.enable = true;
       };
-
-      podman = {
-        enable = true;
-        extraPackages = [pkgs.podman-compose];
-        dockerCompat = true;
-        dockerSocket.enable = true;
-        defaultNetwork.settings = {
-          ipv6_enabled = true;
-          dns_enabled = true;
-        };
-        autoPrune = {
-          enable = true;
-          dates = "weekly";
-          flags = ["--all"];
-        };
-      };
-      containers.enable = true;
     };
 
     networking = {
       firewall = {
         enable = true;
+        trustedInterfaces = ["incusbr0"];
         # 5353: mDNS, shared with the host-networked Home Assistant container.
         allowedUDPPorts = [
           5353
         ];
       };
       hostName = "sorbet";
+      nftables.enable = true;
       networkmanager.enable = true;
       useDHCP = false;
-      interfaces."enp0s31f6" = {
+      interfaces."${constants.lanInterface}" = {
         wakeOnLan.enable = true;
         ipv4.addresses = [
           {
-            address = "192.168.0.85";
-            prefixLength = 24;
+            address = constants.lanIp;
+            prefixLength = constants.lanPrefixLength;
           }
         ];
       };
-      defaultGateway = "192.168.0.1";
+      defaultGateway = constants.lanGateway;
       # LAN address, not loopback (query log attribution); mkOverride 50 beats resolvconf.
-      nameservers = lib.mkOverride 50 ["192.168.0.85"];
+      nameservers = lib.mkOverride 50 [constants.lanIp];
       # useLocalResolver forces 127.0.0.1, where nothing listens (no systemd-resolved).
       resolvconf.useLocalResolver = false;
     };
 
-    nix = {
-      channel.enable = false;
-      gc = {
-        automatic = true;
-        dates = "weekly";
-        options = "--delete-older-than 5d";
-      };
-      # Hardlinks duplicate files in the store; nothing else deduplicates them.
-      optimise = {
-        automatic = true;
-        dates = ["weekly"];
-      };
-      extraOptions = ''
-        experimental-features = nix-command flakes
-        warn-dirty = false
-      '';
-      settings = {
-        max-jobs = 4;
-        cores = 2;
-        substituters = [
-          "https://cache.nixos.org/"
-          "https://sorbet.cachix.org"
-          "https://nix-community.cachix.org"
-          "https://frostplexx.cachix.org"
-          "https://nvf.cachix.org"
-        ];
-        trusted-public-keys = [
-          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "sorbet.cachix.org-1:p1+jtoj8v75vhRut7fGY5jL7k4BNMFvMBcQSDKbF3Aw="
-          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-          "frostplexx.cachix.org-1:kjkhnGNSkUvf5Mx8OEfhzaR830CUkDRglaKduAcr3UQ="
-          "nvf.cachix.org-1:GMQWiUhZ6ux9D5CvFFMwnc2nFrUHTeGaXRlVBXo+naI="
-        ];
-      };
+    nix.settings = {
+      max-jobs = 4;
+      cores = 2;
     };
 
     time.timeZone = "Europe/Berlin";

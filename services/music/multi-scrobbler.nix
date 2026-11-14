@@ -1,21 +1,9 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.22";
   vhost = config.flake.pangolinVirtualHosts."scrobble";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.scrobble.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.scrobble.entrypoints" = "websecure";
-    "traefik.http.routers.scrobble.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.scrobble.service" = "scrobble";
-    "traefik.http.routers.scrobble.middlewares" = "sec-headers@file,oidc-auth@file";
-    "traefik.http.services.scrobble.loadbalancer.server.port" = toString vhost.port;
-    "traefik.http.routers.scrobble-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/api/version`)";
-    "traefik.http.routers.scrobble-bypass-0.entrypoints" = "websecure";
-    "traefik.http.routers.scrobble-bypass-0.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.scrobble-bypass-0.service" = "scrobble";
-    "traefik.http.routers.scrobble-bypass-0.priority" = "1000";
-    "traefik.http.routers.scrobble-bypass-0.middlewares" = "sec-headers@file";
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "scrobble" vhost;
 in {
   flake = {
     podmanProxyHosts.multi-scrobbler.ip = proxyIp;
@@ -69,22 +57,22 @@ in {
         ];
         environment = {
           TZ = "Europe/Berlin";
-          BASE_URL = "https://scrobble.int.kuipr.de";
+          BASE_URL = "https://${vhost.subdomain}";
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         # probe / not /api/health: that answers 500 while any source is down
         # retry: podman's first check fires immediately; pinned IP + --dns keep attribution
-        extraOptions = [
-          "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=2m"
-          "--health-timeout=40s"
-          "--network=proxy:ip=${proxyIp}"
-          "--network=msv6"
-          "--dns=192.168.0.85"
-        ];
+        extraOptions =
+          [
+            "--network=proxy:ip=${proxyIp}"
+            "--network=msv6"
+            "--dns=${constants.lanIp}"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null";
+            startPeriod = "2m";
+            timeout = "40s";
+          };
       };
     };
   };

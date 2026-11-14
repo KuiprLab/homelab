@@ -15,6 +15,7 @@ import { defineButton, defineModal } from "../../component.ts";
 import type { Subcommand } from "../../feature.ts";
 import { rememberImportHint, remoteDirectoryOf } from "./hints.ts";
 import { fetchCoverArt, mbApi } from "./musicbrainz.ts";
+import { clamp, escapeLucene, trackCount } from "./release.ts";
 import { recallSearch, rememberSearch } from "./searches.ts";
 import { SlskdClient, SlskdError, type SlskdFile } from "./slskd.ts";
 
@@ -94,10 +95,6 @@ function releaseQuery(album: string, artist?: string): string {
     terms.push(`artist:"${escapeLucene(artist)}"`);
   }
   return terms.join(" AND ");
-}
-
-function escapeLucene(value: string): string {
-  return value.replace(/["\\]/g, (character) => `\\${character}`);
 }
 
 function describeQuery(album: string, artist?: string): string {
@@ -464,15 +461,4 @@ function artistOf(release: IRelease): string {
 
 function countryOf(release: IRelease): string | undefined {
   return release.country ?? undefined;
-}
-
-function trackCount(release: IRelease): number | undefined {
-  if (release["track-count"] !== undefined) return release["track-count"];
-  const total =
-    release.media?.reduce((sum, medium) => sum + medium["track-count"], 0) ?? 0;
-  return total > 0 ? total : undefined;
-}
-
-function clamp(text: string, limit: number): string {
-  return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }

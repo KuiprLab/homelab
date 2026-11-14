@@ -1,11 +1,13 @@
-_: {
+{config, ...}: let
+  constants = config.flake.constants;
+in {
   flake.nixosModules.dnsFallback = {
     lib,
     pkgs,
     ...
   }: let
-    serverIp = "192.168.0.85";
-    networkInterface = "enp0s31f6";
+    serverIp = constants.lanIp;
+    networkInterface = constants.lanInterface;
 
     fallbackDnsmasqConf = pkgs.writeText "dnsmasq-fallback.conf" ''
       interface=${networkInterface}
@@ -14,8 +16,8 @@ _: {
       server=1.1.1.1
       server=9.9.9.9
 
-      dhcp-range=192.168.0.2,192.168.0.254,255.255.255.0,24h
-      dhcp-option=option:router,192.168.0.1
+      dhcp-range=${constants.lanDhcpStart},${constants.lanDhcpEnd},${constants.lanNetmask},24h
+      dhcp-option=option:router,${constants.lanGateway}
       dhcp-option=option:dns-server,9.9.9.9
 
       dhcp-host=18:31:bf:b7:fd:3f,sorbet,${serverIp},infinite

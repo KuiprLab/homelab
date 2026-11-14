@@ -5,7 +5,6 @@ _: {
         music.gid = 985;
         # 986 is hardcoded in subtidal.nix; the state dirs are owned by these ids
         navidrome.gid = 989;
-        music-tagger = {};
       };
       users = {
         daniel = {

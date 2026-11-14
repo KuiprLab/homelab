@@ -48,19 +48,27 @@ _: {
             album_id: 0.0
       '';
 
+      # One Gotify notifier for the three units below. Silently does nothing
+      # when the token file is absent, which is the case before provisioning.
+      notifyScript = pkgs.writeShellApplication {
+        name = "gotify-notify";
+        runtimeInputs = [pkgs.jq pkgs.curl];
+        text = ''
+          [[ -n "''${GOTIFY_TOKEN:-}" ]] || exit 0
+          jq -n --arg t "$1" --arg m "$2" --argjson p "$3" \
+            '{title: $t, message: $m, priority: $p, extras: {"client::display": {contentType: "text/markdown"}}}' \
+            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
+                "http://gotify:80/message?token=$GOTIFY_TOKEN" \
+            || echo "gotify notification failed" >&2
+        '';
+      };
+
       retagScript = pkgs.writeShellApplication {
         name = "beets-retag";
-        runtimeInputs = [beets pkgs.jq pkgs.coreutils pkgs.curl pkgs.gnugrep];
+        runtimeInputs = [beets pkgs.jq pkgs.coreutils pkgs.gnugrep];
         text = ''
-          GOTIFY_TITLE="🏷️ beets retag"
-          notify() {
-            [[ -n "''${GOTIFY_TOKEN:-}" ]] || return 0
-            jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
-              '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
-              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                  "http://gotify:80/message?token=$GOTIFY_TOKEN" \
-              || echo "gotify notification failed" >&2
-          }
+          notify() { ${notifyScript}/bin/gotify-notify "$@"; }
+
 
           shopt -s nullglob
           for request in "${retagDir}"/*.json; do
@@ -72,7 +80,7 @@ _: {
             if [[ -z "$album" || -z "$mbid" ]]; then
               echo "request $request: no album id or release id, dropping" >&2
               rm -f "$request"
-              notify "❌ a retag request was malformed and has been dropped"
+              notify "🏷️ beets retag" "❌ a retag request was malformed and has been dropped" 5
               continue
             fi
 
@@ -80,15 +88,15 @@ _: {
             if ! beet -c "${retagImportConfig}" import -L --search-id "$mbid" "id:$album"; then
               echo "retag of album $album failed" >&2
               rm -f "$request"
-              notify "❌ retag of $label **failed** — see \`journalctl -u beets-retag\`"
+              notify "🏷️ beets retag" "❌ retag of $label **failed** — see \`journalctl -u beets-retag\`" 5
               continue
             fi
 
             # a reimport replaces the album row, so check by release id, not album id
             if beet ls -a "mb_albumid:$mbid" | grep -q .; then
-              notify "✅ retagged $label"
+              notify "🏷️ beets retag" "✅ retagged $label" 5
             else
-              notify "⚠️ retag of $label did not apply — beets found no confident match for that release"
+              notify "🏷️ beets retag" "⚠️ retag of $label did not apply — beets found no confident match for that release" 5
             fi
 
             rm -f "$request"
@@ -98,17 +106,10 @@ _: {
 
       importScript = pkgs.writeShellApplication {
         name = "slskd-beets-import";
-        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.curl pkgs.gnused pkgs.gnugrep];
+        runtimeInputs = [beets pkgs.jq pkgs.findutils pkgs.coreutils pkgs.gnused pkgs.gnugrep];
         text = ''
-          GOTIFY_TITLE="🎵 slskd → beets"
-          notify() {
-            [[ -n "''${GOTIFY_TOKEN:-}" ]] || return 0
-            jq -n --arg t "$GOTIFY_TITLE" --arg m "$1" \
-              '{title: $t, message: $m, priority: 5, extras: {"client::display": {contentType: "text/markdown"}}}' \
-              | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                  "http://gotify:80/message?token=$GOTIFY_TOKEN" \
-              || echo "gotify notification failed" >&2
-          }
+          notify() { ${notifyScript}/bin/gotify-notify "$@"; }
+
 
           has_audio() {
             find "$1" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' \) -print -quit | grep -q .
@@ -126,7 +127,7 @@ _: {
             if [[ -z "$rel" || ! -d "$dir" ]]; then
               echo "event $event: directory '$dir' missing, parking event" >&2
               mv "$event" "${failedDir}/"
-              notify "directory \`$dir\` missing, event parked in \`${failedDir}\`"
+              notify "🎵 slskd → beets" "directory \`$dir\` missing, event parked in \`${failedDir}\`" 5
               continue
             fi
             mbid=""
@@ -156,7 +157,7 @@ _: {
               echo "beet import failed for $dir" >&2
               rm -f "$log"
               mv "$event" "${failedDir}/"
-              notify "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
+              notify "🎵 slskd → beets" "❌ beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`" 5
               continue
             fi
 
@@ -167,7 +168,7 @@ _: {
               rm -f "$log"
               mv "$dir" "${reviewDir}/"
               rm -f "$event"
-              notify "ℹ️ \`$rel\` is already in the library — the new copy is in \`${reviewDir}\`"
+              notify "🎵 slskd → beets" "ℹ️ \`$rel\` is already in the library — the new copy is in \`${reviewDir}\`" 5
               continue
             fi
 
@@ -178,7 +179,7 @@ _: {
                 echo "hinted beet import failed for $dir" >&2
                 rm -f "$log"
                 mv "$event" "${failedDir}/"
-                notify "❌ hinted beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`"
+                notify "🎵 slskd → beets" "❌ hinted beet import **failed** for \`$rel\` — see \`journalctl -u slskd-beets-import\`" 5
                 continue
               fi
             fi
@@ -186,15 +187,15 @@ _: {
             if has_audio "$dir"; then
               echo "unmatched, moving $dir to ${reviewDir}"
               mv "$dir" "${reviewDir}/"
-              notify "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import"
+              notify "🎵 slskd → beets" "⚠️ no confident match for \`$rel\`, moved to \`${reviewDir}\` for manual import" 5
             else
               rm -rf "$dir"
               # beets emits ANSI colour even to a pipe; grep exits 1 when no match
               matched=$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -A1 -m1 "Match (" | tail -1 | sed 's/^ *//;s/ *$//' || true)
               if [[ -n "$matched" ]]; then
-                notify "✅ imported \`$rel\` as **$matched**"
+                notify "🎵 slskd → beets" "✅ imported \`$rel\` as **$matched**" 5
               else
-                notify "✅ imported \`$rel\`"
+                notify "🎵 slskd → beets" "✅ imported \`$rel\`" 5
               fi
             fi
             rm -f "$log"
@@ -204,13 +205,11 @@ _: {
       };
       unitFailedScript = pkgs.writeShellApplication {
         name = "slskd-beets-import-failed";
-        runtimeInputs = [pkgs.jq pkgs.curl];
         text = ''
-          [[ -n "''${GOTIFY_TOKEN:-}" ]] || exit 0
-          jq -n --arg t "🎵 slskd → beets" --arg m "❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" \
-            '{title: $t, message: $m, priority: 8, extras: {"client::display": {contentType: "text/markdown"}}}' \
-            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-                "http://gotify:80/message?token=$GOTIFY_TOKEN"
+          ${notifyScript}/bin/gotify-notify \
+            "🎵 slskd → beets" \
+            "❌ \`slskd-beets-import.service\` crashed — see \`journalctl -u slskd-beets-import\`" \
+            8
         '';
       };
     in {

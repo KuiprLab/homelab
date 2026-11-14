@@ -1,20 +1,12 @@
-# No Authelia in front: the iOS app cannot complete a browser SSO flow.
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.61";
   vhost = config.flake.pangolinVirtualHosts."igotify";
   labels =
     config.flake.pangolinRuleLabels "igotify"
     // config.flake.pangolinHealthcheckLabels "igotify" vhost
-    // {
-      "pangolin.proxy-resources.igotify.name" = vhost.name;
-      "pangolin.proxy-resources.igotify.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.igotify.mode" = "http";
-      "pangolin.proxy-resources.igotify.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.igotify.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.igotify.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.igotify.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.igotify.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "igotify" vhost;
 in {
   flake = {
     podmanProxyHosts.igotify.ip = proxyIp;
@@ -49,16 +41,16 @@ in {
           SECNTFY_TOKENS = "";
         };
         log-driver = "journald";
-        extraOptions = [
-          "--dns=192.168.0.85"
-          "--network=proxy:ip=${proxyIp}"
-          "--health-cmd=curl -fsS http://127.0.0.1:8080/Version"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=5s"
-        ];
+        extraOptions =
+          [
+            "--dns=${constants.lanIp}"
+            "--network=proxy:ip=${proxyIp}"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS http://127.0.0.1:8080/Version";
+            startPeriod = "30s";
+            timeout = "5s";
+          };
       };
 
       systemd.services."podman-igotify" = {
