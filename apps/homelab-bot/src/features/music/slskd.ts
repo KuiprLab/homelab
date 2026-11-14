@@ -162,11 +162,8 @@ export class SlskdClient {
     return new SlskdClient({ ...overrides, baseUrl, apiKey });
   }
 
-  static isSearchComplete(state: string): boolean {
-    return state.startsWith("Completed");
-  }
-
-  static isTransferComplete(state: string): boolean {
+  /** slskd reports every terminal state as "Completed, <outcome>". */
+  static isCompleted(state: string): boolean {
     return state.startsWith("Completed");
   }
 
@@ -175,9 +172,7 @@ export class SlskdClient {
   }
 
   static isTransferFailed(state: string): boolean {
-    return (
-      SlskdClient.isTransferComplete(state) && state !== "Completed, Succeeded"
-    );
+    return SlskdClient.isCompleted(state) && state !== "Completed, Succeeded";
   }
 
   readonly #baseUrl: string;
@@ -229,10 +224,7 @@ export class SlskdClient {
     let search = created;
 
     try {
-      while (
-        !SlskdClient.isSearchComplete(search.state) &&
-        Date.now() < deadline
-      ) {
+      while (!SlskdClient.isCompleted(search.state) && Date.now() < deadline) {
         await SlskdClient.#delay(SEARCH_POLL_MS);
         search = await this.getSearch(created.id);
       }
@@ -240,7 +232,7 @@ export class SlskdClient {
       return {
         search,
         responses: await this.searchResponses(created.id),
-        timedOut: !SlskdClient.isSearchComplete(search.state),
+        timedOut: !SlskdClient.isCompleted(search.state),
       };
     } finally {
       if (!keep) {

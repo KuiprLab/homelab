@@ -57,7 +57,7 @@ interface Entry {
 
 function build(files: readonly Entry[]): ContainerBuilder {
   const active = files.filter(
-    ({ file }) => !SlskdClient.isTransferComplete(file.state),
+    ({ file }) => !SlskdClient.isCompleted(file.state),
   );
   const failed = files.filter(({ file }) =>
     SlskdClient.isTransferFailed(file.state),

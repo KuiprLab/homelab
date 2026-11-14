@@ -20,6 +20,7 @@ import {
   type LibraryAlbum,
 } from "./library.ts";
 import { mbApi } from "./musicbrainz.ts";
+import { clamp, escapeLucene, trackCount } from "./release.ts";
 import {
   isRetagConfigured,
   requestRetag,
@@ -107,7 +108,7 @@ export const retag: Subcommand = {
 
     const album = matches[0]!;
     const results: IReleaseList = await mbApi.search("release", {
-      query: `release:"${escape(album.album)}" AND artist:"${escape(album.albumartist)}"`,
+      query: `release:"${escapeLucene(album.album)}" AND artist:"${escapeLucene(album.albumartist)}"`,
       limit: MAX_CANDIDATES,
     });
 
@@ -295,13 +296,6 @@ function describe(release: IReleaseMatch): string {
     .join(" · ");
 }
 
-function trackCount(release: IRelease): number | undefined {
-  if (release["track-count"] !== undefined) return release["track-count"];
-  const total =
-    release.media?.reduce((sum, medium) => sum + medium["track-count"], 0) ?? 0;
-  return total > 0 ? total : undefined;
-}
-
 function remember(
   album: LibraryAlbum,
   candidates: readonly IReleaseMatch[],
@@ -319,12 +313,4 @@ function recall(key: string): Pending | undefined {
     return undefined;
   }
   return choice;
-}
-
-function escape(value: string): string {
-  return value.replace(/["\\]/g, (character) => `\\${character}`);
-}
-
-function clamp(text: string, limit: number): string {
-  return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }
