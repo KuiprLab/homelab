@@ -70,7 +70,8 @@ in {
             "--dns=${constants.lanIp}"
           ]
           ++ healthFlags {
-            cmd = "curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null";
+            # The image is distroless: no shell and no curl, so the probe runs node in exec form.
+            cmd = ''["CMD","/nodejs/bin/node","-e","fetch(\"http://127.0.0.1:9078/\").then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]'';
             startPeriod = "2m";
             timeout = "40s";
           };
