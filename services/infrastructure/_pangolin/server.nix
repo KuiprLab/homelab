@@ -4,6 +4,12 @@
     pkgs,
     ...
   }: let
+    # One vCPU: a comin build must not starve the public edge.
+    edgePriority = {
+      CPUWeight = 800;
+      IOWeight = 800;
+    };
+
     configDir = "/var/lib/pangolin/config";
     lapiKeyFile = "/var/lib/pangolin/crowdsec-lapi-key";
     files = import ./server-files.nix {
@@ -27,11 +33,21 @@
 
         systemd = {
           services = {
-            "podman-pangolin".serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+            "podman-pangolin".serviceConfig = {
+              EnvironmentFile = config.sops.secrets."pangolin".path;
+              inherit (edgePriority) CPUWeight IOWeight;
+            };
             "podman-traefik" = {
               after = ["crowdsec-traefik-bouncer.service"];
               wants = ["crowdsec-traefik-bouncer.service"];
-              serviceConfig.EnvironmentFile = config.sops.secrets."pangolin".path;
+              serviceConfig = {
+                EnvironmentFile = config.sops.secrets."pangolin".path;
+                inherit (edgePriority) CPUWeight IOWeight;
+              };
+            };
+
+            "podman-gerbil".serviceConfig = {
+              inherit (edgePriority) CPUWeight IOWeight;
             };
 
             # The key file is the source of truth: cscli keeps no copy of an issued key.

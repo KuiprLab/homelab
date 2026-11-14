@@ -47,7 +47,9 @@
     providers = {
       http = {
         endpoint = "http://pangolin:3001/api/v1/traefik-config";
-        pollInterval = "5s";
+        # Each poll makes pangolin re-render every resource rule; 5s was 12
+        # renders a minute on one vCPU. Config changes are not latency-critical.
+        pollInterval = "30s";
       };
       file.filename = "/etc/traefik/dynamic_config.yml";
     };
@@ -98,7 +100,7 @@
           crowdsecLapiScheme = "http";
           crowdsecLapiHost = "${podmanBridgeGateway}:9090";
           crowdsecLapiKeyFile = "/etc/traefik/lapi-key";
-          updateIntervalSeconds = 15;
+          updateIntervalSeconds = 60;
           # -1 in live mode lets a request through when the LAPI is unreachable or rejects
           # the key, so a CrowdSec outage cannot take the public edge down with it.
           updateMaxFailure = -1;

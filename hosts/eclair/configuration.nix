@@ -48,6 +48,32 @@ _: {
       cores = 1;
     };
 
-    zramSwap.enable = true;
+    # One vCPU: builds, GC and hub updates yield to the edge and to sshd.
+    systemd.services = {
+      comin.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+        Nice = 10;
+      };
+      nix-gc.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+      };
+      nix-optimise.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+      };
+      crowdsec-update-hub.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+      };
+    };
+
+    # lz4 compresses several times faster than zstd; on one vCPU the fault
+    # latency matters more than the ratio.
+    zramSwap = {
+      enable = true;
+      algorithm = "lz4";
+    };
   };
 }
