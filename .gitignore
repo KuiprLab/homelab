@@ -2,10 +2,6 @@ result
 result-*
 .direnv/
 
-target/
-tmp/
-test.sh
-
 .DS_Store
 *.swp
 

@@ -1,6 +1,0 @@
-target/
-tmp/
-files/
-.direnv/
-.git/
-*.sh
