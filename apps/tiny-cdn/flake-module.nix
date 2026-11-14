@@ -1,19 +1,11 @@
 {config, ...}: let
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.70";
   vhost = config.flake.pangolinVirtualHosts."tiny-cdn";
   labels =
     config.flake.pangolinRuleLabels "tiny-cdn"
     // config.flake.pangolinHealthcheckLabels "tiny-cdn" vhost
-    // {
-      "pangolin.proxy-resources.tiny-cdn.name" = vhost.name;
-      "pangolin.proxy-resources.tiny-cdn.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.tiny-cdn.mode" = "http";
-      "pangolin.proxy-resources.tiny-cdn.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.tiny-cdn.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.tiny-cdn.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.tiny-cdn.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.tiny-cdn.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "tiny-cdn" vhost;
 in {
   flake = {
     podmanProxyHosts.tiny-cdn.ip = proxyIp;
@@ -29,7 +21,7 @@ in {
     };
 
     nixosModules.tiny-cdn = import ./_module.nix {
-      inherit labels proxyIp;
+      inherit healthFlags labels proxyIp;
     };
   };
 
@@ -51,7 +43,6 @@ in {
         echo "  cargo test          unit tests"
         echo "  cargo clippy        lints"
         echo "  nix build .#tiny-cdn"
-        echo "  scripts/upload.sh   signed client, see README.md"
         echo
       '';
     };

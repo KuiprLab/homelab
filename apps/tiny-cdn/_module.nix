@@ -1,4 +1,5 @@
 {
+  healthFlags,
   labels,
   proxyIp,
 }: {
@@ -49,15 +50,15 @@ in {
       "${./authorized.pub}:/authorized.pub:ro"
     ];
     log-driver = "journald";
-    extraOptions = [
-      "--network=proxy:ip=${proxyIp}"
-      "--health-cmd=bash -c 'exec 3<>/dev/tcp/127.0.0.1/3030'"
-      "--health-interval=30s"
-      "--health-on-failure=kill"
-      "--health-retries=3"
-      "--health-start-period=10s"
-      "--health-timeout=5s"
-    ];
+    extraOptions =
+      [
+        "--network=proxy:ip=${proxyIp}"
+      ]
+      ++ healthFlags {
+        cmd = "bash -c 'exec 3<>/dev/tcp/127.0.0.1/3030'";
+        startPeriod = "10s";
+        timeout = "5s";
+      };
   };
 
   systemd.services."podman-tiny-cdn".serviceConfig.Restart = lib.mkOverride 90 "always";

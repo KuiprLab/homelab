@@ -13,7 +13,6 @@ sorbet behind pangolin at `cdn.ext.kuipr.de`.
 | `_module.nix` | How it is run on a host. |
 | `src/main.rs` | HTTP routes and request verification. |
 | `src/files_manager.rs` | Storage, expiry and the on-disk layout. |
-| `scripts/upload.sh` | Reference client. |
 | `authorized.pub` | The one key allowed to sign uploads. |
 
 ## Endpoints
@@ -65,16 +64,29 @@ Signatures are checked before the body is read, and the body is then checked aga
 
 ## Client
 
-```
-scripts/upload.sh upload ./screenshot.png        # prints the UUID
-scripts/upload.sh upload ./big.iso 86400         # one day
-scripts/upload.sh list
-scripts/upload.sh delete <uuid>
-scripts/upload.sh get <uuid>
+There is no client in the repo. Sign the canonical message with `ssh-keygen` and send it
+with `curl`. The private key is used through ssh-agent; nothing reads it from disk.
+
+```sh
+BASE=https://cdn.ext.kuipr.de
+FILE=./screenshot.png
+HASH=$(sha256sum "$FILE" | cut -d' ' -f1)
+TS=$(date +%s)
+NONCE=$(openssl rand -hex 16)
+
+SIG=$(printf '%s\n%s\n%s\n%s\n%s\n%s' PUT "/upload/$(basename "$FILE")" \
+  "$TS" "$NONCE" "$HASH" - |
+  ssh-keygen -Y sign -f ~/.ssh/id_ed25519.pub -n cdn-upload - 2>/dev/null |
+  base64 | tr -d '\n')
+
+curl -fsS -X PUT "$BASE/upload/$(basename "$FILE")" \
+  -H "X-Timestamp: $TS" -H "X-Nonce: $NONCE" \
+  -H "X-Content-SHA256: $HASH" -H "X-Signature: $SIG" \
+  --data-binary "@$FILE"
 ```
 
-`BASE_URL` and `KEY` override the defaults. The private key is used through ssh-agent;
-nothing reads it from disk.
+`GET /list` and `DELETE /<uuid>` use the same four headers with the empty-body hash
+`e3b0c442…b855`. `GET /<uuid>` needs no headers.
 
 ## Development
 
