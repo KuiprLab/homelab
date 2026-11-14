@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.51";
   vhost = config.flake.pangolinVirtualHosts."pocketid";
   labels =
@@ -101,20 +102,20 @@ in {
             LDAP_URL = "ldap://lldap:3890";
           };
           log-driver = "journald";
-          extraOptions = [
-            # Podman does not inherit image HEALTHCHECKs.
-            "--health-cmd=sh -c '/app/pocket-id healthcheck || exit 1'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=30s"
-            "--network-alias=pocketid"
-            # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
-            "--network=pocketid_default:ip=10.89.4.24"
-            "--network=proxy:ip=${proxyIp}"
-            "--dns=${constants.lanIp}"
-          ];
+          extraOptions =
+            [
+              # Podman does not inherit image HEALTHCHECKs.
+              "--network-alias=pocketid"
+              # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
+              "--network=pocketid_default:ip=10.89.4.24"
+              "--network=proxy:ip=${proxyIp}"
+              "--dns=${constants.lanIp}"
+            ]
+            ++ healthFlags {
+              cmd = "sh -c '/app/pocket-id healthcheck || exit 1'";
+              startPeriod = "1m";
+              timeout = "30s";
+            };
         };
       };
 

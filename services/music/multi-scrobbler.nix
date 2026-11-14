@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.22";
   vhost = config.flake.pangolinVirtualHosts."scrobble";
   traefikLabels = config.flake.sorbetTraefikLabels "scrobble" vhost;
@@ -61,17 +62,17 @@ in {
         };
         # probe / not /api/health: that answers 500 while any source is down
         # retry: podman's first check fires immediately; pinned IP + --dns keep attribution
-        extraOptions = [
-          "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=2m"
-          "--health-timeout=40s"
-          "--network=proxy:ip=${proxyIp}"
-          "--network=msv6"
-          "--dns=${constants.lanIp}"
-        ];
+        extraOptions =
+          [
+            "--network=proxy:ip=${proxyIp}"
+            "--network=msv6"
+            "--dns=${constants.lanIp}"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null";
+            startPeriod = "2m";
+            timeout = "40s";
+          };
       };
     };
   };

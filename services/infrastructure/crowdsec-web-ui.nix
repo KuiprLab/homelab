@@ -1,5 +1,6 @@
 {config, ...}: let
   vhost = config.flake.pangolinVirtualHosts."crowdsec";
+  healthFlags = config.flake.healthFlags;
   labels =
     config.flake.pangolinRuleLabels "crowdsec"
     // config.flake.pangolinHealthcheckLabels "crowdsec" vhost
@@ -101,16 +102,16 @@ in {
 
         log-driver = "journald";
 
-        extraOptions = [
-          "--network=host"
-          # Podman does not inherit image HEALTHCHECKs and the image has no curl.
-          "--health-cmd=node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3010/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\""
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=30s"
-        ];
+        extraOptions =
+          [
+            "--network=host"
+            # Podman does not inherit image HEALTHCHECKs and the image has no curl.
+          ]
+          ++ healthFlags {
+            cmd = "node -e \"const t=Date.now();(async()=>{while(Date.now()-t<25e3){try{if((await fetch('http://127.0.0.1:3010/api/health')).ok)return}catch(e){}await new Promise(r=>setTimeout(r,2e3))}process.exit(1)})()\"";
+            startPeriod = "30s";
+            timeout = "30s";
+          };
       };
 
       systemd = {

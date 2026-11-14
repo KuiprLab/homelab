@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.21";
   presenceIp = "10.89.0.23";
   vhost = config.flake.pangolinVirtualHosts."koito";
@@ -47,16 +48,16 @@ in {
           # bookworm-slim image ships no curl/wget: TCP probe via bash /dev/tcp
           # podman's first health check fires immediately; retry or activation fails
           # pinned IP + --dns bypass aardvark-dns so the query log keeps per-container attribution
-          extraOptions = [
-            "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=5s"
-            "--network=proxy:ip=${proxyIp}"
-            "--dns=${constants.lanIp}"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${proxyIp}"
+              "--dns=${constants.lanIp}"
+            ]
+            ++ healthFlags {
+              cmd = "bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/4110 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+              startPeriod = "1m";
+              timeout = "5s";
+            };
         };
 
         last-fm-presence = {

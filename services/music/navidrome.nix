@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.63";
   vhost = config.flake.pangolinVirtualHosts."music";
   labels =
@@ -69,17 +70,17 @@ in {
           ND_ENABLEUSEREDITING = "false";
         };
         log-driver = "journald";
-        extraOptions = [
-          "--group-add=${toString config.users.groups.music.gid}"
-          "--network=proxy:ip=${proxyIp}"
-          # podman's first health check fires immediately; retry or activation fails
-          "--health-cmd=wget -q -O /dev/null http://127.0.0.1:4533/ping"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=1m"
-          "--health-timeout=10s"
-        ];
+        extraOptions =
+          [
+            "--group-add=${toString config.users.groups.music.gid}"
+            "--network=proxy:ip=${proxyIp}"
+            # podman's first health check fires immediately; retry or activation fails
+          ]
+          ++ healthFlags {
+            cmd = "wget -q -O /dev/null http://127.0.0.1:4533/ping";
+            startPeriod = "1m";
+            timeout = "10s";
+          };
       };
 
       systemd = {

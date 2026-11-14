@@ -1,5 +1,6 @@
 {config, ...}: let
   proxyIp = "10.89.0.64";
+  healthFlags = config.flake.healthFlags;
   vhost = config.flake.pangolinVirtualHosts."subtidal";
   labels =
     config.flake.pangolinRuleLabels "subtidal"
@@ -56,15 +57,15 @@ in {
             RUST_LOG = "info";
           };
           # podman ignores image HEALTHCHECK; retry the first check or activation fails
-          extraOptions = [
-            "--network=proxy:ip=${proxyIp}"
-            "--health-cmd=curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=30s"
-            "--health-timeout=20s"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${proxyIp}"
+            ]
+            ++ healthFlags {
+              cmd = "curl -fsS --retry 6 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/rest/ping >/dev/null";
+              startPeriod = "30s";
+              timeout = "20s";
+            };
         };
       };
 

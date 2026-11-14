@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.40";
   vhost = config.flake.pangolinVirtualHosts."unifi";
   traefikLabels = config.flake.sorbetTraefikLabels "unifi" vhost;
@@ -60,23 +61,23 @@ in {
 
           image = "ghcr.io/lemker/unifi-os-server:latest@sha256:c0136d42d238b9574d93676aada3f61971ffb6bcbe2a3050627a9fa7ced7c878";
           # The image has no curl/wget; a failed check aborts activation, so retry with /dev/tcp.
-          extraOptions = [
-            "--network=proxy:ip=${proxyIp}"
-            "--health-cmd=bash -c 'n=0; until (exec 3<>/dev/tcp/127.0.0.1/443) 2>/dev/null; do n=$((n+1)); [ $n -ge 30 ] && exit 1; sleep 5; done'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=5m"
-            "--health-timeout=180s"
-            "--cgroupns=host"
-            "--cap-add=NET_RAW"
-            "--cap-add=NET_ADMIN"
-            "--tmpfs=/run:exec"
-            "--tmpfs=/run/lock"
-            "--tmpfs=/tmp:exec"
-            "--tmpfs=/var/lib/journal"
-            "--tmpfs=/var/opt/unifi/tmp:size=64m"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${proxyIp}"
+              "--cgroupns=host"
+              "--cap-add=NET_RAW"
+              "--cap-add=NET_ADMIN"
+              "--tmpfs=/run:exec"
+              "--tmpfs=/run/lock"
+              "--tmpfs=/tmp:exec"
+              "--tmpfs=/var/lib/journal"
+              "--tmpfs=/var/opt/unifi/tmp:size=64m"
+            ]
+            ++ healthFlags {
+              cmd = "bash -c 'n=0; until (exec 3<>/dev/tcp/127.0.0.1/443) 2>/dev/null; do n=$((n+1)); [ $n -ge 30 ] && exit 1; sleep 5; done'";
+              startPeriod = "5m";
+              timeout = "180s";
+            };
         };
       };
     };

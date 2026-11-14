@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.60";
   vhost = config.flake.pangolinVirtualHosts."gotify";
   labels =
@@ -81,16 +82,16 @@ in {
           config.sops.secrets."gotify/oidc".path
         ];
         log-driver = "journald";
-        extraOptions = [
-          "--dns=${constants.lanIp}"
-          "--network=proxy:ip=${proxyIp}"
-          "--health-cmd=curl -fsS http://127.0.0.1:80/health"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=5s"
-        ];
+        extraOptions =
+          [
+            "--dns=${constants.lanIp}"
+            "--network=proxy:ip=${proxyIp}"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS http://127.0.0.1:80/health";
+            startPeriod = "30s";
+            timeout = "5s";
+          };
       };
 
       systemd.services."podman-gotify".serviceConfig.Restart = lib.mkOverride 90 "always";

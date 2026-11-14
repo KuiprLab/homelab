@@ -1,5 +1,6 @@
 {config, ...}: let
   constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.30";
   tikaIp = "10.89.0.31";
   gotenbergIp = "10.89.0.32";
@@ -41,7 +42,7 @@ in {
       gid = toString config.users.groups.paperless.gid;
 
       # Podman does not inherit image HEALTHCHECKs; retry until the process listens.
-      tcpProbe = port: "--health-cmd=bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/${toString port} 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+      tcpProbe = port: "bash -c 'n=0; until exec 3<>/dev/tcp/127.0.0.1/${toString port} 2>/dev/null; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
     in {
       sops.secrets."paperless/oidc" = {
         sopsFile = ../../secrets/sorbet/paperless-oidc;
@@ -104,63 +105,63 @@ in {
             PAPERLESS_AI_LLM_EMBEDDING_ENDPOINT = "http://ollama:11434";
           };
           log-driver = "journald";
-          extraOptions = [
-            # --env-file cannot unescape the systemd-escaped OIDC JSON.
-            "--env=PAPERLESS_SOCIALACCOUNT_PROVIDERS"
-            "--env=PAPERLESS_SECRET_KEY"
-            "--network=proxy:ip=${proxyIp}"
-            "--health-cmd=sh -c 'n=0; until curl -fsS -o /dev/null http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=3m"
-            "--health-timeout=30s"
-          ];
+          extraOptions =
+            [
+              # --env-file cannot unescape the systemd-escaped OIDC JSON.
+              "--env=PAPERLESS_SOCIALACCOUNT_PROVIDERS"
+              "--env=PAPERLESS_SECRET_KEY"
+              "--network=proxy:ip=${proxyIp}"
+            ]
+            ++ healthFlags {
+              cmd = "sh -c 'n=0; until curl -fsS -o /dev/null http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+              startPeriod = "3m";
+              timeout = "30s";
+            };
         };
 
         paperless-tika = {
           image = "docker.io/apache/tika:latest@sha256:b99f19c4fd76237dafe7d22f719b9bddfa9a449da687c597a41e2f6d9a595418";
           log-driver = "journald";
-          extraOptions = [
-            "--network=proxy:ip=${tikaIp}"
-            "--network-alias=tika"
-            (tcpProbe 9998)
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=10s"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${tikaIp}"
+              "--network-alias=tika"
+            ]
+            ++ healthFlags {
+              cmd = tcpProbe 9998;
+              startPeriod = "1m";
+              timeout = "10s";
+            };
         };
 
         paperless-gotenberg = {
           image = "docker.io/gotenberg/gotenberg:8@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996";
           log-driver = "journald";
-          extraOptions = [
-            "--network=proxy:ip=${gotenbergIp}"
-            "--network-alias=gotenberg"
-            (tcpProbe 3000)
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=1m"
-            "--health-timeout=10s"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${gotenbergIp}"
+              "--network-alias=gotenberg"
+            ]
+            ++ healthFlags {
+              cmd = tcpProbe 3000;
+              startPeriod = "1m";
+              timeout = "10s";
+            };
         };
 
         paperless-redis = {
           image = "docker.io/library/redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90";
           log-driver = "journald";
-          extraOptions = [
-            "--network=proxy:ip=${redisIp}"
-            "--network-alias=redis"
-            "--health-cmd=redis-cli ping"
-            "--health-interval=30s"
-            "--health-on-failure=kill"
-            "--health-retries=3"
-            "--health-start-period=10s"
-            "--health-timeout=10s"
-          ];
+          extraOptions =
+            [
+              "--network=proxy:ip=${redisIp}"
+              "--network-alias=redis"
+            ]
+            ++ healthFlags {
+              cmd = "redis-cli ping";
+              startPeriod = "10s";
+              timeout = "10s";
+            };
         };
       };
 

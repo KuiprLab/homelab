@@ -17,7 +17,7 @@ in {
   imports = [
     ./_pangolin/options.nix
     (import ./_pangolin/server.nix {inherit constants;})
-    (import ./_pangolin/newt.nix {inherit resources;})
+    (import ./_pangolin/newt.nix {inherit constants resources;})
   ];
 
   config.flake = {
