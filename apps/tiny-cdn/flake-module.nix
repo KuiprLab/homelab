@@ -2,9 +2,9 @@
   healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.70";
   vhost = config.flake.pangolinVirtualHosts."tiny-cdn";
+  # Downloads must work for link recipients anywhere; geo/ASN rules would deny them.
   labels =
-    config.flake.pangolinRuleLabels "tiny-cdn"
-    // config.flake.pangolinHealthcheckLabels "tiny-cdn" vhost
+    config.flake.pangolinHealthcheckLabels "tiny-cdn" vhost
     // config.flake.pangolinPublicLabels "tiny-cdn" vhost;
 in {
   flake = {
