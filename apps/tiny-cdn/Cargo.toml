@@ -1,0 +1,29 @@
+[package]
+name = "tiny-cdn"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.22"
+bytes = "1.12.1"
+clap = {version = "4.6.7", features = ["derive"]}
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"]}
+tokio = {version = "1.54.1", features = ["full"]}
+tokio-util = { version = "0.7.20", features = ["io"] }
+uuid = {version = "1.29.2", features = ["v4"]}
+warp = {version = "0.4.4", features = ["server"]}
+
+# cargo release config. The pipeline bumps version, commits, tags vX, and
+# pushes; publish is off because this is a binary, not a crates.io crate.
+# The leading v and the {{version}} substitution match the existing
+# v0.1.0-alpha.N tag series. CI (build-image.yml) refuses image builds
+# when the pushed tag differs from this version.
+[workspace.metadata.release]
+publish = false
+tag-name = "v{{version}}"
+tag-message = "v{{version}}"
+# Never re-resolve Cargo.lock at release time: "upgrade" would bump
+# unrelated dependencies as a side effect of the version step.
+dependent-version = "fix"
