@@ -5,16 +5,7 @@
   labels =
     config.flake.pangolinRuleLabels "monitoring"
     // config.flake.pangolinHealthcheckLabels "monitoring" vhost
-    // {
-      "pangolin.proxy-resources.monitoring.name" = vhost.name;
-      "pangolin.proxy-resources.monitoring.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.monitoring.mode" = "http";
-      "pangolin.proxy-resources.monitoring.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.monitoring.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.monitoring.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.monitoring.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.monitoring.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "monitoring" vhost;
 in {
   flake = {
     podmanProxyHosts.beszel-hub.ip = proxyIp;
@@ -58,7 +49,7 @@ in {
           "/var/lib/beszel:/beszel_data"
         ];
         environment = {
-          APP_URL = "https://monitoring.ext.kuipr.de";
+          APP_URL = "https://${vhost.subdomain}";
           DISABLE_SSH = "true";
           USER_CREATION = "true";
           DISABLE_PASSWORD_AUTH = "false"; # needed for home assistant integration

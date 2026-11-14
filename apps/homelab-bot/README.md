@@ -53,11 +53,11 @@ as flake-parts modules.
    `DISCORD_GUILD_ID` is optional. Set it and commands register to that one
    server instantly; leave it blank and they register globally, which Discord
    can take an hour to propagate.
-3. Set `enabled = true` in `_module.nix`. It ships `false` so a placeholder
-   token cannot leave a unit restart-looping on the lab. That one flag gates
-   both `wantedBy` and the secret's `restartUnits`, which have to agree:
-   sops-nix restarts listed units when a secret changes, and `systemctl
-   restart` starts an inactive unit regardless of `wantedBy`.
+3. `enabled` in `_module.nix` gates both `wantedBy` and the secret's
+   `restartUnits`, which have to agree: sops-nix restarts listed units when a
+   secret changes, and `systemctl restart` starts an inactive unit regardless
+   of `wantedBy`. Set it to `false` to keep a placeholder token from leaving a
+   restart-looping unit on the lab.
 4. Commit and push to `main`. comin on sorbet deploys the commit on its next
    poll (up to five minutes, plus build time). The bot registers its commands
    with Discord on startup, so there is nothing else to run.

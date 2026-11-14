@@ -8,7 +8,7 @@
     lapiKeyFile = "/var/lib/pangolin/crowdsec-lapi-key";
     files = import ./server-files.nix {
       inherit pkgs;
-      inherit (constants) baseDomain dashboardDomain tolerance;
+      inherit (constants) baseDomain dashboardDomain podmanBridgeGateway tolerance;
     };
     inherit (files) banPage configFile traefikStatic traefikDynamic;
   in {

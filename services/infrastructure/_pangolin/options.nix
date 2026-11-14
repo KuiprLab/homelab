@@ -59,6 +59,11 @@
               host-networked services (technitium, homeassistant, upsnap).
             '';
           };
+          serversTransport = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Traefik serversTransport for the edge route, e.g. unifi-insecure@file.";
+          };
           healthcheck = lib.mkOption {
             type = lib.types.submodule {
               options = {
@@ -308,6 +313,15 @@
         (the pangolinVirtualHosts attribute). 42 rules over 4 fields, generated
         from pangolinGeoAllow and pangolinAsnDeny so a public resource does not
         repeat them in its service file.
+      '';
+    };
+
+    pangolinPublicLabels = lib.mkOption {
+      type = lib.types.functionTo (lib.types.functionTo (lib.types.attrsOf lib.types.str));
+      description = ''
+        Container labels for one public resource: the identity, the edge/site
+        labels, the first target and everything under `extra` (auth, rules).
+        Generated from the vhost so a service file never restates it.
       '';
     };
 

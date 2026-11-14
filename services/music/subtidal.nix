@@ -4,16 +4,7 @@
   labels =
     config.flake.pangolinRuleLabels "subtidal"
     // config.flake.pangolinHealthcheckLabels "subtidal" vhost
-    // {
-      "pangolin.proxy-resources.subtidal.name" = vhost.name;
-      "pangolin.proxy-resources.subtidal.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.subtidal.mode" = "http";
-      "pangolin.proxy-resources.subtidal.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.subtidal.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.subtidal.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.subtidal.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.subtidal.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "subtidal" vhost;
 in {
   flake = {
     podmanProxyHosts.subtidal.ip = proxyIp;

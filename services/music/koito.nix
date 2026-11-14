@@ -1,22 +1,9 @@
 {config, ...}: let
+  constants = config.flake.constants;
   proxyIp = "10.89.0.21";
   presenceIp = "10.89.0.23";
   vhost = config.flake.pangolinVirtualHosts."koito";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.koito.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.koito.entrypoints" = "websecure";
-    "traefik.http.routers.koito.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.koito.service" = "koito";
-    "traefik.http.routers.koito.middlewares" = "sec-headers@file,oidc-auth@file";
-    "traefik.http.services.koito.loadbalancer.server.port" = toString vhost.port;
-    "traefik.http.routers.koito-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/apis/web/v1/health`)";
-    "traefik.http.routers.koito-bypass-0.entrypoints" = "websecure";
-    "traefik.http.routers.koito-bypass-0.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.koito-bypass-0.service" = "koito";
-    "traefik.http.routers.koito-bypass-0.priority" = "1000";
-    "traefik.http.routers.koito-bypass-0.middlewares" = "sec-headers@file";
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "koito" vhost;
 in {
   flake = {
     podmanProxyHosts = {
@@ -68,7 +55,7 @@ in {
             "--health-start-period=1m"
             "--health-timeout=5s"
             "--network=proxy:ip=${proxyIp}"
-            "--dns=192.168.0.85"
+            "--dns=${constants.lanIp}"
           ];
         };
 
@@ -78,7 +65,7 @@ in {
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
           extraOptions = [
             "--network=proxy:ip=${presenceIp}"
-            "--dns=192.168.0.85"
+            "--dns=${constants.lanIp}"
           ];
         };
       };

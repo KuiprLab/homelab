@@ -2,6 +2,7 @@
   pkgs,
   baseDomain,
   dashboardDomain,
+  podmanBridgeGateway,
   tolerance,
 }: let
   banPage = pkgs.writeText "ban.html" ''
@@ -95,7 +96,7 @@
           logLevel = "INFO";
           crowdsecMode = "live";
           crowdsecLapiScheme = "http";
-          crowdsecLapiHost = "10.88.0.1:9090";
+          crowdsecLapiHost = "${podmanBridgeGateway}:9090";
           crowdsecLapiKeyFile = "/etc/traefik/lapi-key";
           updateIntervalSeconds = 15;
           # -1 in live mode lets a request through when the LAPI is unreachable or rejects

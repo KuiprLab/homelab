@@ -3,7 +3,7 @@
   config,
   ...
 }: let
-  constants = import ./_pangolin/constants.nix;
+  constants = config.flake.constants;
   resources = import ./_pangolin/resources.nix {
     inherit lib;
     vhosts = config.flake.pangolinVirtualHosts;
@@ -23,6 +23,7 @@ in {
   config.flake = {
     pangolinRuleLabels = resources.ruleLabels;
     pangolinHealthcheckLabels = resources.healthcheckLabels;
+    pangolinPublicLabels = resources.publicLabels;
 
     pangolinServer = {
       inherit

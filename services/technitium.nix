@@ -1,6 +1,7 @@
-_: let
-  serverIp = "192.168.0.85";
-  zone = "int.kuipr.de";
+{config, ...}: let
+  constants = config.flake.constants;
+  serverIp = constants.lanIp;
+  zone = constants.intDomain;
 
   apiUrl = "http://127.0.0.1:5380/api";
 
@@ -19,7 +20,7 @@ _: let
     # Keep loopback (this converge talks to it) and add the bridge gateway so the
     # edge container can reach it; binding only the bridge locks the converge out
     # of the instance that is supposed to apply the binding.
-    webServiceLocalAddresses = "127.0.0.1,10.89.0.1";
+    webServiceLocalAddresses = "127.0.0.1,${constants.proxyGateway}";
     enableBlocking = true;
     blockingType = "AnyAddress";
     blockListUrls = builtins.concatStringsSep "," blocklists;
@@ -27,7 +28,7 @@ _: let
   };
 
   sso = {
-    authority = "https://id.ext.kuipr.de";
+    authority = "https://${constants.idDomain}";
     clientId = "technitium";
     scopes = "openid|profile|email|groups";
     groupMap = "admin|Administrators";
@@ -35,13 +36,13 @@ _: let
 
   dhcpScope = {
     name = "lan";
-    startingAddress = "192.168.0.2";
-    endingAddress = "192.168.0.254";
-    subnetMask = "255.255.255.0";
+    startingAddress = constants.lanDhcpStart;
+    endingAddress = constants.lanDhcpEnd;
+    subnetMask = constants.lanNetmask;
     # The API rejects hours outside 0-23.
     leaseTimeDays = 1;
     leaseTimeHours = 0;
-    routerAddress = "192.168.0.1";
+    routerAddress = constants.lanGateway;
   };
 
   reservedLeases = [

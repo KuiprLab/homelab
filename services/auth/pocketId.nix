@@ -1,19 +1,11 @@
 {config, ...}: let
+  constants = config.flake.constants;
   proxyIp = "10.89.0.51";
   vhost = config.flake.pangolinVirtualHosts."pocketid";
   labels =
     config.flake.pangolinRuleLabels "pocketid"
     // config.flake.pangolinHealthcheckLabels "pocketid" vhost
-    // {
-      "pangolin.proxy-resources.pocketid.name" = vhost.name;
-      "pangolin.proxy-resources.pocketid.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.pocketid.mode" = "http";
-      "pangolin.proxy-resources.pocketid.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.pocketid.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.pocketid.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.pocketid.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.pocketid.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "pocketid" vhost;
 in {
   flake = {
     podmanProxyHosts.pocketid.ip = proxyIp;
@@ -121,7 +113,7 @@ in {
             # --dns bypasses aardvark-dns so the resolver logs the container's own IP.
             "--network=pocketid_default:ip=10.89.4.24"
             "--network=proxy:ip=${proxyIp}"
-            "--dns=192.168.0.85"
+            "--dns=${constants.lanIp}"
           ];
         };
       };

@@ -10,9 +10,6 @@
     allowUnsupportedSystem = false;
   };
 
-  overlays = [
-  ];
-
   # sorbetConfiguration/HardwareConfiguration are listed explicitly; merging them twice duplicates lists.
   collectModules = attrs: lib.attrValues (lib.filterAttrs (n: v: v != {} && n != "sorbetConfiguration" && n != "sorbetHardwareConfiguration") attrs);
 in {
@@ -32,7 +29,6 @@ in {
           inputs.sops-nix.nixosModules.sops
           {
             nixpkgs.config = nixpkgsConfig;
-            nixpkgs.overlays = overlays;
           }
 
           {system.configurationRevision = self.rev or self.dirtyRev or null;}

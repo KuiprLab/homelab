@@ -1,5 +1,7 @@
 # Uses the nixpkgs-crowdsec PR branch; the merged nixpkgs modules are still broken.
-_: {
+{config, ...}: let
+  constants = config.flake.constants;
+in {
   flake.eclairNixosModules.crowdsec = {
     config,
     lib,
@@ -165,7 +167,7 @@ _: {
       # podman0 only exists once a container has started; the bind has to be retried until then.
       startLimitIntervalSec = 0;
       serviceConfig = {
-        ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:9090,bind=10.88.0.1,fork,reuseaddr TCP:127.0.0.1:9090";
+        ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:9090,bind=${constants.podmanBridgeGateway},fork,reuseaddr TCP:127.0.0.1:9090";
         Restart = "always";
         RestartSec = 3;
       };

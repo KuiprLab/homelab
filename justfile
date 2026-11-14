@@ -4,7 +4,7 @@ default:
     just --list
 
 
-randon-string:
+random-string:
     @cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 50 | head -n 1
 
 # Build the NixOS config locally (requires a Linux builder on macOS)
@@ -20,12 +20,15 @@ install target:
     read -s -p "Enter SSH password for {{target}}: " SSHPASS
     echo
     export SSHPASS
+    caches=$(nix-instantiate --eval --strict --json modules/flake/_caches.nix)
+    substituters=$(jq -r '.substituters | join(" ")' <<<"$caches")
+    public_keys=$(jq -r '.trustedPublicKeys | join(" ")' <<<"$caches")
     nix run github:nix-community/nixos-anywhere -- --flake .#{{config}} \
       --env-password \
-      --option substituters 'https://sorbet.cachix.org https://cache.nixos.org https://frostplexx.cachix.org https://nvf.cachix.org https://nix-community.cachix.org' \
+      --option substituters "$substituters" \
       --option extra-substituters 'https://install.determinate.systems' \
-      --option trusted-substituters 'https://sorbet.cachix.org https://cache.nixos.org https://frostplexx.cachix.org https://nvf.cachix.org https://nix-community.cachix.org' \
-      --option trusted-public-keys 'cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= frostplexx.cachix.org-1:kjkhnGNSkUvf5Mx8OEfhzaR830CUkDRglaKduAcr3UQ= nvf.cachix.org-1:GMQWiUhZ6ux9D5CvFFMwnc2nFrUHTeGaXRlVBXo+naI= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= sorbet.cachix.org-1:p1+jtoj8v75vhRut7fGY5jL7k4BNMFvMBcQSDKbF3Aw=' \
+      --option trusted-substituters "$substituters" \
+      --option trusted-public-keys "$public_keys" \
       --option extra-trusted-public-keys cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM= \
       --target-host {{target}}
 

@@ -4,15 +4,7 @@
   gotenbergIp = "10.89.0.32";
   redisIp = "10.89.0.33";
   vhost = config.flake.pangolinVirtualHosts."paperless";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.paperless.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.paperless.entrypoints" = "websecure";
-    "traefik.http.routers.paperless.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.paperless.service" = "paperless";
-    "traefik.http.routers.paperless.middlewares" = "sec-headers@file";
-    "traefik.http.services.paperless.loadbalancer.server.port" = toString vhost.port;
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "paperless" vhost;
 in {
   flake = {
     podmanProxyHosts = {
@@ -91,7 +83,7 @@ in {
             PAPERLESS_TIKA_GOTENBERG_ENDPOINT = "http://gotenberg:3000";
             PAPERLESS_OCR_LANGUAGE = "deu+eng";
             PAPERLESS_TIME_ZONE = "Europe/Berlin";
-            PAPERLESS_URL = "https://paperless.int.kuipr.de";
+            PAPERLESS_URL = "https://${vhost.subdomain}";
             PAPERLESS_PAGINATION = "50";
             PAPERLESS_PAGINATION_MAX = "100";
             PAPERLESS_PAGINATION_MIN = "10";
