@@ -101,8 +101,9 @@ in {
       mkForwarder = port: {
         description = "Expose CrowdSec port ${toString port} on the tunnel address";
         wantedBy = ["multi-user.target"];
-        after = ["crowdsec.service"];
+        after = ["crowdsec.service" "network-addresses-lo.service"];
         wants = ["crowdsec.service"];
+        requires = ["network-addresses-lo.service"];
         startLimitIntervalSec = 0;
         serviceConfig = {
           ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString port},bind=${lapiTunnelAddress},fork,reuseaddr TCP:127.0.0.1:${toString port}";
@@ -126,6 +127,8 @@ in {
       ];
 
       systemd.services = {
+        # network.target carries RefuseManualStart, so a switch never starts its new wants.
+        network-addresses-lo.wantedBy = ["multi-user.target"];
         crowdsec-tunnel-lapi = mkForwarder 9090;
         crowdsec-tunnel-metrics = mkForwarder 6060;
       };
