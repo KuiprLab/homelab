@@ -42,7 +42,7 @@
 
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake {inherit inputs;}
-    (inputs.import-tree [
+    (inputs.import-tree.matchNot ".*/flake\\.nix" [
       ./apps
       ./hosts
       ./modules

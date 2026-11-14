@@ -320,6 +320,12 @@ async fn main() {
 
     // --- accessible to everyone with link
 
+    // GET /health => 200 OK
+    let health = warp::get()
+        .and(warp::path("health"))
+        .and(warp::path::end())
+        .map(|| warp::reply::with_status("ok", warp::http::StatusCode::OK));
+
     // GET /<UUID> => 200 OK with file content
     let access = warp::get()
         .and(warp::path::param::<String>())
@@ -374,7 +380,8 @@ async fn main() {
     println!("Server running at http://{}:{}", address, port);
 
     // combine all routes
-    let routes = upload
+    let routes = health
+        .or(upload)
         .or(delete)
         .or(list)
         .or(access)
