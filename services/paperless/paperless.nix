@@ -1,4 +1,5 @@
 {config, ...}: let
+  constants = config.flake.constants;
   proxyIp = "10.89.0.30";
   tikaIp = "10.89.0.31";
   gotenbergIp = "10.89.0.32";
@@ -87,7 +88,7 @@ in {
             PAPERLESS_PAGINATION = "50";
             PAPERLESS_PAGINATION_MAX = "100";
             PAPERLESS_PAGINATION_MIN = "10";
-            PAPERLESS_LOGOUT_REDIRECT_URL = "https://auth.ext.kuipr.de/logout";
+            PAPERLESS_LOGOUT_REDIRECT_URL = "https://${constants.idDomain}/logout";
             PAPERLESS_APPS = "allauth.socialaccount.providers.openid_connect";
             PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https";
             PAPERLESS_ACCOUNT_EMAIL_VERIFICATION = "none";

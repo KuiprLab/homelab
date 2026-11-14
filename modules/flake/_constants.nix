@@ -26,7 +26,7 @@ in {
   orgUtilitySubnet = "100.96.128.0/20";
   apiUrl = "http://127.0.0.1:3000/api/v1";
   dashboardDomain = "pangolin.ext.${baseDomain}";
-  oidcIssuer = "https://auth.ext.${baseDomain}";
+  oidcIssuer = "https://id.ext.${baseDomain}";
   tolerance = 5 * 60;
   # niceId is also the newt --id; secretEnv names the variable in secrets/eclair/pangolin-apply.env.
   sites = {

@@ -65,7 +65,7 @@ in {
           # the edge is a container: the header arrives from the proxy network gateway
           ND_EXTAUTH_TRUSTEDSOURCES = "${constants.proxyGateway}/32";
           ND_EXTAUTH_USERHEADER = "Remote-User";
-          ND_EXTAUTH_LOGOUTURL = "https://auth.ext.kuipr.de/logout";
+          ND_EXTAUTH_LOGOUTURL = "https://${constants.idDomain}/logout";
           ND_ENABLEUSEREDITING = "false";
         };
         log-driver = "journald";
