@@ -34,13 +34,19 @@
       owner = "root";
     };
 
-    systemd.services."podman-newt".serviceConfig =
-      {
-        EnvironmentFile = config.sops.secrets.${secret}.path;
-      }
-      // lib.optionalAttrs (serviceEnvironment != []) {
-        Environment = serviceEnvironment;
-      };
+    systemd.services."podman-newt" = {
+      serviceConfig =
+        {
+          EnvironmentFile = config.sops.secrets.${secret}.path;
+        }
+        // lib.optionalAttrs (serviceEnvironment != []) {
+          Environment = serviceEnvironment;
+        };
+      # /etc/hosts is copied into the container at creation; restart when a proxy host is added.
+      restartTriggers = [
+        (pkgs.writeText "podman-proxy-hosts" config.networking.extraHosts)
+      ];
+    };
 
     virtualisation.oci-containers.containers.newt = {
       inherit image;
