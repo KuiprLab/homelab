@@ -30,8 +30,9 @@ in {
         mode = "0444";
       };
 
+      # The image runs as distroless nonroot 65532:65532 and needs /config writable.
       systemd.tmpfiles.rules = [
-        "d /var/lib/multi-scrobbler 0755 root root - -"
+        "d /var/lib/multi-scrobbler 0755 65532 65532 - -"
       ];
 
       systemd.services.podman-network-msv6 = {
@@ -52,7 +53,7 @@ in {
         labels = traefikLabels;
         image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:d3dacd94c5e6629d9a01579c2e4484de9440c1755dcbaae2ffb50d19b18793a0";
         volumes = [
-          "multi-scrobbler-config:/config"
+          "/var/lib/multi-scrobbler:/config"
           "${config.sops.secrets."multi-scrobbler/config".path}:/config/config.json:ro"
         ];
         environment = {
