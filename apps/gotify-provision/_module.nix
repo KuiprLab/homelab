@@ -47,7 +47,6 @@ in {
     timerConfig = {
       OnBootSec = "30s";
       OnUnitActiveSec = "5min";
-      Persistent = true;
     };
   };
 }

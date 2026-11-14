@@ -1,4 +1,5 @@
-# Uses the nixpkgs-crowdsec PR branch; the merged nixpkgs modules are still broken.
+# Works around https://github.com/NixOS/nixpkgs/pull/446307: the crowdsec module
+# merged into nixpkgs is broken, so the flake pins the PR branch.
 {config, ...}: let
   constants = config.flake.constants;
 in {

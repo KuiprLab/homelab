@@ -28,6 +28,56 @@ in {
   dashboardDomain = "pangolin.ext.${baseDomain}";
   oidcIssuer = "https://id.ext.${baseDomain}";
   tolerance = 5 * 60;
+
+  # Country allow-list enforced on every public resource.
+  geoAllowCountries = [
+    "AT"
+    "BE"
+    "BG"
+    "HR"
+    "CY"
+    "CZ"
+    "DK"
+    "EE"
+    "FI"
+    "FR"
+    "DE"
+    "GR"
+    "HU"
+    "IE"
+    "IT"
+    "LV"
+    "LT"
+    "LU"
+    "MT"
+    "NL"
+    "PL"
+    "PT"
+    "RO"
+    "SK"
+    "SI"
+    "ES"
+    "SE"
+  ];
+
+  # ASN deny-list: hosting, cloud and VPN providers are never residential clients.
+  asnDenyList = [
+    9009 # M247 Europe — VPN/anti-detect hosting
+    60068 # Datacamp (CDN77)
+    136787 # PacketHub (NordVPN)
+    212238 # Datacamp (NordVPN/ExpressVPN ranges)
+    62240 # Clouvider — VPN-friendly hosting
+    210644 # AEZA — bulletproof hosting
+    197068 # HLL (Qrator) — abuse host
+    14061 # DigitalOcean
+    63949 # Akamai (Linode)
+    20473 # The Constant Company (Vultr)
+    51167 # Contabo
+    12876 # Scaleway
+    16276 # OVH
+    24940 # Hetzner
+  ];
+
   # niceId is also the newt --id; secretEnv names the variable in secrets/eclair/pangolin-apply.env.
   sites = {
     eclair = {

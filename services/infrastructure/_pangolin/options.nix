@@ -1,4 +1,8 @@
-{lib, ...}: {
+{
+  lib,
+  config,
+  ...
+}: {
   options.flake = {
     pangolinVirtualHosts = lib.mkOption {
       description = ''
@@ -240,35 +244,7 @@
         override per resource via `extra.rules`.
       '';
       type = lib.types.listOf lib.types.str;
-      default = [
-        "AT"
-        "BE"
-        "BG"
-        "HR"
-        "CY"
-        "CZ"
-        "DK"
-        "EE"
-        "FI"
-        "FR"
-        "DE"
-        "GR"
-        "HU"
-        "IE"
-        "IT"
-        "LV"
-        "LT"
-        "LU"
-        "MT"
-        "NL"
-        "PL"
-        "PT"
-        "RO"
-        "SK"
-        "SI"
-        "ES"
-        "SE"
-      ];
+      default = config.flake.constants.geoAllowCountries;
     };
 
     pangolinAsnDeny = lib.mkOption {
@@ -288,22 +264,7 @@
         the dashboard is not a blueprint resource and stays reachable.
       '';
       type = lib.types.listOf lib.types.ints.positive;
-      default = [
-        9009 # M247 Europe — VPN/anti-detect hosting
-        60068 # Datacamp (CDN77)
-        136787 # PacketHub (NordVPN)
-        212238 # Datacamp (NordVPN/ExpressVPN ranges)
-        62240 # Clouvider — VPN-friendly hosting
-        210644 # AEZA — bulletproof hosting
-        197068 # HLL (Qrator) — abuse host
-        14061 # DigitalOcean
-        63949 # Akamai (Linode)
-        20473 # The Constant Company (Vultr)
-        51167 # Contabo
-        12876 # Scaleway
-        16276 # OVH
-        24940 # Hetzner
-      ];
+      default = config.flake.constants.asnDenyList;
     };
 
     pangolinRuleLabels = lib.mkOption {

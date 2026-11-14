@@ -28,11 +28,6 @@ in {
       };
     };
 
-    networking = {
-      firewall.trustedInterfaces = ["incusbr0"];
-      nftables.enable = true;
-    };
-
     virtualisation = {
       incus = {
         enable = true;
@@ -43,12 +38,14 @@ in {
     networking = {
       firewall = {
         enable = true;
+        trustedInterfaces = ["incusbr0"];
         # 5353: mDNS, shared with the host-networked Home Assistant container.
         allowedUDPPorts = [
           5353
         ];
       };
       hostName = "sorbet";
+      nftables.enable = true;
       networkmanager.enable = true;
       useDHCP = false;
       interfaces."${constants.lanInterface}" = {

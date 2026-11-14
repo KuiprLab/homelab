@@ -65,50 +65,15 @@ jobs:
         env:
           NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
         run: |
-          echo "Detecting NixOS configurations..."
-          NIXOS_CONFIGS=$(nix eval --impure --json .#nixosConfigurations --apply builtins.attrNames)
-
-          echo "Detecting Darwin configurations..."
-          DARWIN_CONFIGS=$(nix eval --impure --json .#darwinConfigurations --apply builtins.attrNames 2>/dev/null || echo "[]")
-
-          echo "Detected NixOS configs: $NIXOS_CONFIGS"
-          echo "Detected Darwin configs: $DARWIN_CONFIGS"
-
-          echo "Building matrix JSON..."
-          MATRIX_JSON='{"include":['
-
-          NIXOS_ARRAY=$(echo "$NIXOS_CONFIGS" | jq -c .)
-          if [ "$NIXOS_ARRAY" != "[]" ]; then
-            for config in $(echo "$NIXOS_CONFIGS" | jq -r '.[]'); do
-              MATRIX_JSON+="{"
-              MATRIX_JSON+="\"name\":\"$config\","
-              MATRIX_JSON+="\"os\":\"ubuntu-latest\","
-              MATRIX_JSON+="\"type\":\"nixos\","
-              MATRIX_JSON+="\"cmd\":\"os\","
-              MATRIX_JSON+="\"config\":\"nixosConfigurations.$config.config.system.build.toplevel\""
-              MATRIX_JSON+="},"
-            done
-          fi
-
-          DARWIN_ARRAY=$(echo "$DARWIN_CONFIGS" | jq -c .)
-          if [ "$DARWIN_ARRAY" != "[]" ]; then
-            for config in $(echo "$DARWIN_CONFIGS" | jq -r '.[]'); do
-              MATRIX_JSON+="{"
-              MATRIX_JSON+="\"name\":\"$config\","
-              MATRIX_JSON+="\"os\":\"macos-latest\","
-              MATRIX_JSON+="\"type\":\"darwin\","
-              MATRIX_JSON+="\"cmd\":\"darwin\","
-              MATRIX_JSON+="\"config\":\"darwinConfigurations.$config.system\""
-              MATRIX_JSON+="},"
-            done
-          fi
-
-          MATRIX_JSON=${MATRIX_JSON%,}
-          MATRIX_JSON+="]}"
-
-          echo "Matrix JSON: $MATRIX_JSON"
-
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          matrix=$(nix eval --json .#nixosConfigurations --apply builtins.attrNames |
+            jq -c '{include: map({
+              name: .,
+              os: "ubuntu-latest",
+              type: "nixos",
+              cmd: "os",
+              config: "nixosConfigurations.\(.).config.system.build.toplevel"
+            })}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test-configurations:
     name: Test Nix Configurations
