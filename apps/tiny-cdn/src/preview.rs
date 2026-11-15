@@ -97,7 +97,7 @@ pub fn preview_html(meta: &Meta, id: &str, size: u64, base_url: &str) -> String 
     let encoded_name = path_segment(&meta.name);
     let media = if media_type.starts_with("image/") {
         format!(
-            "<meta property=\"og:image\" content=\"{base_url}/raw/{id}/{encoded_name}\">\n\
+            "<meta property=\"og:image\" content=\"{base_url}/{id}/{encoded_name}?raw=1\">\n\
              <meta property=\"og:image:type\" content=\"{media_type}\">\n\
              <meta name=\"twitter:card\" content=\"summary_large_image\">"
         )
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn preview_of_an_image_points_og_image_at_the_raw_route() {
         let html = preview_html(&meta("a b.png"), "id", 2048, "https://cdn.example");
-        assert!(html.contains("content=\"https://cdn.example/raw/id/a%20b.png\""));
+        assert!(html.contains("content=\"https://cdn.example/id/a%20b.png?raw=1\""));
         assert!(html.contains("content=\"image/png\""));
         assert!(html.contains("summary_large_image"));
     }

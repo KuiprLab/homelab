@@ -80,7 +80,7 @@ delete)
   request DELETE "/${2:?missing uuid}" /dev/null
   ;;
 get)
-  curl -fsS "$BASE_URL/raw/${2:?missing uuid}"
+  curl -fsS "$BASE_URL/${2:?missing uuid}?raw=1"
   ;;
 *)
   usage
