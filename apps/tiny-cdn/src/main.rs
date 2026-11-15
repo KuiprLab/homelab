@@ -5,7 +5,6 @@ use ssh_key::{Fingerprint, PublicKey, SshSig};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
 use warp::http::StatusCode;
 use warp::{Filter, Reply};
 
@@ -225,12 +224,12 @@ fn error_status(e: &std::io::Error) -> (StatusCode, &'static str) {
     }
 }
 
-fn content_disposition(name: &str, uuid: &str) -> String {
+fn content_disposition(name: &str, id: &str) -> String {
     let safe: String = name
         .chars()
         .filter(|c| !c.is_control() && *c != '"' && *c != '\\')
         .collect();
-    let filename = if safe.trim().is_empty() { uuid } else { &safe };
+    let filename = if safe.trim().is_empty() { id } else { &safe };
     format!("attachment; filename=\"{filename}\"")
 }
 
@@ -304,7 +303,7 @@ async fn main() {
 
     // --- gated behind ssh key
 
-    // PUT /upload/<name> => 200 OK with the new uuid
+    // PUT /upload/<name> => 200 OK with the new nanoid
     let upload = warp::put()
         .and(warp::path("upload"))
         .and(warp::path::param::<String>())
@@ -324,12 +323,9 @@ async fn main() {
                     .await;
 
                     match stored {
-                        Ok(Ok(uuid)) => {
-                            println!("stored {uuid} ({size} bytes)");
-                            Ok::<_, warp::Rejection>(
-                                warp::reply::with_status(format!("{uuid}\n"), StatusCode::OK)
-                                    .into_response(),
-                            )
+                        Ok(Ok(file)) => {
+                            println!("stored {} ({} bytes)", file.id, size);
+                            Ok::<_, warp::Rejection>(warp::reply::json(&file).into_response())
                         }
                         Ok(Err(e)) => {
                             eprintln!("save failed: {e}");
@@ -344,34 +340,35 @@ async fn main() {
             }
         });
 
-    // DELETE /<uuid> => 200 OK
+    // DELETE /<id> => 200 OK
     let delete = warp::delete()
-        .and(warp::path::param::<Uuid>())
+        .and(warp::path::param())
         .and(warp::path::end())
         .and(signed_request(key.clone()))
         .and_then({
             let manager = manager.clone();
-            move |uuid: Uuid, _signed: Signed| {
+            move |id: String, _signed: Signed| {
                 let manager = manager.clone();
                 async move {
-                    match tokio::task::spawn_blocking(move || manager.delete(&uuid.to_string()))
+                    let id_for_delete = id.clone();
+                    match tokio::task::spawn_blocking(move || manager.delete(&id_for_delete))
                         .await
                     {
                         Ok(Ok(())) => {
-                            println!("deleted {uuid}");
+                            println!("deleted {id}");
                             Ok::<_, warp::Rejection>(
-                                warp::reply::with_status(format!("{uuid}\n"), StatusCode::OK)
+                                warp::reply::with_status(format!("{id}\n"), StatusCode::OK)
                                     .into_response(),
                             )
                         }
                         Ok(Err(e)) => {
-                            eprintln!("delete {uuid} failed: {e}");
+                            eprintln!("delete {id} failed: {e}");
                             let (status, message) = error_status(&e);
                             Ok(warp::reply::with_status(message.to_string(), status)
                                 .into_response())
                         }
                         Err(e) => {
-                            eprintln!("delete {uuid} panicked: {e}");
+                            eprintln!("delete {id} panicked: {e}");
                             Err(warp::reject::custom(StoreError))
                         }
                     }
@@ -414,27 +411,29 @@ async fn main() {
         .and(warp::path::end())
         .map(|| warp::reply::with_status("ok", StatusCode::OK));
 
-    // GET /<uuid> => 200 OK with the file content
+    // GET /<id>[/<filename>] => 200 OK with the file content
     let access = warp::get()
-        .and(warp::path::param::<Uuid>())
-        .and(warp::path::end())
-        .and_then(move |uuid: Uuid| {
+        .and(warp::path::param::<String>())
+        .and(warp::path::tail())
+        .and_then(move |id: String, _tail: warp::path::Tail| {
             let manager = manager.clone();
+
             async move {
+                let id_for_resolve = id.clone();
                 let resolved =
-                    tokio::task::spawn_blocking(move || manager.resolve(&uuid.to_string())).await;
+                    tokio::task::spawn_blocking(move || manager.resolve(&id_for_resolve)).await;
 
                 let (meta, path) = match resolved {
                     Ok(Ok(found)) => found,
                     Ok(Err(e)) => {
-                        eprintln!("access {uuid} failed: {e}");
+                        eprintln!("access {id} failed: {e}");
                         let (status, message) = error_status(&e);
                         return Ok::<_, warp::Rejection>(
                             warp::reply::with_status(message.to_string(), status).into_response(),
                         );
                     }
                     Err(e) => {
-                        eprintln!("access {uuid} panicked: {e}");
+                        eprintln!("access {id} panicked: {e}");
                         return Err(warp::reject::custom(StoreError));
                     }
                 };
@@ -442,7 +441,7 @@ async fn main() {
                 let file = match tokio::fs::File::open(&path).await {
                     Ok(file) => file,
                     Err(e) => {
-                        eprintln!("access {uuid} failed: {e}");
+                        eprintln!("access {id} failed: {e}");
                         let (status, message) = error_status(&e);
                         return Ok::<_, warp::Rejection>(
                             warp::reply::with_status(message.to_string(), status).into_response(),
@@ -458,7 +457,7 @@ async fn main() {
                 );
                 if let Ok(value) = warp::http::HeaderValue::from_str(&content_disposition(
                     &meta.name,
-                    &uuid.to_string(),
+                    &id
                 )) {
                     response
                         .headers_mut()
@@ -521,16 +520,16 @@ mod tests {
     #[test]
     fn content_disposition_drops_quotes_backslashes_and_controls() {
         assert_eq!(
-            content_disposition("a\"b\\c\nd.txt", "uuid"),
+            content_disposition("a\"b\\c\nd.txt", "id"),
             "attachment; filename=\"abcd.txt\""
         );
     }
 
     #[test]
-    fn content_disposition_falls_back_to_uuid() {
+    fn content_disposition_falls_back_to_id() {
         assert_eq!(
-            content_disposition("\"\"", "uuid"),
-            "attachment; filename=\"uuid\""
+            content_disposition("\"\"", "id"),
+            "attachment; filename=\"id\""
         );
     }
 }

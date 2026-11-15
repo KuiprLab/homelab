@@ -64,8 +64,27 @@ Signatures are checked before the body is read, and the body is then checked aga
 
 ## Client
 
-There is no client in the repo. Sign the canonical message with `ssh-keygen` and send it
-with `curl`. The private key is used through ssh-agent; nothing reads it from disk.
+`scripts/upload.sh` is the reference client. It defaults to the local test key
+`tmp/SSH Key.pub` and `http://127.0.0.1:3030`; override `KEY` and `BASE_URL` for the
+deployed instance.
+
+```sh
+scripts/upload.sh upload ./screenshot.png
+scripts/upload.sh upload ./big.iso 86400
+scripts/upload.sh list
+scripts/upload.sh delete <uuid>
+scripts/upload.sh get <uuid>
+```
+
+`upload` prints the public URL and its expiry:
+
+```text
+https://cdn.ext.kuipr.de/<uuid>/<filename>
+expires 2026-11-15 16:15:56 CET
+```
+
+The same request can be built by hand. Sign the canonical message with `ssh-keygen` and
+send it with `curl`. The private key is used through ssh-agent; nothing reads it from disk.
 
 ```sh
 BASE=https://cdn.ext.kuipr.de
