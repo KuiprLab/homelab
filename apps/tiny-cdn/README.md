@@ -13,6 +13,7 @@ sorbet behind pangolin at `cdn.ext.kuipr.de`.
 | `_module.nix` | How it is run on a host. |
 | `src/main.rs` | HTTP routes and request verification. |
 | `src/files_manager.rs` | Storage, expiry and the on-disk layout. |
+| `src/preview.rs` | The HTML preview page and its tags. |
 | `authorized.pub` | The one key allowed to sign uploads. |
 
 ## Endpoints
@@ -22,10 +23,14 @@ sorbet behind pangolin at `cdn.ext.kuipr.de`.
 | `PUT` | `/upload/<name>` | signed | `200` and the new UUID |
 | `GET` | `/list` | signed | `200` and a JSON array of live entries |
 | `DELETE` | `/<uuid>` | signed | `200` |
-| `GET` | `/<uuid>` | none | `200` and the file, `404` once expired |
+| `GET` | `/<uuid>[/<filename>]` | none | `200` and the preview page for an unfurler, `302` to the download for a browser, `404` once expired |
+| `GET` | `/raw/<uuid>[/<filename>]` | none | `200` and the file bytes, `404` once expired |
+| `GET` | `/download/<uuid>[/<filename>]` | none | `200` and the file as an attachment, `404` once expired |
 | `GET` | `/health` | none | `200` |
+| `GET` | `/favicon.ico` | none | `204` |
 
-Uploads are capped at 100 MiB. A file lives for one hour by default; `X-Expire-Seconds`
+`<name>` is percent-encoded in the path; the server decodes it before storing. Uploads
+are capped at 100 MiB. A file lives for one hour by default; `X-Expire-Seconds`
 overrides that and is clamped to 30 days. Expired files are deleted when they are
 requested, and a sweep every 300 s removes the rest.
 
@@ -106,6 +111,36 @@ curl -fsS -X PUT "$BASE/upload/$(basename "$FILE")" \
 
 `GET /list` and `DELETE /<uuid>` use the same four headers with the empty-body hash
 `e3b0c442…b855`. `GET /<uuid>` needs no headers.
+
+## Link previews
+
+The shared link serves an HTML page to unfurlers and a download to a browser, split on
+the `User-Agent`. A user agent that contains `bot`, `crawler`, `spider`, `preview`,
+`embedly`, `facebookexternalhit`, `whatsapp`, `slack`, `telegram`, `mastodon`, `cardyb`
+or `skype` gets the page. Everything else gets a `302` to `/download/<uuid>`, which
+always sends `Content-Disposition: attachment`.
+
+Unfurlers read `og:title`, `og:description`, `og:site_name` and `theme-color` from the
+page. The page is minimal and has no download link; `/raw/<uuid>` serves the bytes.
+
+For an image, the page also carries `og:image` pointing at the raw route, `og:image:type`
+and `twitter:card: summary_large_image`, so the preview shows the image large. Discord
+does not resolve a relative `og:image`, so the URL is absolute: the scheme comes from
+`X-Forwarded-Proto` and defaults to `https`, the host comes from `Host`. A request
+without `Host` is rejected. Discord fetches the image to measure it because no
+dimensions are declared.
+
+Video has no inline player. Discord has to fetch the whole file inside a 10 s budget,
+so playback depends on the upstream of the host that serves it. A clip larger than
+about `upstream Mbit/s × 1.25` MB is dropped and takes the whole preview with it. A
+video therefore shows the text card only.
+
+The raw route sets the content type from the file extension and serves images and
+videos `inline`, everything else as an attachment. It answers `HEAD` and single byte
+ranges (`206` plus `Content-Range`) and sets `Cache-Control`.
+
+Discord caches a preview for about 30 minutes. Add a query string, such as `?v=2`, to
+see a changed page immediately.
 
 ## Development
 

@@ -172,7 +172,7 @@ impl FileManager {
     }
 }
 
-fn now_secs() -> std::io::Result<u64> {
+pub(crate) fn now_secs() -> std::io::Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(io::Error::other)?

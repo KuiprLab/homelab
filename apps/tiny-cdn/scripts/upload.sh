@@ -70,7 +70,7 @@ upload)
   response=$(request PUT "/upload/$name" "$file" "${3:-}")
   id=$(jq -r '.id' <<<"$response")
   expires_at=$(jq -r '.expires_at' <<<"$response")
-  printf '%s/%s/%s\n' "$BASE_URL" "$id" "$name"
+  printf '%s/%s/%s\n' "https://macbook-m4-pro.tailb368a.ts.net" "$id" "$name"
   printf 'expires %s\n' "$(format_time "$expires_at")"
   ;;
 list)
@@ -80,7 +80,7 @@ delete)
   request DELETE "/${2:?missing uuid}" /dev/null
   ;;
 get)
-  curl -fsS "$BASE_URL/${2:?missing uuid}"
+  curl -fsS "$BASE_URL/raw/${2:?missing uuid}"
   ;;
 *)
   usage
