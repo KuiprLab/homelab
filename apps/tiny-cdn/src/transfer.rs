@@ -9,6 +9,7 @@ use crate::preview::media_type;
 pub fn error_status(e: &std::io::Error) -> (StatusCode, &'static str) {
     match e.kind() {
         std::io::ErrorKind::NotFound => (StatusCode::NOT_FOUND, "file not found"),
+        std::io::ErrorKind::InvalidInput => (StatusCode::BAD_REQUEST, "bad request"),
         _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
     }
 }

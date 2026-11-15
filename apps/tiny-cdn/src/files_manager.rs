@@ -166,9 +166,14 @@ impl FileManager {
     /// Resolves a request-supplied id to its directory, rejecting anything
     /// that is not a canonical id so it cannot escape the files directory.
     fn dir(&self, id: &str) -> std::io::Result<PathBuf> {
-        let parsed = id.parse::<String>() // TODO: Is this necessary?
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid id"))?;
-        Ok(self.files_dir.join(parsed.to_string()))
+        let canonical = !id.is_empty()
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+        if !canonical {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid id"));
+        }
+        Ok(self.files_dir.join(id))
     }
 }
 
