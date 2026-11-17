@@ -2,8 +2,7 @@
   "network": {
     "allowedDomains": [
       "auth.docker.io",
-      "cdn.jsdelivr.net",
-      "droppedneedle.com"
+      "cdn.jsdelivr.net"
     ]
   },
   "filesystem": {

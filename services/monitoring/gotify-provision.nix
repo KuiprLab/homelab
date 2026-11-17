@@ -6,6 +6,9 @@ in {
       comin-sorbet = {
         icon = "nixos";
       };
+      aurral = {
+        icon = "aurral";
+      };
       healthchecks = {
         icon = "healthchecks";
       };
