@@ -82,6 +82,8 @@ in {
           DN_BASE_URL = "http://${vhost.hostname}:${toString vhost.port}";
           DN_ADMIN_USER = "daniel";
           DN_LIBRARY_PATH = "/data/music";
+          # the API rejects a blank root id; this is uuid5 of the path above
+          DN_LIBRARY_ROOT_ID = "e97deaf6-085a-592a-b2eb-5e5093181aff";
           DN_MB_SOURCE = "official";
           DN_MB_RATE_LIMIT = "1";
           DN_SLSKD_URL = "http://gluetun:5030";

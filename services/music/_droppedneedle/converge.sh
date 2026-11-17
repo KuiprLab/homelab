@@ -66,11 +66,11 @@ if jq -e --arg p "$DN_LIBRARY_PATH" 'any(.library_roots[]?; .path == $p)' <<<"$l
 else
   call PUT /api/v3/settings/library "$(jq -n \
     --arg rev "$(jq -r .policy_revision <<<"$library")" \
-    --arg path "$DN_LIBRARY_PATH" \
+    --arg path "$DN_LIBRARY_PATH" --arg id "$DN_LIBRARY_ROOT_ID" \
     '{expected_policy_revision: $rev,
       settings: {
         enabled: true,
-        library_roots: [{label: "music", path: $path, policy: "automatic", rules: []}]
+        library_roots: [{id: $id, label: "music", path: $path, policy: "automatic", rules: []}]
       }}')" >/dev/null
   log "library: added root $DN_LIBRARY_PATH"
 fi
