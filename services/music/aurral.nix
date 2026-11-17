@@ -1,16 +1,17 @@
 {config, ...}: let
+  constants = config.flake.constants;
   healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.24";
   vhost = config.flake.pangolinVirtualHosts."aurral";
   traefikLabels = config.flake.sorbetTraefikLabels "aurral" vhost;
-  trialDir = "/media/data/trial/aurral";
+  dataDir = "/media/data/aurral";
 in {
   flake = {
     podmanProxyHosts.aurral.ip = proxyIp;
 
     pangolinVirtualHosts."aurral" = {
       site = "sorbet";
-      name = "Aurral (trial)";
+      name = "Aurral";
       subdomain = "aurral.int.kuipr.de";
       hostname = "aurral";
       port = 3001;
@@ -18,18 +19,40 @@ in {
     };
 
     nixosModules.aurral = {config, ...}: {
+      sops.secrets."aurral/env" = {
+        sopsFile = ../../secrets/sorbet/aurral.env;
+        format = "dotenv";
+        key = "";
+        restartUnits = ["podman-aurral.service"];
+      };
+
       virtualisation.oci-containers.containers.aurral = {
         labels = traefikLabels;
         image = "ghcr.io/lklynet/aurral:latest@sha256:75dd06805e3daefd49eb4f91d19f4110f0ef6eb1d2b13e48ae36120d113b48f0";
         volumes = [
-          "${trialDir}/config:/config"
-          "${trialDir}/media:/data"
+          "${dataDir}/config:/config"
+          # same container path as navidrome, so playlist publishing needs no path mapping
+          "/media/data/music:/music"
           "/home/daniel/slskd-downloads:/downloads"
         ];
+        environmentFiles = [config.sops.secrets."aurral/env".path];
         environment = {
           TZ = "Europe/Berlin";
           PUID = "1000";
           PGID = "100";
+          TRUST_PROXY = "true";
+          AURRAL_PUBLIC_URL = "https://${vhost.subdomain}";
+          DOWNLOAD_FOLDER = "/music";
+          FILE_BROWSE_ROOTS = "/music";
+          # slskd reports its own container path; map it to the mount above
+          PATH_MAPPINGS = "/app/downloads|/downloads";
+          OIDC_ENABLED = "true";
+          OIDC_ISSUER = "https://${constants.idDomain}";
+          OIDC_CLIENT_ID = "aurral";
+          OIDC_REDIRECT_URI = "https://${vhost.subdomain}/sso/callback";
+          OIDC_DOMAIN = "https://${constants.idDomain}";
+          OIDC_LOGOUT_URL = "https://${constants.idDomain}/logout";
+          OIDC_DEFAULT_ROLE = "admin";
         };
         # the image ships no curl; node is the only HTTP client in it
         extraOptions =
@@ -44,8 +67,7 @@ in {
       };
 
       systemd.tmpfiles.rules = [
-        "d ${trialDir}/config 0755 daniel users - -"
-        "d ${trialDir}/media 0755 daniel users - -"
+        "d ${dataDir}/config 0755 daniel users - -"
       ];
     };
   };

@@ -1,7 +1,8 @@
 {
   "network": {
     "allowedDomains": [
-      "auth.docker.io"
+      "auth.docker.io",
+      "cdn.jsdelivr.net"
     ]
   },
   "filesystem": {
