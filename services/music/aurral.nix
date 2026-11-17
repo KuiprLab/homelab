@@ -19,10 +19,15 @@ in {
     };
 
     nixosModules.aurral = {config, ...}: {
-      sops.secrets."aurral/env" = {
-        sopsFile = ../../secrets/sorbet/aurral.env;
-        format = "dotenv";
-        key = "";
+      # Same value pocketid-provision pushes to Pocket ID, so the two cannot drift.
+      sops.secrets."aurral/oidc_client_secret" = {
+        sopsFile = ../../secrets/sorbet/pocketid/clients.json;
+        format = "json";
+        key = "aurral/secret";
+      };
+
+      sops.templates."aurral/env" = {
+        content = "OIDC_CLIENT_SECRET=${config.sops.placeholder."aurral/oidc_client_secret"}";
         restartUnits = ["podman-aurral.service"];
       };
 
@@ -35,7 +40,7 @@ in {
           "/media/data/music:/music"
           "/home/daniel/slskd-downloads:/downloads"
         ];
-        environmentFiles = [config.sops.secrets."aurral/env".path];
+        environmentFiles = [config.sops.templates."aurral/env".path];
         environment = {
           TZ = "Europe/Berlin";
           PUID = "1000";
