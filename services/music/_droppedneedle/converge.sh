@@ -23,6 +23,7 @@ call() {
     echo "$method $path -> HTTP $status" >&2
     cat "$tmpdir/body" >&2
     echo >&2
+    [ -n "${hint:-}" ] && printf '%s\n' "$hint" >&2
     exit 1
   fi
   cat "$tmpdir/body"
@@ -44,7 +45,10 @@ if [ "$(call GET /api/v3/auth/setup/status | jq -r .setup_required)" = "true" ];
   token=$(call POST /api/v3/auth/setup "$credentials" | jq -r .token)
   log "created admin $DN_ADMIN_USER"
 else
+  hint="an admin already exists: put its password in DN_ADMIN_PASSWORD, or stop the container and remove
+/var/lib/droppedneedle/cache/library.db* so converge can create the account itself"
   token=$(call POST /api/v3/auth/login "$credentials" | jq -r .token)
+  hint=""
 fi
 [ -n "$token" ] && [ "$token" != "null" ] || {
   echo "no session token for $DN_ADMIN_USER" >&2
