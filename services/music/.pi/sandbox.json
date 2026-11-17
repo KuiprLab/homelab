@@ -1,0 +1,12 @@
+{
+  "network": {
+    "allowedDomains": [
+      "auth.docker.io"
+    ]
+  },
+  "filesystem": {
+    "allowWrite": [
+      "/Users/daniel/Projects/github.com/KuiprLab/homelab"
+    ]
+  }
+}
