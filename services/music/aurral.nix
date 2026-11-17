@@ -15,10 +15,6 @@ in {
       hostname = "aurral";
       port = 3001;
       healthcheck.path = "/api/health/bootstrap";
-      auth = {
-        enable = true;
-        bypassPaths = ["/api/health/bootstrap"];
-      };
     };
 
     nixosModules.aurral = {config, ...}: {

@@ -16,10 +16,6 @@ in {
       hostname = "needle";
       port = 8688;
       healthcheck.path = "/health";
-      auth = {
-        enable = true;
-        bypassPaths = ["/health"];
-      };
     };
 
     nixosModules.droppedneedle = {config, ...}: {
