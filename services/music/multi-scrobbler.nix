@@ -62,7 +62,7 @@ in {
 
       virtualisation.oci-containers.containers.multi-scrobbler = {
         labels = traefikLabels;
-        image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:d3dacd94c5e6629d9a01579c2e4484de9440c1755dcbaae2ffb50d19b18793a0";
+        image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:9e3740476f09a14428eaa97703c7c0e5134469ff1fd5183a10079a192135107f";
         volumes = [
           "multi-scrobbler-config:/config"
           "${config.sops.secrets."multi-scrobbler/config".path}:/config/config.json:ro"
