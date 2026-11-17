@@ -40,7 +40,7 @@ jobs:
           extra-conf: |
             extra-experimental-features = nix-command flakes external-builders
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: DeterminateSystems/flake-checker-action@52880e9a632c10558027febd64b43dd5a56d7fca # main
+      - uses: DeterminateSystems/flake-checker-action@5b2d34ccdd3612df34a20066f6170a6480746220 # main
       - name: Flake checks (statix, deadnix, treefmt, sni-routing)
         env:
           NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
