@@ -36,7 +36,7 @@ in {
       virtualisation.oci-containers.containers.slskd = {
         volumes = [
           "/var/lib/slskd:/app"
-          "/home/daniel/slskd-downloads:/app/downloads"
+          "/media/data/slskd/complete:/app/downloads"
           "${config.sops.secrets."slskd".path}:/app/slskd.yml:ro"
         ];
         user = "1000:100";
