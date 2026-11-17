@@ -20,13 +20,4 @@ export const config = {
   applicationId: required("DISCORD_APPLICATION_ID"),
 
   guildId: optional("DISCORD_GUILD_ID"),
-
-  slskdUrl: optional("SLSKD_URL"),
-  slskdApiKey: optional("SLSKD_API_KEY"),
-
-  beetsHintsDir: optional("BEETS_HINTS_DIR"),
-
-  beetsLibrary: optional("BEETS_LIBRARY"),
-
-  beetsRetagDir: optional("BEETS_RETAG_DIR"),
 } as const;

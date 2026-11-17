@@ -31,7 +31,11 @@ in {
         wantedBy = ["podman-compose-gluetun-root.target"];
       };
 
-      systemd.tmpfiles.rules = ["d /var/lib/slskd 0755 1000 100 -"];
+      systemd.tmpfiles.rules = [
+        "d /var/lib/slskd 0755 1000 100 -"
+        # bind source: podman refuses to start when it is missing
+        "d /home/daniel/slskd-downloads 0755 1000 100 -"
+      ];
 
       virtualisation.oci-containers.containers.slskd = {
         volumes = [

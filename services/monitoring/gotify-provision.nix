@@ -6,8 +6,8 @@ in {
       comin-sorbet = {
         icon = "nixos";
       };
-      beets = {
-        icon = "beets";
+      aurral = {
+        icon = "aurral";
       };
       healthchecks = {
         icon = "healthchecks";
