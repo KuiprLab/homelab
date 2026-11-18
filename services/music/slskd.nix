@@ -1,4 +1,6 @@
-_: {
+{config, ...}: let
+  healthFlags = config.flake.healthFlags;
+in {
   flake = {
     pangolinVirtualHosts."slskd" = {
       site = "sorbet";
@@ -29,7 +31,11 @@ _: {
         wantedBy = ["podman-compose-gluetun-root.target"];
       };
 
-      systemd.tmpfiles.rules = ["d /var/lib/slskd 0755 1000 100 -"];
+      systemd.tmpfiles.rules = [
+        "d /var/lib/slskd 0755 1000 100 -"
+        # bind source: podman refuses to start when it is missing
+        "d /home/daniel/slskd-downloads 0755 1000 100 -"
+      ];
 
       virtualisation.oci-containers.containers.slskd = {
         volumes = [
@@ -44,15 +50,16 @@ _: {
         };
         image = "docker.io/slskd/slskd:latest@sha256:d0963a3e5b16facd295bf4f2156dad0182f246b1b21a032cae12f5494c694843";
         # podman ignores image HEALTHCHECK: mirror the upstream wget probe, retried
-        extraOptions = [
-          "--health-cmd=sh -c 'n=0; until wget -q -O /dev/null http://localhost:5030/health; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'"
-          "--health-interval=60s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=60m"
-          "--health-timeout=50s"
-          "--network=container:gluetun"
-        ];
+        extraOptions =
+          [
+            "--network=container:gluetun"
+          ]
+          ++ healthFlags {
+            cmd = "sh -c 'n=0; until wget -q -O /dev/null http://localhost:5030/health; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+            interval = "60s";
+            startPeriod = "60m";
+            timeout = "50s";
+          };
       };
     };
   };

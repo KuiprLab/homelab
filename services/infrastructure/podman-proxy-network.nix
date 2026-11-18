@@ -3,6 +3,7 @@
   config,
   ...
 }: let
+  constants = config.flake.constants;
   hosts = config.flake.podmanProxyHosts;
   names = lib.attrNames hosts;
   addresses = map (name: hosts.${name}.ip) names;
@@ -48,7 +49,7 @@ in {
           # The dynamic range keeps auto-allocation clear of the pinned addresses.
           script = ''
             podman network exists proxy ||
-              podman network create --subnet 10.89.0.0/24 --ip-range 10.89.0.128/25 proxy
+              podman network create --subnet ${constants.proxySubnet} --ip-range ${constants.proxyDynamicRange} proxy
           '';
         };
       }

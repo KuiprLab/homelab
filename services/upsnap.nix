@@ -1,4 +1,7 @@
-_: {
+{config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
+in {
   flake = {
     pangolinVirtualHosts."up" = {
       site = "sorbet";
@@ -20,21 +23,22 @@ _: {
         # Host networking is needed for LAN scanning; the bind address comes from UPSNAP_HTTP_LISTEN.
         environment = {
           TZ = "Europe/Berlin";
-          UPSNAP_HTTP_LISTEN = "10.89.0.1:8090";
+          UPSNAP_HTTP_LISTEN = "${constants.proxyGateway}:8090";
         };
         image = "ghcr.io/seriousm4x/upsnap:latest@sha256:e01e61ac6bfbf34a2003364e1499faf2da0fba0a485e0f4b31c49b6576b95e9d";
         # Podman does not inherit image HEALTHCHECKs.
-        extraOptions = [
-          "--health-cmd=curl -fsS --retry 10 --retry-delay 2 --retry-connrefused http://10.89.0.1:8090/api/health >/dev/null"
-          "--health-interval=10s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=30s"
-          "--dns=192.168.0.85"
-          "--cap-add=NET_RAW"
-          "--network=host"
-        ];
+        extraOptions =
+          [
+            "--dns=${constants.lanIp}"
+            "--cap-add=NET_RAW"
+            "--network=host"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS --retry 10 --retry-delay 2 --retry-connrefused http://${constants.proxyGateway}:8090/api/health >/dev/null";
+            interval = "10s";
+            startPeriod = "30s";
+            timeout = "30s";
+          };
       };
 
       # Binds the bridge gateway, so the network must exist first.

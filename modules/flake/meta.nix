@@ -1,8 +1,7 @@
 _: {
+  # x86_64-linux builds the hosts; aarch64-darwin is the workstation dev shell.
   systems = [
     "x86_64-linux"
-    "aarch64-linux"
-    "x86_64-darwin"
     "aarch64-darwin"
   ];
 

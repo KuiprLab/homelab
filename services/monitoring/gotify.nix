@@ -1,19 +1,12 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.60";
   vhost = config.flake.pangolinVirtualHosts."gotify";
   labels =
     config.flake.pangolinRuleLabels "gotify"
     // config.flake.pangolinHealthcheckLabels "gotify" vhost
-    // {
-      "pangolin.proxy-resources.gotify.name" = vhost.name;
-      "pangolin.proxy-resources.gotify.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.gotify.mode" = "http";
-      "pangolin.proxy-resources.gotify.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.gotify.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.gotify.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.gotify.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.gotify.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "gotify" vhost;
 in {
   flake = {
     podmanProxyHosts.gotify.ip = proxyIp;
@@ -72,9 +65,9 @@ in {
           # Local auth only because the reconciler uses HTTP Basic auth.
           GOTIFY_LOCALAUTH_ENABLED = "true";
           GOTIFY_OIDC_ENABLED = "true";
-          GOTIFY_OIDC_ISSUER = "https://id.ext.kuipr.de";
+          GOTIFY_OIDC_ISSUER = "https://${constants.idDomain}";
           GOTIFY_OIDC_CLIENTID = "gotify";
-          GOTIFY_OIDC_REDIRECTURL = "https://gotify.ext.kuipr.de/auth/oidc/callback";
+          GOTIFY_OIDC_REDIRECTURL = "https://${vhost.subdomain}/auth/oidc/callback";
           GOTIFY_OIDC_AUTOREGISTER = "true";
           GOTIFY_OIDC_LINK_BY_USERNAME = "true";
           GOTIFY_OIDC_USERNAMECLAIM = "preferred_username";
@@ -89,16 +82,16 @@ in {
           config.sops.secrets."gotify/oidc".path
         ];
         log-driver = "journald";
-        extraOptions = [
-          "--dns=192.168.0.85"
-          "--network=proxy:ip=${proxyIp}"
-          "--health-cmd=curl -fsS http://127.0.0.1:80/health"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=5s"
-        ];
+        extraOptions =
+          [
+            "--dns=${constants.lanIp}"
+            "--network=proxy:ip=${proxyIp}"
+          ]
+          ++ healthFlags {
+            cmd = "curl -fsS http://127.0.0.1:80/health";
+            startPeriod = "30s";
+            timeout = "5s";
+          };
       };
 
       systemd.services."podman-gotify".serviceConfig.Restart = lib.mkOverride 90 "always";

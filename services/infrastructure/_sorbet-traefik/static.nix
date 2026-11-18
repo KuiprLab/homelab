@@ -1,4 +1,4 @@
-{
+{constants}: {
   entryPoints = {
     web = {
       address = ":80";
@@ -15,8 +15,8 @@
         certResolver = "letsencrypt";
         domains = [
           {
-            main = "int.kuipr.de";
-            sans = ["*.int.kuipr.de"];
+            main = constants.intDomain;
+            sans = ["*.${constants.intDomain}"];
           }
         ];
       };

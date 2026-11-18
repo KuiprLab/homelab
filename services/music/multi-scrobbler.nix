@@ -1,21 +1,9 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.22";
   vhost = config.flake.pangolinVirtualHosts."scrobble";
-  traefikLabels = {
-    "traefik.enable" = "true";
-    "traefik.http.routers.scrobble.rule" = "Host(`${vhost.subdomain}`)";
-    "traefik.http.routers.scrobble.entrypoints" = "websecure";
-    "traefik.http.routers.scrobble.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.scrobble.service" = "scrobble";
-    "traefik.http.routers.scrobble.middlewares" = "sec-headers@file,oidc-auth@file";
-    "traefik.http.services.scrobble.loadbalancer.server.port" = toString vhost.port;
-    "traefik.http.routers.scrobble-bypass-0.rule" = "Host(`${vhost.subdomain}`) && Path(`/api/version`)";
-    "traefik.http.routers.scrobble-bypass-0.entrypoints" = "websecure";
-    "traefik.http.routers.scrobble-bypass-0.tls.certresolver" = "letsencrypt";
-    "traefik.http.routers.scrobble-bypass-0.service" = "scrobble";
-    "traefik.http.routers.scrobble-bypass-0.priority" = "1000";
-    "traefik.http.routers.scrobble-bypass-0.middlewares" = "sec-headers@file";
-  };
+  traefikLabels = config.flake.sorbetTraefikLabels "scrobble" vhost;
 in {
   flake = {
     podmanProxyHosts.multi-scrobbler.ip = proxyIp;
@@ -42,8 +30,9 @@ in {
         mode = "0444";
       };
 
+      # The image runs as distroless nonroot 65532:65532 and needs /config writable.
       systemd.tmpfiles.rules = [
-        "d /var/lib/multi-scrobbler 0755 root root - -"
+        "d /var/lib/multi-scrobbler 0755 65532 65532 - -"
       ];
 
       systemd.services.podman-network-msv6 = {
@@ -64,27 +53,28 @@ in {
         labels = traefikLabels;
         image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:9e3740476f09a14428eaa97703c7c0e5134469ff1fd5183a10079a192135107f";
         volumes = [
-          "multi-scrobbler-config:/config"
+          "/var/lib/multi-scrobbler:/config"
           "${config.sops.secrets."multi-scrobbler/config".path}:/config/config.json:ro"
         ];
         environment = {
           TZ = "Europe/Berlin";
-          BASE_URL = "https://scrobble.int.kuipr.de";
+          BASE_URL = "https://${vhost.subdomain}";
           NODE_OPTIONS = "--dns-result-order=ipv6first";
         };
         # probe / not /api/health: that answers 500 while any source is down
         # retry: podman's first check fires immediately; pinned IP + --dns keep attribution
-        extraOptions = [
-          "--health-cmd=curl -fsS --retry 8 --retry-delay 3 --retry-connrefused http://127.0.0.1:9078/ >/dev/null"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=2m"
-          "--health-timeout=40s"
-          "--network=proxy:ip=${proxyIp}"
-          "--network=msv6"
-          "--dns=192.168.0.85"
-        ];
+        extraOptions =
+          [
+            "--network=proxy:ip=${proxyIp}"
+            "--network=msv6"
+            "--dns=${constants.lanIp}"
+          ]
+          ++ healthFlags {
+            # The image is distroless: no shell and no curl, so the probe runs node in exec form.
+            cmd = ''["CMD","/nodejs/bin/node","-e","fetch(\"http://127.0.0.1:9078/\").then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]'';
+            startPeriod = "2m";
+            timeout = "40s";
+          };
       };
     };
   };

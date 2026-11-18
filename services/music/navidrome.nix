@@ -1,19 +1,12 @@
 {config, ...}: let
+  constants = config.flake.constants;
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.63";
   vhost = config.flake.pangolinVirtualHosts."music";
   labels =
     config.flake.pangolinRuleLabels "music"
     // config.flake.pangolinHealthcheckLabels "music" vhost
-    // {
-      "pangolin.proxy-resources.music.name" = vhost.name;
-      "pangolin.proxy-resources.music.full-domain" = vhost.subdomain;
-      "pangolin.proxy-resources.music.mode" = "http";
-      "pangolin.proxy-resources.music.labels[0]" = "edge:public";
-      "pangolin.proxy-resources.music.labels[1]" = "site:${vhost.site}";
-      "pangolin.proxy-resources.music.targets[0].hostname" = vhost.hostname;
-      "pangolin.proxy-resources.music.targets[0].port" = toString vhost.port;
-      "pangolin.proxy-resources.music.targets[0].method" = vhost.protocol;
-    };
+    // config.flake.pangolinPublicLabels "music" vhost;
 in {
   flake = {
     podmanProxyHosts.navidrome.ip = proxyIp;
@@ -71,23 +64,23 @@ in {
           ND_AUTOIMPORTPLAYLISTS = "true";
           ND_SUBSONIC_DEFAULTREPORTREALPATH = "true";
           # the edge is a container: the header arrives from the proxy network gateway
-          ND_EXTAUTH_TRUSTEDSOURCES = "10.89.0.1/32";
+          ND_EXTAUTH_TRUSTEDSOURCES = "${constants.proxyGateway}/32";
           ND_EXTAUTH_USERHEADER = "Remote-User";
-          ND_EXTAUTH_LOGOUTURL = "https://auth.ext.kuipr.de/logout";
+          ND_EXTAUTH_LOGOUTURL = "https://${constants.idDomain}/logout";
           ND_ENABLEUSEREDITING = "false";
         };
         log-driver = "journald";
-        extraOptions = [
-          "--group-add=${toString config.users.groups.music.gid}"
-          "--network=proxy:ip=${proxyIp}"
-          # podman's first health check fires immediately; retry or activation fails
-          "--health-cmd=wget -q -O /dev/null http://127.0.0.1:4533/ping"
-          "--health-interval=30s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=1m"
-          "--health-timeout=10s"
-        ];
+        extraOptions =
+          [
+            "--group-add=${toString config.users.groups.music.gid}"
+            "--network=proxy:ip=${proxyIp}"
+            # podman's first health check fires immediately; retry or activation fails
+          ]
+          ++ healthFlags {
+            cmd = "wget -q -O /dev/null http://127.0.0.1:4533/ping";
+            startPeriod = "1m";
+            timeout = "10s";
+          };
       };
 
       systemd = {

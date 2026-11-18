@@ -1,5 +1,6 @@
 # Model pull is manual: `podman exec ollama ollama pull <model>`, then reindex in paperless.
-_: let
+{config, ...}: let
+  healthFlags = config.flake.healthFlags;
   proxyIp = "10.89.0.34";
 in {
   flake = {
@@ -16,17 +17,18 @@ in {
           OLLAMA_MODELS = "/root/.ollama";
         };
         log-driver = "journald";
-        extraOptions = [
-          "--network=proxy:ip=${proxyIp}"
-          "--memory=2g"
-          # The image's client talks over loopback; the server binds 0.0.0.0 for paperless.
-          "--health-cmd=OLLAMA_HOST=127.0.0.1:11434 ollama list"
-          "--health-interval=60s"
-          "--health-on-failure=kill"
-          "--health-retries=3"
-          "--health-start-period=30s"
-          "--health-timeout=30s"
-        ];
+        extraOptions =
+          [
+            "--network=proxy:ip=${proxyIp}"
+            "--memory=2g"
+            # The image's client talks over loopback; the server binds 0.0.0.0 for paperless.
+          ]
+          ++ healthFlags {
+            cmd = "OLLAMA_HOST=127.0.0.1:11434 ollama list";
+            interval = "60s";
+            startPeriod = "30s";
+            timeout = "30s";
+          };
       };
 
       systemd.services."podman-ollama".serviceConfig.Restart = lib.mkOverride 90 "on-failure";

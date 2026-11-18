@@ -1,3 +1,4 @@
+{constants}:
 # Backends that cannot be routed by label: the Docker provider only knows
 # container addresses, and these are a native service and two host-networked
 # containers, all listening on the podman bridge gateway.
@@ -27,14 +28,14 @@ in {
       oidc-auth.plugin.traefik-oidc-auth = {
         Secret = sessionSecretFile;
         Provider = {
-          Url = "https://id.ext.kuipr.de";
+          Url = "https://${constants.idDomain}";
           ClientId = "sorbet-forward-auth";
           ClientSecret = clientSecretFile;
           # The Pocket ID client has PKCE enabled; the plugin opts in explicitly.
           UsePkce = "true";
         };
         Scopes = ["openid" "profile" "email" "groups"];
-        SessionCookie.Domain = "int.kuipr.de";
+        SessionCookie.Domain = constants.intDomain;
       };
     };
 
@@ -63,9 +64,9 @@ in {
     };
 
     services = {
-      technitium.loadBalancer.servers = [{url = "http://10.89.0.1:5380";}];
-      homeassistant.loadBalancer.servers = [{url = "http://10.89.0.1:8123";}];
-      upsnap.loadBalancer.servers = [{url = "http://10.89.0.1:8090";}];
+      technitium.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:5380";}];
+      homeassistant.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8123";}];
+      upsnap.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8090";}];
     };
   };
 }

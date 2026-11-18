@@ -146,6 +146,23 @@
   # container that carries it.
   ruleLabels = name: flattenLabels "pangolin.proxy-resources.${name}.rules" (asnRules ++ geoRules);
 
+  # Public resources are routed by pangolin's own traefik, which reads the
+  # blueprint schema back out of the container labels.
+  publicLabels = name: vh:
+    flattenLabels "pangolin.proxy-resources.${name}" (lib.recursiveUpdate {
+        inherit (vh) name;
+        mode = "http";
+        "full-domain" = vh.subdomain;
+        labels = labelsFor "public" vh.site;
+        targets = [
+          {
+            inherit (vh) hostname port;
+            method = vh.protocol;
+          }
+        ];
+      }
+      vh.extra);
+
   # Probe settings come from the vhost, but the unhealthy threshold is arithmetic
   # over tolerance; expand it here instead of in every service file.
   healthcheckLabels = name: vh:
@@ -173,6 +190,7 @@ in {
     exitNodeResources
     ruleLabels
     healthcheckLabels
+    publicLabels
     standaloneHealthChecks
     ;
 }

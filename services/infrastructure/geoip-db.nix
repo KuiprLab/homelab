@@ -17,6 +17,13 @@ _: {
         trap 'rm -f "$tmp"' EXIT
 
         for db in country asn; do
+          dest="/var/lib/geoip/dbip-$db-lite.mmdb"
+          # DB-IP publishes monthly; a file from this month is already the newest.
+          if [ -s "$dest" ] && [ "$(date -u -r "$dest" +%Y-%m)" = "$(date -u +%Y-%m)" ]; then
+            echo "dbip-$db-lite is current"
+            continue
+          fi
+
           tmp="$(mktemp /var/lib/geoip/.dbip-XXXXXX)"
 
           # DB-IP publishes the new month late; fall back to the previous one.
@@ -32,7 +39,7 @@ _: {
           test -s "$tmp"
           # mktemp creates 0600 root; pangolin runs as user pangolin.
           chmod 0644 "$tmp"
-          mv "$tmp" "/var/lib/geoip/dbip-$db-lite.mmdb"
+          mv "$tmp" "$dest"
           tmp=""
         done
       '';

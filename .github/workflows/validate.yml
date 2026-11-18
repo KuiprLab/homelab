@@ -65,50 +65,15 @@ jobs:
         env:
           NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
         run: |
-          echo "Detecting NixOS configurations..."
-          NIXOS_CONFIGS=$(nix eval --impure --json .#nixosConfigurations --apply builtins.attrNames)
-
-          echo "Detecting Darwin configurations..."
-          DARWIN_CONFIGS=$(nix eval --impure --json .#darwinConfigurations --apply builtins.attrNames 2>/dev/null || echo "[]")
-
-          echo "Detected NixOS configs: $NIXOS_CONFIGS"
-          echo "Detected Darwin configs: $DARWIN_CONFIGS"
-
-          echo "Building matrix JSON..."
-          MATRIX_JSON='{"include":['
-
-          NIXOS_ARRAY=$(echo "$NIXOS_CONFIGS" | jq -c .)
-          if [ "$NIXOS_ARRAY" != "[]" ]; then
-            for config in $(echo "$NIXOS_CONFIGS" | jq -r '.[]'); do
-              MATRIX_JSON+="{"
-              MATRIX_JSON+="\"name\":\"$config\","
-              MATRIX_JSON+="\"os\":\"ubuntu-latest\","
-              MATRIX_JSON+="\"type\":\"nixos\","
-              MATRIX_JSON+="\"cmd\":\"os\","
-              MATRIX_JSON+="\"config\":\"nixosConfigurations.$config.config.system.build.toplevel\""
-              MATRIX_JSON+="},"
-            done
-          fi
-
-          DARWIN_ARRAY=$(echo "$DARWIN_CONFIGS" | jq -c .)
-          if [ "$DARWIN_ARRAY" != "[]" ]; then
-            for config in $(echo "$DARWIN_CONFIGS" | jq -r '.[]'); do
-              MATRIX_JSON+="{"
-              MATRIX_JSON+="\"name\":\"$config\","
-              MATRIX_JSON+="\"os\":\"macos-latest\","
-              MATRIX_JSON+="\"type\":\"darwin\","
-              MATRIX_JSON+="\"cmd\":\"darwin\","
-              MATRIX_JSON+="\"config\":\"darwinConfigurations.$config.system\""
-              MATRIX_JSON+="},"
-            done
-          fi
-
-          MATRIX_JSON=${MATRIX_JSON%,}
-          MATRIX_JSON+="]}"
-
-          echo "Matrix JSON: $MATRIX_JSON"
-
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          matrix=$(nix eval --json .#nixosConfigurations --apply builtins.attrNames |
+            jq -c '{include: map({
+              name: .,
+              os: "ubuntu-latest",
+              type: "nixos",
+              cmd: "os",
+              config: "nixosConfigurations.\(.).config.system.build.toplevel"
+            })}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test-configurations:
     name: Test Nix Configurations
@@ -125,12 +90,18 @@ jobs:
         with:
           extra-conf: |
             extra-experimental-features = nix-command flakes external-builders
-            substituters = https://cache.nixos.org https://frostplexx.cachix.org https://nvf.cachix.org https://nix-community.cachix.org
             extra-substituters = https://install.determinate.systems
-            trusted-substituters = https://cache.nixos.org https://frostplexx.cachix.org https://nvf.cachix.org https://nix-community.cachix.org
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= frostplexx.cachix.org-1:kjkhnGNSkUvf5Mx8OEfhzaR830CUkDRglaKduAcr3UQ= nvf.cachix.org-1:GMQWiUhZ6ux9D5CvFFMwnc2nFrUHTeGaXRlVBXo+naI= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= sorbet.cachix.org-1:p1+jtoj8v75vhRut7fGY5jL7k4BNMFvMBcQSDKbF3Aw=
             extra-trusted-public-keys = cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM=
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      # The cache list lives in modules/flake/_caches.nix; the installer runs before nix exists.
+      - name: Use the repo's substituters
+        run: |
+          caches=$(nix-instantiate --eval --strict --json modules/flake/_caches.nix)
+          {
+            echo "substituters = $(jq -r '.substituters | join(" ")' <<<"$caches")"
+            echo "trusted-public-keys = $(jq -r '.trustedPublicKeys | join(" ")' <<<"$caches")"
+          } | sudo tee -a /etc/nix/nix.conf
 
       - name: Setup Cachix Auth
         uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
@@ -144,5 +115,4 @@ jobs:
           NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"
         run: |
           echo "Building configuration for ${{ matrix.name }} (${{ matrix.type }}) with command ${{matrix.cmd}}"
-          # nix build .#${{ matrix.config }} --accept-flake-config --impure --extra-experimental-features flakes --extra-experimental-features nix-command --dry-run
           nix run nixpkgs#nh -- ${{ matrix.cmd }} build --no-nom -H ${{ matrix.name }} .

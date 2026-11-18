@@ -16,7 +16,6 @@
 }: let
   pangolin-apply = pkgs.callPackage ./_package.nix {};
 
-  # Authelia's `pangolin` client hardcodes the redirect URL (idpId 1 on a fresh DB).
   expectedRedirect = "https://${dashboardDomain}/auth/idp/1/oidc/callback";
 in {
   sops.secrets."pangolin-apply" = {

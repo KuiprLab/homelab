@@ -1,7 +1,15 @@
-_: let
+{
+  config,
+  lib,
+  ...
+}: let
+  constants = config.flake.constants;
   proxyIp = "10.89.0.10";
 in {
+  imports = [./_sorbet-traefik/options.nix];
+
   flake = {
+    sorbetTraefikLabels = import ./_sorbet-traefik/labels.nix {inherit lib;};
     podmanProxyHosts.sorbet-traefik.ip = proxyIp;
 
     # The edge is a container, so newt reaches it by name: podmanProxyHosts puts
@@ -10,7 +18,7 @@ in {
       site = "sorbet";
       name = "int (traefik edge)";
       destination = "sorbet-traefik";
-      alias = "*.int.kuipr.de";
+      alias = "*.${constants.intDomain}";
       tcpPorts = "443";
       udpPorts = "";
       icmp = false;
@@ -22,8 +30,8 @@ in {
       ...
     }: let
       yaml = pkgs.formats.yaml {};
-      staticConfig = yaml.generate "sorbet-traefik-static.yml" (import ./_sorbet-traefik/static.nix);
-      dynamicConfig = yaml.generate "sorbet-traefik-dynamic.yml" (import ./_sorbet-traefik/dynamic.nix);
+      staticConfig = yaml.generate "sorbet-traefik-static.yml" (import ./_sorbet-traefik/static.nix {inherit constants;});
+      dynamicConfig = yaml.generate "sorbet-traefik-dynamic.yml" (import ./_sorbet-traefik/dynamic.nix {inherit constants;});
     in {
       networking.firewall.allowedTCPPorts = [80 443];
 

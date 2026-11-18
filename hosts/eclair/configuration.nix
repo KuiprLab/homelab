@@ -43,42 +43,37 @@ _: {
       ];
     };
 
-    nix = {
-      channel.enable = false;
-      gc = {
-        automatic = true;
-        dates = "weekly";
-        options = "--delete-older-than 5d";
+    nix.settings = {
+      max-jobs = 1;
+      cores = 1;
+    };
+
+    # One vCPU: builds, GC and hub updates yield to the edge and to sshd.
+    systemd.services = {
+      comin.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+        Nice = 10;
       };
-      # Hardlinks duplicate files in the store; nothing else deduplicates them.
-      optimise = {
-        automatic = true;
-        dates = ["weekly"];
+      nix-gc.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
       };
-      extraOptions = ''
-        experimental-features = nix-command flakes
-        warn-dirty = false
-      '';
-      settings = {
-        max-jobs = 1;
-        cores = 1;
-        substituters = [
-          "https://cache.nixos.org/"
-          "https://sorbet.cachix.org"
-          "https://nix-community.cachix.org"
-          "https://frostplexx.cachix.org"
-          "https://nvf.cachix.org"
-        ];
-        trusted-public-keys = [
-          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "sorbet.cachix.org-1:p1+jtoj8v75vhRut7fGY5jL7k4BNMFvMBcQSDKbF3Aw="
-          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-          "frostplexx.cachix.org-1:kjkhnGNSkUvf5Mx8OEfhzaR830CUkDRglaKduAcr3UQ="
-          "nvf.cachix.org-1:GMQWiUhZ6ux9D5CvFFMwnc2nFrUHTeGaXRlVBXo+naI="
-        ];
+      nix-optimise.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
+      };
+      crowdsec-update-hub.serviceConfig = {
+        CPUWeight = 20;
+        IOWeight = 20;
       };
     };
 
-    zramSwap.enable = true;
+    # lz4 compresses several times faster than zstd; on one vCPU the fault
+    # latency matters more than the ratio.
+    zramSwap = {
+      enable = true;
+      algorithm = "lz4";
+    };
   };
 }

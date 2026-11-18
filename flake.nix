@@ -40,7 +40,6 @@
     nixpkgs-crowdsec.url = "github:TornaxO7/nixpkgs/crowdsec";
   };
 
-  # ./pkgs is imported by hand from services/unifi.nix.
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake {inherit inputs;}
     (inputs.import-tree [
