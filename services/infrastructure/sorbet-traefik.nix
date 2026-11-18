@@ -100,6 +100,9 @@ in {
         extraOptions = [
           "--network=proxy:ip=${proxyIp}"
           "--env-file=${config.sops.secrets."traefik/bunny_api_key".path}"
+          # Technitium answers id.ext with lanIp, but a DNAT back into this
+          # container's own published port never answers; its bridge IP does.
+          "--add-host=${constants.idDomain}:${proxyIp}"
         ];
       };
 
