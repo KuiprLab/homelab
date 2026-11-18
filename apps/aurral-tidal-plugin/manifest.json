@@ -1,0 +1,35 @@
+{
+  "id": "aurral-tidal",
+  "name": "Tidal",
+  "version": "1.0.0",
+  "api": 1,
+  "description": "Import Tidal playlists through subtidal.",
+  "repository": "https://github.com/KuiprLab/homelab",
+  "uses": ["Your Tidal playlists", "subtidal"],
+  "settings": [
+    {
+      "key": "url",
+      "label": "subtidal URL",
+      "type": "text",
+      "required": true,
+      "help": "Reachable from the aurral container, for example http://subtidal:8000"
+    },
+    {
+      "key": "username",
+      "label": "subtidal username",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "password",
+      "label": "subtidal password",
+      "type": "password",
+      "required": true
+    }
+  ],
+  "test": true,
+  "importList": {
+    "label": "Tidal",
+    "hosts": ["tidal.com"]
+  }
+}
