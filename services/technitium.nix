@@ -1,7 +1,14 @@
-{config, ...}: let
+{
+  config,
+  lib,
+  ...
+}: let
   constants = config.flake.constants;
   serverIp = constants.lanIp;
   zone = constants.intDomain;
+  # Only the names the sorbet edge serves; one zone each, so everything else in
+  # ext.kuipr.de keeps resolving to eclair through the forwarders.
+  extHosts = map (vhost: vhost.subdomain) (lib.attrValues config.flake.extVhosts);
 
   apiUrl = "http://127.0.0.1:5380/api";
 
@@ -76,6 +83,7 @@ in {
         inherit
           apiUrl
           dhcpScope
+          extHosts
           reservedLeases
           serverIp
           settings

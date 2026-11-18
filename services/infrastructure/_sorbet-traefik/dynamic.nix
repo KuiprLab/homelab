@@ -1,4 +1,9 @@
-{constants}:
+{
+  lib,
+  constants,
+  extVhosts,
+  proxyHosts,
+}:
 # Backends that cannot be routed by label: the Docker provider only knows
 # container addresses, and these are a native service and two host-networked
 # containers, all listening on the podman bridge gateway.
@@ -9,6 +14,38 @@ let
   # The plugin requires exactly 32 characters; generated once into the data volume
   # so sessions survive restarts.
   sessionSecretFile = "$" + "{file:/data/oidc-session-secret}";
+
+  # Host-networked backends point at loopback in their vhost; pinned proxy
+  # addresses save a DNS round trip for the rest.
+  backendHost = vh:
+    if vh.hostname == "127.0.0.1"
+    then constants.proxyGateway
+    else if proxyHosts ? ${vh.hostname}
+    then proxyHosts.${vh.hostname}.ip
+    else vh.hostname;
+
+  # The public vhosts, served here as well so LAN clients need no hairpin. These
+  # carry no login gate: pangolin's auth and rules only apply to its own edge.
+  extRouters =
+    lib.mapAttrs (name: vh: {
+      rule = "Host(`${vh.subdomain}`)";
+      entryPoints = ["websecure"];
+      service = name;
+      middlewares = ["sec-headers@file"];
+      tls.certResolver = "letsencrypt";
+    })
+    extVhosts;
+
+  extServices = lib.mapAttrs (_: vh:
+    {
+      loadBalancer.servers = [
+        {url = "${vh.protocol}://${backendHost vh}:${toString vh.port}";}
+      ];
+    }
+    // lib.optionalAttrs (vh.serversTransport != null) {
+      loadBalancer.serversTransport = vh.serversTransport;
+    })
+  extVhosts;
 in {
   http = {
     serversTransports.unifi-insecure.insecureSkipVerify = true;
@@ -39,34 +76,38 @@ in {
       };
     };
 
-    routers = {
-      technitium = {
-        rule = "Host(`technitium.int.kuipr.de`)";
-        entryPoints = ["websecure"];
-        service = "technitium";
-        middlewares = ["sec-headers@file"];
-        tls.certResolver = "letsencrypt";
-      };
-      homeassistant = {
-        rule = "Host(`has.int.kuipr.de`)";
-        entryPoints = ["websecure"];
-        service = "homeassistant";
-        middlewares = ["sec-headers@file"];
-        tls.certResolver = "letsencrypt";
-      };
-      upsnap = {
-        rule = "Host(`up.int.kuipr.de`)";
-        entryPoints = ["websecure"];
-        service = "upsnap";
-        middlewares = ["sec-headers@file"];
-        tls.certResolver = "letsencrypt";
-      };
-    };
+    routers =
+      {
+        technitium = {
+          rule = "Host(`technitium.int.kuipr.de`)";
+          entryPoints = ["websecure"];
+          service = "technitium";
+          middlewares = ["sec-headers@file"];
+          tls.certResolver = "letsencrypt";
+        };
+        homeassistant = {
+          rule = "Host(`has.int.kuipr.de`)";
+          entryPoints = ["websecure"];
+          service = "homeassistant";
+          middlewares = ["sec-headers@file"];
+          tls.certResolver = "letsencrypt";
+        };
+        upsnap = {
+          rule = "Host(`up.int.kuipr.de`)";
+          entryPoints = ["websecure"];
+          service = "upsnap";
+          middlewares = ["sec-headers@file"];
+          tls.certResolver = "letsencrypt";
+        };
+      }
+      // extRouters;
 
-    services = {
-      technitium.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:5380";}];
-      homeassistant.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8123";}];
-      upsnap.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8090";}];
-    };
+    services =
+      {
+        technitium.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:5380";}];
+        homeassistant.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8123";}];
+        upsnap.loadBalancer.servers = [{url = "http://${constants.proxyGateway}:8090";}];
+      }
+      // extServices;
   };
 }

@@ -113,7 +113,9 @@ in {
               "--network=proxy:ip=${proxyIp}"
             ]
             ++ healthFlags {
-              cmd = "sh -c 'n=0; until curl -fsS -o /dev/null http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
+              # Django derives ALLOWED_HOSTS from PAPERLESS_URL and answers 400 to
+              # any other Host; traefik skips unhealthy containers.
+              cmd = "sh -c 'n=0; until curl -fsS -o /dev/null -H Host:${vhost.subdomain} http://127.0.0.1:8000/; do n=$((n+1)); [ $n -ge 10 ] && exit 1; sleep 3; done'";
               startPeriod = "3m";
               timeout = "30s";
             };

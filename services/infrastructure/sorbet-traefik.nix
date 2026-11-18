@@ -5,12 +5,24 @@
 }: let
   constants = config.flake.constants;
   proxyIp = "10.89.0.10";
+  proxyHosts = config.flake.podmanProxyHosts;
+
+  publicVhosts = lib.filterAttrs (_: vh: !vh.private && !(vh.extra ? mode)) config.flake.pangolinVirtualHosts;
+  foreignVhosts = lib.filterAttrs (_: vh: vh.site != "sorbet") publicVhosts;
+
+  # Served here and on pangolin's edge: Technitium points these names at the LAN
+  # address, so LAN clients never hairpin through eclair.
+  extVhosts =
+    if foreignVhosts == {}
+    then publicVhosts
+    else throw "sorbet-traefik: ext vhosts must run on sorbet: ${lib.concatStringsSep ", " (lib.attrNames foreignVhosts)}";
 in {
   imports = [./_sorbet-traefik/options.nix];
 
   flake = {
     sorbetTraefikLabels = import ./_sorbet-traefik/labels.nix {inherit lib;};
     podmanProxyHosts.sorbet-traefik.ip = proxyIp;
+    inherit extVhosts;
 
     # The edge is a container, so newt reaches it by name: podmanProxyHosts puts
     # sorbet-traefik in /etc/hosts, which is what newt resolves it through.
@@ -31,7 +43,14 @@ in {
     }: let
       yaml = pkgs.formats.yaml {};
       staticConfig = yaml.generate "sorbet-traefik-static.yml" (import ./_sorbet-traefik/static.nix {inherit constants;});
-      dynamicConfig = yaml.generate "sorbet-traefik-dynamic.yml" (import ./_sorbet-traefik/dynamic.nix {inherit constants;});
+      dynamicConfig = yaml.generate "sorbet-traefik-dynamic.yml" (import ./_sorbet-traefik/dynamic.nix {
+        inherit
+          extVhosts
+          lib
+          constants
+          proxyHosts
+          ;
+      });
     in {
       networking.firewall.allowedTCPPorts = [80 443];
 
@@ -81,6 +100,9 @@ in {
         extraOptions = [
           "--network=proxy:ip=${proxyIp}"
           "--env-file=${config.sops.secrets."traefik/bunny_api_key".path}"
+          # Technitium answers id.ext with lanIp, but a DNAT back into this
+          # container's own published port never answers; its bridge IP does.
+          "--add-host=${constants.idDomain}:${proxyIp}"
         ];
       };
 
