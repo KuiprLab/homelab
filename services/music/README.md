@@ -8,12 +8,12 @@
 
 ## TODO
 
-- Music downloading
-  - Kinda done already through discord bot + slskd
-  - More streamlined? How to handle singles??
-- Music discovery
-- Easy library management e.g. deleting music
-- Sync Playlists from/with Tidal
+- [x] Music downloading
+  - [~] Kinda done already through discord bot + slskd
+  - [x] More streamlined? How to handle singles??
+-  [ ] Music discovery
+-  [ ] Easy library management e.g. deleting music
+-  [ ] Sync Playlists from/with Tidal
 - **Important**: Good backup strategy, everything (including music files themselves) restorable from backups!
 
 

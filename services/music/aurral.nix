@@ -39,6 +39,8 @@ in {
           # same container path as navidrome, so playlist publishing needs no path mapping
           "/media/data/music:/music"
           "/home/daniel/slskd-downloads:/downloads"
+          # same path as the deemix container, so its remote paths need no mapping
+          "/home/daniel/deemix-downloads:/deemix-downloads"
         ];
         environmentFiles = [config.sops.templates."aurral/env".path];
         environment = {
