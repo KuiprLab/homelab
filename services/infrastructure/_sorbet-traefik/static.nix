@@ -9,7 +9,7 @@
     };
     websecure = {
       address = ":443";
-      # One wildcard certificate for the zone through DNS-01, issued once instead
+      # One wildcard certificate per zone through DNS-01, issued once instead
       # of one per host; routers only need their certResolver.
       http.tls = {
         certResolver = "letsencrypt";
@@ -17,6 +17,12 @@
           {
             main = constants.intDomain;
             sans = ["*.${constants.intDomain}"];
+          }
+          # Same wildcard for the public zone: LAN clients resolve these names to
+          # this host (see services/technitium.nix), so the edge serves them too.
+          {
+            main = constants.extDomain;
+            sans = ["*.${constants.extDomain}"];
           }
         ];
       };

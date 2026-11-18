@@ -40,6 +40,9 @@ in {
         restartUnits = ["podman-crowdsec-web-ui.service"];
       };
 
+      # Host networking: the edge container reaches the UI on the proxy gateway.
+      networking.firewall.allowedTCPPorts = [3010];
+
       virtualisation.oci-containers.containers.crowdsec-web-ui = {
         inherit labels;
         image = "ghcr.io/theduffman85/crowdsec-web-ui:2026.11.12@sha256:5bc8a0bdb6350101bce07f1db55df9784b27f6f2ff49cc1316bd67988628558e";
