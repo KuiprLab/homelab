@@ -11,9 +11,9 @@
 - [x] Music downloading
   - [~] Kinda done already through discord bot + slskd
   - [x] More streamlined? How to handle singles??
--  [ ] Music discovery
--  [ ] Easy library management e.g. deleting music
--  [ ] Sync Playlists from/with Tidal
+-  [x] Music discovery
+-  [x] Easy library management e.g. deleting music
+-  [x] Sync Playlists from/with Tidal (one-way, `apps/aurral-tidal-plugin`)
 - **Important**: Good backup strategy, everything (including music files themselves) restorable from backups!
 
 
