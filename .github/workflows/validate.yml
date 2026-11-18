@@ -35,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
+        uses: DeterminateSystems/nix-installer-action@2559b44fed7d4fc978e8dd0e379661afb8b73590 # main
         with:
           extra-conf: |
             extra-experimental-features = nix-command flakes external-builders
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: DeterminateSystems/flake-checker-action@52880e9a632c10558027febd64b43dd5a56d7fca # main
+      - uses: DeterminateSystems/flake-checker-action@5b2d34ccdd3612df34a20066f6170a6480746220 # main
       - name: Flake checks (statix, deadnix, treefmt, sni-routing)
         env:
           NIX_CONFIG: "access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}"

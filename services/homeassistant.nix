@@ -35,7 +35,7 @@ in {
             "${config.sops.secrets."homeassistant/configuration".path}:/config/configuration.yaml:ro"
           ];
           environment.TZ = "Europe/Berlin";
-          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82";
+          image = "ghcr.io/home-assistant/home-assistant:stable@sha256:493a07e8f6530fc640223f4a0a5248f20a61ca2f718bb1d31efbf08a2c5ea28f";
           # A failed transient-unit check aborts activation; HA needs minutes to boot.
           extraOptions =
             [
