@@ -4,17 +4,17 @@
 
 - Navidrome as the backbone
 - Koito for scrobbling
-- Beets for music importing
+- ~~Beets for music importing~~
 
 ## TODO
 
 - [x] Music downloading
-  - [~] Kinda done already through discord bot + slskd
+  - [-] Kinda done already through discord bot + slskd
   - [x] More streamlined? How to handle singles??
 -  [x] Music discovery
 -  [x] Easy library management e.g. deleting music
 -  [x] Sync Playlists from/with Tidal (one-way, `apps/aurral-tidal-plugin`)
-- **Important**: Good backup strategy, everything (including music files themselves) restorable from backups!
+- [x] **Important**: Backup strategy (`services/backup`). State only: database, scrobbles, aurral, manifest. The music files themselves are not backed up, they are re-acquired from the manifest. See `Runbook - Backup and restore` in Obsidian.
 
 
 ## Tools that seem interesting: 
