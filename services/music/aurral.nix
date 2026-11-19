@@ -40,6 +40,8 @@ in {
           # same container path as navidrome, so playlist publishing needs no path mapping
           "/media/data/music:/music"
           "/home/daniel/slskd-downloads:/downloads"
+          # Path for importing music
+          "/home/daniel/music-inbox:/inbox:rw"
         ];
         environmentFiles = [config.sops.templates."aurral/env".path];
         environment = {
