@@ -33,7 +33,7 @@ in {
 
       virtualisation.oci-containers.containers.aurral = {
         labels = traefikLabels;
-        image = "ghcr.io/lklynet/aurral:latest@sha256:75dd06805e3daefd49eb4f91d19f4110f0ef6eb1d2b13e48ae36120d113b48f0";
+        image = "ghcr.io/lklynet/aurral:latest@sha256:41008fa4293dfb12bfa4c4407c22c685110cfb506dfedbadba8148f0bf0a0694";
         volumes = [
           "${dataDir}/config:/config"
           # same container path as navidrome, so playlist publishing needs no path mapping
