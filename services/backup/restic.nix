@@ -20,9 +20,6 @@ _: {
       ];
     };
   in {
-
-
-
     sops.secrets = {
       # Decrypted to /run/secrets/... and consumed as systemd EnvironmentFile.
       "restic/env" = {
@@ -61,6 +58,9 @@ _: {
 
           hc "$RESTIC_BACKUP_PING/start" || true
           ${stageExport}
+
+          # Empty bucket on a first run, or on a rebuilt host.
+          restic cat config >/dev/null 2>&1 || restic init
 
           if ! restic backup ${tagArgs}--pack-size 64 ${stageDir}; then
             echo "restic backup failed" >&2
