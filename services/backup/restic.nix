@@ -47,7 +47,7 @@ _: {
         description = "Stage homelab state and back it up to Backblaze B2";
         after = ["network-online.target"];
         wants = ["network-online.target"];
-        path = [pkgs.coreutils pkgs.curl pkgs.restic pkgs.sqlite];
+        path = [pkgs.coreutils pkgs.curl pkgs.findutils pkgs.restic pkgs.sqlite];
         script = ''
           set -eu
 
