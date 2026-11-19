@@ -42,7 +42,7 @@ _: {
         script = ''
           set -eu
           exec ${pkgs.podman}/bin/podman run --rm \
-            --network podman \
+            --network proxy \
             -e USERMAP_UID=${toString config.users.users.paperless.uid} \
             -e USERMAP_GID=${toString config.users.groups.paperless.gid} \
             -e PAPERLESS_REDIS=redis://redis:6379 \
