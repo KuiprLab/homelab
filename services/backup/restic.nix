@@ -21,9 +21,10 @@ _: {
     };
   in {
     sops.secrets = {
+      # Both files are binary sops blobs holding dotenv text; systemd parses them as EnvironmentFile.
       "restic/env" = {
         sopsFile = ../../secrets/sorbet/restic;
-        format = "dotenv";
+        format = "binary";
         key = "";
         owner = "root";
         mode = "0400";
@@ -31,7 +32,7 @@ _: {
 
       "restic/ping" = {
         sopsFile = ../../secrets/sorbet/restic-ping;
-        format = "dotenv";
+        format = "binary";
         key = "";
         owner = "root";
         mode = "0400";
