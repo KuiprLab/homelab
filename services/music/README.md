@@ -54,13 +54,14 @@ Last.fm refuses plays older than about 14 days, so never export history back to 
 
 Then switch the services:
 
-1. Navidrome: add the LB token per user, unlink Last.fm. Keep the metadata keys only if you want
-   bios; they are a separate concern.
-2. Subtidal: replace `[lastfm]` with `[listenbrainz] token`.
-3. Aurral: connect ListenBrainz.
-4. Multi Scrobbler: retires with its last.fm source.
-5. Presence: `MUSIC_SOURCE=navidrome,listenbrainz`.
-6. Koito: optional read-only mirror. It imports a ListenBrainz export. Not the sink.
+- [ ] Navidrome: add the LB token per user, unlink Last.fm. Keep the metadata keys only if you want
+- [ ] bios; they are a separate concern.
+- [ ] Subtidal: replace `[lastfm]` with `[listenbrainz] token`.
+- [x] Aurral: connect ListenBrainz.
+- [x] Sonora: disconnect Last.fm, connect ListenBrainz.
+- [ ] Multi Scrobbler: retires with its last.fm source.
+- [x] Presence: `MUSIC_SOURCE=navidrome,listenbrainz`.
+- [ ] Koito: optional read-only mirror. It imports a ListenBrainz export. Not the sink.
 
 One submitter per playback path. ListenBrainz drops a listen only on the same user, the same second
 and the same MessyBrainz id. Two live submitters count twice.
