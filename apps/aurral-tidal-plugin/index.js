@@ -51,9 +51,20 @@ async function subtidal(settings, method, params = {}) {
   return payload;
 }
 
+// A stream answers a real 404 when Tidal cannot serve the track, so the body
+// carries the only usable reason; keep it in the message.
+async function failureMessage(response) {
+  try {
+    const body = await response.json();
+    const error = body?.["subsonic-response"]?.error;
+    if (error?.message) return `subtidal error ${error.code ?? "?"}: ${error.message}`;
+  } catch {}
+  return `subtidal answered ${response.status}`;
+}
+
 async function subtidalFile(settings, method, params = {}) {
   const response = await fetch(endpoint(settings, method, params));
-  if (!response.ok) throw new Error(`subtidal answered ${response.status}`);
+  if (!response.ok) throw new Error(await failureMessage(response));
   return response;
 }
 
