@@ -36,6 +36,17 @@ async function likedTracks(settings) {
   return tracks;
 }
 
+// aurral calls downloadSource.download with logFailures off, so a failure here
+// would otherwise vanish and the job would silently fall to the next source.
+async function logged(label, run) {
+  try {
+    return await run();
+  } catch (error) {
+    console.warn(`${label} failed: ${error?.message || error}`);
+    throw error;
+  }
+}
+
 async function findTidalId(settings, track) {
   if (!String(track?.title || "").trim()) return null;
   return pickId(await searchSongs(settings, track), track);
@@ -87,14 +98,16 @@ export default {
     async download({settings, result, directory}) {
       const tidalId = String(result?.data?.tidalId || result?.id || "").trim();
       if (!tidalId) throw new Error("This result has no Tidal track id");
-      const fileName = await writeTrack(
-        settings,
-        directory,
-        tidalId,
-        result,
-        (extension) => taggedFileName(result, extension) ?? `${tidalId}.${extension}`,
-      );
-      return {path: fileName};
+      return await logged(`${result?.artist ?? "?"} - ${result?.title ?? "?"}`, async () => {
+        const fileName = await writeTrack(
+          settings,
+          directory,
+          tidalId,
+          result,
+          (extension) => taggedFileName(result, extension) ?? `${tidalId}.${extension}`,
+        );
+        return {path: fileName};
+      });
     },
 
     async searchAlbum({settings, album}) {
@@ -115,16 +128,18 @@ export default {
     async downloadAlbum({settings, result, directory}) {
       const albumId = String(result?.data?.albumId || result?.id || "").trim();
       if (!albumId) throw new Error("This result has no Tidal album id");
-      const payload = await subtidal(settings, "getAlbum", {id: albumId});
-      const songs = payload.album?.song || [];
-      if (songs.length === 0) throw new Error("Album has no tracks on Tidal");
-      for (const [index, entry] of songs.entries()) {
-        const tidalId = String(entry?.id || "").trim();
-        if (!tidalId) continue;
-        await writeTrack(settings, directory, tidalId, entry, (extension) =>
-          albumFileName(entry, index + 1, extension),
-        );
-      }
+      return await logged(`album ${result?.artist ?? "?"} - ${result?.title ?? "?"}`, async () => {
+        const payload = await subtidal(settings, "getAlbum", {id: albumId});
+        const songs = payload.album?.song || [];
+        if (songs.length === 0) throw new Error("Album has no tracks on Tidal");
+        for (const [index, entry] of songs.entries()) {
+          const tidalId = String(entry?.id || "").trim();
+          if (!tidalId) continue;
+          await writeTrack(settings, directory, tidalId, entry, (extension) =>
+            albumFileName(entry, index + 1, extension),
+          );
+        }
+      });
     },
   },
 
