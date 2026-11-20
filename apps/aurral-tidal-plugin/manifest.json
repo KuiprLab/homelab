@@ -1,11 +1,11 @@
 {
   "id": "aurral-tidal",
   "name": "Tidal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "api": 1,
-  "description": "Import Tidal playlists through subtidal.",
+  "description": "Import Tidal playlists and liked songs through subtidal, download tracks from Tidal, and star finished downloads.",
   "repository": "https://github.com/KuiprLab/homelab",
-  "uses": ["Your Tidal playlists", "subtidal"],
+  "uses": ["Your Tidal playlists", "Your Tidal likes", "Tidal downloads", "subtidal"],
   "settings": [
     {
       "key": "url",
@@ -25,11 +25,19 @@
       "label": "subtidal password",
       "type": "password",
       "required": true
+    },
+    {
+      "key": "starDownloads",
+      "label": "Star finished downloads on Tidal",
+      "type": "boolean",
+      "help": "Stars the matching Tidal track after aurral files a download, from any download source."
     }
   ],
   "test": true,
   "importList": {
     "label": "Tidal",
     "hosts": ["tidal.com"]
-  }
+  },
+  "downloadSource": {},
+  "events": ["download.finished"]
 }
