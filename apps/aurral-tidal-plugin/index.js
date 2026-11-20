@@ -1,6 +1,6 @@
 const PLAYLIST_PATH = /\/playlist\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[/?#]|$)/i;
 const BARE_UUID = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-const LIKED_PATH = /\/(?:my-collection\/)?liked(?:-songs|-tracks)?(?:[/?#]|$)/i;
+const LIKED_PATH = /\/(?:my-collection\/tracks|liked(?:-songs|-tracks)?)(?:[/?#]|$)/i;
 const UNAVAILABLE_MARKER = /\s*\(unavailable on Tidal\)$/i;
 const MAX_TRACKS = 5000;
 const SEARCH_LIMIT = 10;
