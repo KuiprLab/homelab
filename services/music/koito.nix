@@ -61,7 +61,7 @@ in {
         };
 
         last-fm-presence = {
-          image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:ba64784e5bdcfd232de2dea7edf36bc7d6dd0929c8b9c23850cb0805dfa32d9a";
+          image = "ghcr.io/frostplexx/lastfm-discord-presence:main@sha256:fb6ae76189ce4c0103ee9f9de034847e1e734c86554867758779155b15e041d0";
           volumes = [];
           environmentFiles = [config.sops.secrets."last-fm-presence".path];
           extraOptions = [
