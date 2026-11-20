@@ -41,7 +41,7 @@ in {
         containers = {
           "gluetun" = {
             labels = traefikLabels;
-            image = "ghcr.io/qdm12/gluetun:latest@sha256:659a07992600128046b359406a2259700076a5ec226a289a1ddd626bb9471860";
+            image = "ghcr.io/qdm12/gluetun:latest@sha256:b68e26d63c1cb352b53518e4f96fbb12eb9ae8412ec0c2bc5c47bca2c1338b9e";
             log-driver = "journald";
             environmentFiles = [
               "/run/secrets/gluetun.env"
