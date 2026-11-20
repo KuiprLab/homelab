@@ -1,11 +1,12 @@
+import {albumFileName, taggedFileName, writeTrack} from "./audio.js";
+import {normalize, pickId, toAlbumResult, toResult, toTrack} from "./mapping.js";
+import {subtidal} from "./subtidal.js";
+
 const PLAYLIST_PATH = /\/playlist\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[/?#]|$)/i;
 const BARE_UUID = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LIKED_PATH = /\/(?:my-collection\/tracks|liked(?:-songs|-tracks)?)(?:[/?#]|$)/i;
-const UNAVAILABLE_MARKER = /\s*\(unavailable on Tidal\)$/i;
 const MAX_TRACKS = 5000;
 const SEARCH_LIMIT = 10;
-const DURATION_TOLERANCE_MS = 5000;
-const SUBTIDAL_API_VERSION = "1.16.1";
 
 function parseLink(url) {
   const trimmed = String(url || "").trim();
@@ -13,155 +14,6 @@ function parseLink(url) {
   const match = trimmed.match(PLAYLIST_PATH) || trimmed.match(BARE_UUID);
   if (!match) throw new Error("This is not a Tidal playlist link");
   return {kind: "playlist", id: match[1].toLowerCase()};
-}
-
-function credentials(settings = {}) {
-  const url = String(settings.url || "").trim().replace(/\/+$/, "");
-  const username = String(settings.username || "").trim();
-  const password = String(settings.password || "");
-  if (!url) throw new Error("Set the subtidal URL in the plugin settings");
-  if (!username) throw new Error("Set the subtidal username in the plugin settings");
-  if (!password) throw new Error("Set the subtidal password in the plugin settings");
-  return {url, username, password};
-}
-
-function endpoint(settings, method, params = {}) {
-  const {url, username, password} = credentials(settings);
-  const query = new URLSearchParams({
-    v: SUBTIDAL_API_VERSION,
-    c: "aurral",
-    u: username,
-    p: password,
-    ...params,
-  });
-  return `${url}/rest/${method}.view?${query}`;
-}
-
-async function subtidal(settings, method, params = {}) {
-  const response = await fetch(endpoint(settings, method, {f: "json", ...params}));
-  if (!response.ok) throw new Error(`subtidal answered ${response.status}`);
-  const body = await response.json();
-  const payload = body?.["subsonic-response"];
-  if (!payload) throw new Error("subtidal returned an unexpected answer");
-  if (payload.status !== "ok") {
-    const code = payload.error?.code;
-    const message = payload.error?.message || "unknown error";
-    throw new Error(`subtidal error ${code ?? "?"}: ${message}`);
-  }
-  return payload;
-}
-
-// A stream answers a real 404 when Tidal cannot serve the track, so the body
-// carries the only usable reason; keep it in the message.
-async function failureMessage(response) {
-  try {
-    const body = await response.json();
-    const error = body?.["subsonic-response"]?.error;
-    if (error?.message) return `subtidal error ${error.code ?? "?"}: ${error.message}`;
-  } catch {}
-  return `subtidal answered ${response.status}`;
-}
-
-async function subtidalFile(settings, method, params = {}) {
-  const response = await fetch(endpoint(settings, method, params));
-  if (!response.ok) throw new Error(await failureMessage(response));
-  return response;
-}
-
-function toTrack(entry) {
-  const artist = String(entry?.artist || "").trim();
-  const title = String(entry?.title || "").trim().replace(UNAVAILABLE_MARKER, "");
-  if (!artist || !title) return null;
-  const album = String(entry?.album || "").trim();
-  const seconds = Number(entry?.duration);
-  return {
-    artist,
-    title,
-    ...(album && {album}),
-    ...(Number.isFinite(seconds) && seconds > 0 && {durationMs: seconds * 1000}),
-  };
-}
-
-function toResult(entry) {
-  const id = String(entry?.id || "").trim();
-  const artist = String(entry?.artist || "").trim();
-  const title = String(entry?.title || "").trim();
-  if (!id || !artist || !title) return null;
-  const album = String(entry?.album || "").trim();
-  const format = String(entry?.suffix || "").trim().toLowerCase();
-  const bitrate = Number(entry?.bitRate);
-  const seconds = Number(entry?.duration);
-  return {
-    id,
-    title,
-    artist,
-    ...(album && {album}),
-    ...(Number.isFinite(seconds) && seconds > 0 && {durationMs: seconds * 1000}),
-    ...(format && {format}),
-    ...(Number.isFinite(bitrate) && bitrate > 0 && {bitrate}),
-    data: {tidalId: id},
-  };
-}
-
-const normalize = (value) =>
-  String(value || "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-// A wrong match would star an unrelated Tidal track, so demand the same title,
-// an overlapping artist, and a duration within tolerance.
-function pickId(songs, track) {
-  const wantedTitle = normalize(track?.title);
-  const wantedArtist = normalize(track?.artist);
-  const wantedMs = Number(track?.durationMs);
-  if (!wantedTitle) return null;
-  const match = songs.find((entry) => {
-    if (normalize(entry?.title) !== wantedTitle) return false;
-    const artist = normalize(entry?.artist);
-    if (wantedArtist && artist && !artist.includes(wantedArtist) && !wantedArtist.includes(artist)) {
-      return false;
-    }
-    const seconds = Number(entry?.duration);
-    if (
-      Number.isFinite(wantedMs) &&
-      wantedMs > 0 &&
-      Number.isFinite(seconds) &&
-      seconds > 0 &&
-      Math.abs(seconds * 1000 - wantedMs) > DURATION_TOLERANCE_MS
-    ) {
-      return false;
-    }
-    return true;
-  });
-  return match ? String(match.id) : null;
-}
-
-function attachmentName(header, fallback) {
-  const match = String(header || "").match(/filename="?([^";]+)"?/i);
-  const base = match ? match[1].split(/[\\/]/).pop().trim() : "";
-  return base && base !== "." && base !== ".." ? base : fallback;
-}
-
-function extensionFor(result, attachment) {
-  const format = String(result?.format || "").trim().toLowerCase();
-  const fromAttachment = String(attachment || "").split(".").pop() || "";
-  return (format || fromAttachment).replace(/[^a-z0-9]/g, "") || "flac";
-}
-
-// aurral reads the file name as identity evidence before it tags the file, so a
-// bare t<id> name leaves the title check blind.
-function taggedFileName(result, extension) {
-  const base = [String(result?.artist || "").trim(), String(result?.title || "").trim()]
-    .filter(Boolean)
-    .join(" - ");
-  const safe = base
-    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
-    .trim()
-    .slice(0, 180);
-  return safe ? `${safe}.${extension}` : null;
 }
 
 async function searchSongs(settings, track) {
@@ -235,14 +87,44 @@ export default {
     async download({settings, result, directory}) {
       const tidalId = String(result?.data?.tidalId || result?.id || "").trim();
       if (!tidalId) throw new Error("This result has no Tidal track id");
-      const response = await subtidalFile(settings, "download", {id: tidalId});
-      const attachment = attachmentName(response.headers.get("content-disposition"), "");
-      const extension = extensionFor(result, attachment);
-      const fileName =
-        taggedFileName(result, extension) || attachment || `${tidalId}.${extension}`;
-      const {writeFile} = await import("node:fs/promises");
-      await writeFile(`${directory}/${fileName}`, Buffer.from(await response.arrayBuffer()));
+      const fileName = await writeTrack(
+        settings,
+        directory,
+        tidalId,
+        result,
+        (extension) => taggedFileName(result, extension) ?? `${tidalId}.${extension}`,
+      );
       return {path: fileName};
+    },
+
+    async searchAlbum({settings, album}) {
+      const title = String(album?.title || "").trim();
+      const artist = String(album?.artist || "").trim();
+      if (!title) return [];
+      const payload = await subtidal(settings, "search3", {
+        query: [artist, title].filter(Boolean).join(" "),
+        albumCount: SEARCH_LIMIT,
+        songCount: 0,
+        artistCount: 0,
+      });
+      const results = (payload.searchResult3?.album || []).map(toAlbumResult).filter(Boolean);
+      if (results.length === 0) console.warn(`no Tidal album for ${artist || "?"} - ${title}`);
+      return results;
+    },
+
+    async downloadAlbum({settings, result, directory}) {
+      const albumId = String(result?.data?.albumId || result?.id || "").trim();
+      if (!albumId) throw new Error("This result has no Tidal album id");
+      const payload = await subtidal(settings, "getAlbum", {id: albumId});
+      const songs = payload.album?.song || [];
+      if (songs.length === 0) throw new Error("Album has no tracks on Tidal");
+      for (const [index, entry] of songs.entries()) {
+        const tidalId = String(entry?.id || "").trim();
+        if (!tidalId) continue;
+        await writeTrack(settings, directory, tidalId, entry, (extension) =>
+          albumFileName(entry, index + 1, extension),
+        );
+      }
     },
   },
 
