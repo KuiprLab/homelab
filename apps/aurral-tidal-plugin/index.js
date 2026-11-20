@@ -134,6 +134,25 @@ function attachmentName(header, fallback) {
   return base && base !== "." && base !== ".." ? base : fallback;
 }
 
+function extensionFor(result, attachment) {
+  const format = String(result?.format || "").trim().toLowerCase();
+  const fromAttachment = String(attachment || "").split(".").pop() || "";
+  return (format || fromAttachment).replace(/[^a-z0-9]/g, "") || "flac";
+}
+
+// aurral reads the file name as identity evidence before it tags the file, so a
+// bare t<id> name leaves the title check blind.
+function taggedFileName(result, extension) {
+  const base = [String(result?.artist || "").trim(), String(result?.title || "").trim()]
+    .filter(Boolean)
+    .join(" - ");
+  const safe = base
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
+    .trim()
+    .slice(0, 180);
+  return safe ? `${safe}.${extension}` : null;
+}
+
 async function searchSongs(settings, track) {
   const title = String(track?.title || "").trim();
   const artist = String(track?.artist || "").trim();
@@ -188,19 +207,20 @@ export default {
 
   downloadSource: {
     async search({settings, track}) {
-      const songs = await searchSongs(settings, track);
-      return songs.map(toResult).filter(Boolean);
+      const results = (await searchSongs(settings, track)).map(toResult).filter(Boolean);
+      const wantedTitle = normalize(track?.title);
+      if (!wantedTitle) return results;
+      return results.filter((result) => normalize(result.title) === wantedTitle);
     },
 
     async download({settings, result, directory}) {
       const tidalId = String(result?.data?.tidalId || result?.id || "").trim();
       if (!tidalId) throw new Error("This result has no Tidal track id");
       const response = await subtidalFile(settings, "download", {id: tidalId});
-      const extension = String(result?.format || "flac").toLowerCase();
-      const fileName = attachmentName(
-        response.headers.get("content-disposition"),
-        `${tidalId}.${extension}`,
-      );
+      const attachment = attachmentName(response.headers.get("content-disposition"), "");
+      const extension = extensionFor(result, attachment);
+      const fileName =
+        taggedFileName(result, extension) || attachment || `${tidalId}.${extension}`;
       const {writeFile} = await import("node:fs/promises");
       await writeFile(`${directory}/${fileName}`, Buffer.from(await response.arrayBuffer()));
       return {path: fileName};
