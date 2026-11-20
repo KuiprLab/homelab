@@ -33,7 +33,7 @@ in {
 
       virtualisation.oci-containers.containers.tidarr = {
         labels = traefikLabels;
-        image = "ghcr.io/cstaelen/tidarr:latest";
+        image = "docker.io/cstaelen/tidarr:latest";
         volumes = [
           "${dataDir}/config:/shared"
           "/media/data/music:/music"
