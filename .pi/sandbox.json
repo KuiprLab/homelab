@@ -4,7 +4,9 @@
       "127.0.0.1",
       "sorbet",
       "192.168.0.85",
-      "docs.podman.io"
+      "docs.podman.io",
+      "lidarrapi.brainzmash.cc",
+      "brainzmash.kell.ly"
     ]
   }
 }
