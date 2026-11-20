@@ -1,18 +1,16 @@
 {config, ...}: let
-  proxyIp = "10.89.0.25";
   healthFlags = config.flake.healthFlags;
   vhost = config.flake.pangolinVirtualHosts."tidarr";
   traefikLabels = config.flake.sorbetTraefikLabels "tidarr" vhost;
   dataDir = "/media/data/tidarr";
 in {
   flake = {
-    podmanProxyHosts.tidarr.ip = proxyIp;
-
     pangolinVirtualHosts."tidarr" = {
       site = "sorbet";
       name = "Tidarr";
       subdomain = "tidarr.int.kuipr.de";
-      hostname = "tidarr";
+      # shares gluetun's netns, so the proxy network sees it as gluetun
+      hostname = "gluetun";
       port = 8484;
       private = true;
     };
@@ -27,6 +25,13 @@ in {
         isSystemUser = true;
         inherit uid;
         group = "tidarr";
+      };
+
+      systemd.services.podman-tidarr = {
+        requires = ["podman-gluetun.service"];
+        after = ["podman-gluetun.service"];
+        partOf = ["podman-compose-gluetun-root.target"];
+        wantedBy = ["podman-compose-gluetun-root.target"];
       };
 
 
@@ -50,9 +55,12 @@ in {
           # OIDC_CLIENT_ID = "tidarr";
           # OIDC_REDIRECT_URI = "https://tidarr.int.kuipr.de/api/auth/oidc/callback";
         };
-        extraOptions = [
-          "--network=proxy:ip=${proxyIp}"
-        ] ++ healthFlags {
+        # a shared netns publishes no ports of its own; gluetun maps 8484
+        extraOptions =
+          [
+            "--network=container:gluetun"
+          ]
+          ++ healthFlags {
           cmd = "curl -fsS --retry 3 --retry-delay 2 http://127.0.0.1:8484/api/health >/dev/null";
           startPeriod = "30s";
           timeout = "10s";
