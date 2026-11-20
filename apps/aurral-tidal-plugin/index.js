@@ -219,9 +219,17 @@ export default {
   downloadSource: {
     async search({settings, track}) {
       const results = (await searchSongs(settings, track)).map(toResult).filter(Boolean);
+      if (results.length === 0) {
+        console.warn(`no Tidal match for ${track?.artist ?? "?"} - ${track?.title ?? "?"}`);
+        return results;
+      }
+      // An exact title wins the pick, but variants stay: aurral's own identity
+      // gate rejects a wrong one and falls to the next source.
       const wantedTitle = normalize(track?.title);
       if (!wantedTitle) return results;
-      return results.filter((result) => normalize(result.title) === wantedTitle);
+      const exact = results.filter((result) => normalize(result.title) === wantedTitle);
+      const rest = results.filter((result) => normalize(result.title) !== wantedTitle);
+      return [...exact, ...rest];
     },
 
     async download({settings, result, directory}) {
