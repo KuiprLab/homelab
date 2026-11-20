@@ -58,7 +58,10 @@ in {
         };
       };
 
+      # tmpfiles refuses to descend into a root-owned child of daniel's /media/data, so
+      # both levels carry the service owner.
       systemd.tmpfiles.rules = [
+        "d ${dataDir} 0755 ${toString uid} ${toString gid} - -"
         "d ${dataDir}/config 0755 ${toString uid} ${toString gid} - -"
       ];
     };
