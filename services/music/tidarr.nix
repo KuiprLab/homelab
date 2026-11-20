@@ -38,7 +38,8 @@ in {
           "${dataDir}/config:/shared"
           "/media/data/music:/music"
         ];
-        user = "${toString uid}:${toString gid}";
+        # not `user`: rootless podman forbids setgroups, and the entrypoint drops
+        # to PUID/PGID itself (same as aurral)
         environment = {
           TZ = "Europe/Berlin";
           PUID = "${toString uid}";
