@@ -63,7 +63,7 @@ in {
           PGID = "100";
           TRUST_PROXY = "true";
           AURRAL_PUBLIC_URL = "https://${vhost.subdomain}";
-          DOWNLOAD_FOLDER = "/music";
+          LIBRARY_FOLDER = "/music";
           FILE_BROWSE_ROOTS = "/music";
           # slskd reports its own container path; map it to the mount above
           PATH_MAPPINGS = "/app/downloads|/downloads";
