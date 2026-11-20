@@ -53,8 +53,8 @@ in {
           "/home/daniel/slskd-downloads:/downloads"
           # Path for importing music
           "/home/daniel/music-inbox:/inbox:rw"
-          # Plaintext exists only in /run/secrets; the container runs as PUID 1000
-          "${config.sops.secrets."aurral/ytdlp_cookies".path}:/config/cookies.txt:ro"
+          # Outside /config: the entrypoint chowns that tree on start and fails on a read-only file
+          "${config.sops.secrets."aurral/ytdlp_cookies".path}:/cookies.txt:ro"
         ];
         environmentFiles = [config.sops.templates."aurral/env".path];
         environment = {
