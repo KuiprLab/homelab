@@ -29,14 +29,7 @@ in {
         group = "tidarr";
       };
 
-      sops.secrets."tidarr" = {
-        sopsFile = ../../secrets/sorbet/tidarr.toml;
-        format = "binary";
-        key = "";
-        owner = "tidarr";
-        mode = "0400";
-        restartUnits = ["podman-tidarr.service"];
-      };
+
 
       virtualisation.oci-containers.containers.tidarr = {
         labels = traefikLabels;
