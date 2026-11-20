@@ -59,7 +59,8 @@ in {
           OIDC_REDIRECT_URI = "https://${vhost.subdomain}/sso/callback";
           OIDC_DOMAIN = "https://${constants.idDomain}";
           OIDC_LOGOUT_URL = "https://${constants.idDomain}/logout";
-          OIDC_DEFAULT_ROLE = "admin";
+          OIDC_DEFAULT_ROLE = "user";
+          OIDC_ADMIN_USERS = "daniel";
         };
         # the image ships no curl; node is the only HTTP client in it
         extraOptions =
