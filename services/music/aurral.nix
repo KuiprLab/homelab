@@ -5,6 +5,7 @@
   vhost = config.flake.pangolinVirtualHosts."aurral";
   traefikLabels = config.flake.sorbetTraefikLabels "aurral" vhost;
   dataDir = "/media/data/aurral";
+  tidarrDownloadsDir = "/media/data/tidarr/config/nzb_downloads";
 in {
   flake = {
     podmanProxyHosts.aurral.ip = proxyIp;
@@ -51,6 +52,8 @@ in {
           # same container path as navidrome, so playlist publishing needs no path mapping
           "/media/data/music:/music"
           "/home/daniel/slskd-downloads:/downloads"
+          # Tidarr reports /downloads to SABnzbd clients but stores under /shared/nzb_downloads
+          "${tidarrDownloadsDir}:/tidarr-downloads:ro"
           # Path for importing music
           "/home/daniel/music-inbox:/inbox:rw"
           # Outside /config: the entrypoint chowns that tree on start and fails on a read-only file
@@ -65,8 +68,8 @@ in {
           AURRAL_PUBLIC_URL = "https://${vhost.subdomain}";
           LIBRARY_FOLDER = "/music";
           FILE_BROWSE_ROOTS = "/music";
-          # slskd reports its own container path; map it to the mount above
-          PATH_MAPPINGS = "/app/downloads|/downloads";
+          # Both sources report a container path; map each to the mount above
+          PATH_MAPPINGS = "/app/downloads|/downloads;tidarr|/downloads|/tidarr-downloads";
           OIDC_ENABLED = "true";
           OIDC_ISSUER = "https://${constants.idDomain}";
           OIDC_CLIENT_ID = "aurral";
