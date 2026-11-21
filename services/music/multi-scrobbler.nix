@@ -51,7 +51,8 @@ in {
 
       virtualisation.oci-containers.containers.multi-scrobbler = {
         labels = traefikLabels;
-        image = "ghcr.io/foxxmd/multi-scrobbler:latest@sha256:9e3740476f09a14428eaa97703c7c0e5134469ff1fd5183a10079a192135107f";
+        # temporary: unmerged PR 792 (import/export); return to latest after the migration
+        image = "ghcr.io/foxxmd/multi-scrobbler:pr-792@sha256:97075e1150941be1d692270719f2abd4aa572912a9888313d8460e1642c821ac";
         volumes = [
           "/var/lib/multi-scrobbler:/config"
           "${config.sops.secrets."multi-scrobbler/config".path}:/config/config.json:ro"

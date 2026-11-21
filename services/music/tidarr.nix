@@ -15,7 +15,7 @@ in {
       private = true;
     };
 
-    nixosModules.tidarr = {config, ...}: let
+    nixosModules.tidarr = _: let
       # pinned UID/GID for tidarr user
       uid = 987;
       gid = 987;
@@ -33,8 +33,6 @@ in {
         partOf = ["podman-compose-gluetun-root.target"];
         wantedBy = ["podman-compose-gluetun-root.target"];
       };
-
-
 
       virtualisation.oci-containers.containers.tidarr = {
         labels = traefikLabels;
@@ -61,10 +59,10 @@ in {
             "--network=container:gluetun"
           ]
           ++ healthFlags {
-          cmd = "curl -fsS --retry 3 --retry-delay 2 http://127.0.0.1:8484/api/health >/dev/null";
-          startPeriod = "30s";
-          timeout = "10s";
-        };
+            cmd = "curl -fsS --retry 3 --retry-delay 2 http://127.0.0.1:8484/api/health >/dev/null";
+            startPeriod = "30s";
+            timeout = "10s";
+          };
       };
 
       # tmpfiles refuses to descend into a root-owned child of daniel's /media/data, so

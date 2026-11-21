@@ -53,7 +53,7 @@ in {
           ND_DATAFOLDER = "/data";
           ND_PORT = "4533";
           ND_PLUGINS_ENABLED = "true";
-          ND_LASTFM_ENABLED = "true";
+          ND_LISTENBRAINZ_ENABLED = "true";
           ND_COVERARTPRIORITY = "embedded, cover.*, folder.*, external";
           ND_ARTISTARTPRIORITY = "artist.*, album/artist.*, external";
           ND_SCANNER_PURGEMISSING = "always";
