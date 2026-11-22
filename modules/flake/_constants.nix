@@ -88,5 +88,9 @@ in {
       niceId = "sorbet";
       secretEnv = "NEWT_SECRET_SORBET";
     };
+    crossaint = {
+        niceId = "crossaint";
+        secretEnv = "NEWT_SECRET_CROSSAINT";
+    };
   };
 }
