@@ -11,11 +11,10 @@
         blueprint niceIds (the key blueprint application upserts on), so treat
         them as stable identifiers.
 
-        Apply happens without any eclair-side code: the nixosModules.newt /
-        eclairNixosModules.newt definitions below turn matching entries into
-        services.newt.blueprint attrsets, which the nixpkgs newt module renders
-        to a blueprint.yml. Newt watches that file and pushes the blueprint to
-        pangolin over its websocket (source NEWT) whenever it changes.
+        Apply happens without any eclair-side code: flake.hostModules.newt
+        turns matching entries into a blueprint.yml per site, which newt
+        watches and pushes to pangolin over its websocket (source NEWT)
+        whenever it changes.
       '';
       type = lib.types.attrsOf (lib.types.submodule {
         options = {

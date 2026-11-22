@@ -47,7 +47,6 @@ in {
 
   config.flake = {
     inherit healthFlags;
-    nixosModules.podman = mkPodman;
-    eclairNixosModules.podman = mkPodman;
+    hostModules.podman = mkPodman;
   };
 }
