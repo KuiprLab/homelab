@@ -46,6 +46,7 @@ in {
             };
           }
         ]
+        ++ collectModules self.hostModules
         ++ collectModules self.nixosModules;
     };
   };
