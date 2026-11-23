@@ -2,6 +2,7 @@ _: {
   flake.eclairNixosModules.eclairHardwareConfiguration = {
     lib,
     modulesPath,
+    pkgs,
     ...
   }: {
     imports = [
@@ -9,6 +10,8 @@ _: {
     ];
 
     boot = {
+      kernelPackages = pkgs.linuxPackages_latest;
+
       initrd = {
         availableKernelModules = ["ata_piix" "uhci_hcd" "virtio_pci" "sr_mod" "virtio_blk"];
         kernelModules = [];
