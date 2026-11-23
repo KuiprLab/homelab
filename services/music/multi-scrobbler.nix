@@ -60,6 +60,7 @@ in {
           TZ = "Europe/Berlin";
           BASE_URL = "https://${vhost.subdomain}";
           NODE_OPTIONS = "--dns-result-order=ipv6first";
+          AUTH_MODE = "disabled";
         };
         # probe / not /api/health: that answers 500 while any source is down
         # retry: podman's first check fires immediately; pinned IP + --dns keep attribution

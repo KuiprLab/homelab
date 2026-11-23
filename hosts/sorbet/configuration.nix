@@ -9,16 +9,12 @@ in {
   }: {
     system.stateVersion = "24.05";
 
-    environment.systemPackages = with pkgs; [
-      neovim
-      git
-      just
-      curl
-    ];
-
-    sops = {
-      age.keyFile = "/var/lib/sops/age-key.txt";
-      age.generateKey = false;
+    homelab = {
+      extraPackages = [pkgs.just];
+      nix.maxJobs = 4;
+      nix.cores = 2;
+      rex.user = user;
+      pangolinSite.enforceHealthcheckTls = true;
     };
 
     hardware = {
@@ -37,7 +33,6 @@ in {
 
     networking = {
       firewall = {
-        enable = true;
         trustedInterfaces = ["incusbr0"];
         # 5353: mDNS, shared with the host-networked Home Assistant container.
         allowedUDPPorts = [
@@ -64,13 +59,6 @@ in {
       resolvconf.useLocalResolver = false;
     };
 
-    nix.settings = {
-      max-jobs = 4;
-      cores = 2;
-    };
-
-    time.timeZone = "Europe/Berlin";
-    i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = {
       LC_ADDRESS = "de_DE.UTF-8";
       LC_IDENTIFICATION = "de_DE.UTF-8";
@@ -93,19 +81,10 @@ in {
       hardware.openrgb = {
         enable = true;
       };
-      openssh = {
-        enable = true;
-        settings = {
-          PasswordAuthentication = false;
-          KbdInteractiveAuthentication = false;
-          PermitRootLogin = "prohibit-password";
-        };
-      };
+      openssh.settings.KbdInteractiveAuthentication = false;
     };
 
-    programs.fish.enable = true;
     users = {
-      defaultUserShell = pkgs.fish;
       users = {
         root = {
           openssh.authorizedKeys.keys = [

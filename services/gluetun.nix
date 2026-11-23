@@ -63,6 +63,8 @@ in {
             ports = [
               "47594/tcp"
               "47594/udp"
+              # tidarr shares this netns, so its port is published here
+              "8484/tcp"
             ];
           };
         };

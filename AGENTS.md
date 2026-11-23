@@ -18,8 +18,23 @@ module without them being evaluated as flake-parts modules.
 
 Service modules contribute to the flake via:
 
+    flake.hostModules.* — applied to every host
     flake.nixosModules.* — applied to sorbet
     flake.eclairNixosModules.* — applied to eclair
+
+# Adding a host
+
+A host is a pangolin site by default. `modules/host.nix` supplies the shared baseline and the `homelab` options.
+
+1. `hosts/<host>/default.nix` — collect `self.hostModules` and the host namespace, like the existing hosts.
+2. `hosts/<host>/configuration.nix` — set `stateVersion`, firewall ports, network and users. Set `homelab.rex.user`.
+3. `hosts/<host>/hardware-configuration.nix` — from `nixos-generate-config`.
+4. `modules/flake/_constants.nix` — add `sites.<host>` with `niceId` and `secretEnv`.
+5. `secrets/<host>/newt.env`, `tailscale.yaml`, `healthchecks` — newt credentials, rex tsnet key, dead-man's switch URL.
+6. `secrets/eclair/pangolin-apply.env` — add the `NEWT_SECRET_<HOST>` variable named in step 4.
+
+`apps/pangolin-apply` creates the site in pangolin from `flake.constants.sites`. Set
+`homelab.pangolinSite.enable = false` for a host that must not join the tunnel network.
 
 # Architecture
 

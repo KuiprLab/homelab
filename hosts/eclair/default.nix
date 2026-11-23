@@ -42,6 +42,7 @@ in {
         "${inputs.nixpkgs-crowdsec}/nixos/modules/services/security/crowdsec-firewall-bouncer.nix"
         {system.configurationRevision = self.rev or self.dirtyRev or null;}
       ]
+      ++ collectModules self.hostModules
       ++ collectModules self.eclairNixosModules;
   };
 }

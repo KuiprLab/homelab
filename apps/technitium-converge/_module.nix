@@ -1,6 +1,7 @@
 {
   apiUrl,
   dhcpScope,
+  extHosts,
   reservedLeases,
   serverIp,
   settings,
@@ -23,6 +24,7 @@ in {
     environment = {
       TECHNITIUM_API_URL = apiUrl;
       TECHNITIUM_ZONE = zone;
+      TECHNITIUM_EXT_HOSTS = lib.concatStringsSep " " extHosts;
       TECHNITIUM_SERVER_IP = serverIp;
       TECHNITIUM_DESIRED_JSON = builtins.toJSON {
         inherit

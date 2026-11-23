@@ -122,6 +122,5 @@
     };
   };
 in {
-  flake.nixosModules.comin = cominModule;
-  flake.eclairNixosModules.comin = cominModule;
+  flake.hostModules.comin = cominModule;
 }

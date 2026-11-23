@@ -25,7 +25,11 @@ in {
       };
     };
 
-    nixosModules.koito = {config, ...}: {
+    nixosModules.koito = {
+      config,
+      lib,
+      ...
+    }: {
       sops.secrets = {
         "last-fm-presence" = {
           sopsFile = ../../secrets/sorbet/last-fm-presence.env;
@@ -34,12 +38,24 @@ in {
         };
       };
 
+      systemd.tmpfiles.rules = [
+        "d /var/lib/koito 0700 root root - -"
+      ];
+
+      # Copy the retired podman volume once; the volume is left in place until verified.
+      systemd.services.podman-koito.preStart = lib.mkBefore ''
+        src=/var/lib/containers/storage/volumes/koito-data/_data
+        if [ ! -e /var/lib/koito/koito.db ] && [ -d "$src" ]; then
+          cp -a "$src"/. /var/lib/koito/
+        fi
+      '';
+
       virtualisation.oci-containers.containers = {
         koito = {
           labels = traefikLabels;
           image = "docker.io/gabehf/koito:latest@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857";
           volumes = [
-            "koito-data:/etc/koito"
+            "/var/lib/koito:/etc/koito"
           ];
           environment = {
             TZ = "Europe/Berlin";

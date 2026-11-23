@@ -10,6 +10,5 @@ _: let
     };
   };
 in {
-  flake.nixosModules.journald = _: journalConfig;
-  flake.eclairNixosModules.journald = _: journalConfig;
+  flake.hostModules.journald = journalConfig;
 }

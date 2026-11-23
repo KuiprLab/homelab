@@ -4,6 +4,7 @@ set -euo pipefail
 
 base="$TECHNITIUM_API_URL"
 zone="$TECHNITIUM_ZONE"
+ext_hosts="$TECHNITIUM_EXT_HOSTS"
 server_ip="$TECHNITIUM_SERVER_IP"
 desired="$TECHNITIUM_DESIRED_JSON"
 settings_json=$(jq -c .settings <<<"$desired")
@@ -88,20 +89,34 @@ if [ "$after" != "$before" ]; then
   apply /settings/forceUpdateBlockLists >/dev/null
 fi
 
+add_a_record() {
+  # overwrite=true assigns the record set instead of appending a second A record.
+  apply /zones/records/add \
+    --data-urlencode "zone=$1" \
+    --data-urlencode "domain=$2" \
+    --data-urlencode type=A \
+    --data-urlencode "ipAddress=$server_ip" \
+    --data-urlencode ttl=300 \
+    --data-urlencode overwrite=true >/dev/null
+}
+
 # An existing zone makes this call fail, which is the steady state.
 api /zones/create \
   --data-urlencode "zone=$zone" \
   --data-urlencode type=Primary >/dev/null 2>&1 || true
 
-# overwrite=true assigns the record set instead of appending a second A record.
 for domain in "$zone" "*.$zone"; do
-  apply /zones/records/add \
-    --data-urlencode "zone=$zone" \
-    --data-urlencode "domain=$domain" \
-    --data-urlencode type=A \
-    --data-urlencode "ipAddress=$server_ip" \
-    --data-urlencode ttl=300 \
-    --data-urlencode overwrite=true >/dev/null
+  add_a_record "$zone" "$domain"
+done
+
+# One zone per served name, not one for the whole ext zone: an authoritative
+# ext.kuipr.de would answer NXDOMAIN for every name it does not hold, such as
+# pangolin's dashboard, which still has to resolve to eclair.
+for host in $ext_hosts; do
+  api /zones/create \
+    --data-urlencode "zone=$host" \
+    --data-urlencode type=Primary >/dev/null 2>&1 || true
+  add_a_record "$host" "$host"
 done
 
 # A fresh state dir ships a `Default` scope (192.168.1.0/24); drop it.
@@ -142,7 +157,7 @@ if [ "$enabled" != "true" ]; then
   exit 1
 fi
 
-echo "converged: dns settings, $zone zone, dhcp scope $scope_name"
+echo "converged: dns settings, $zone zone, ext host zones, dhcp scope $scope_name"
 
 # Last: applying SSO restarts the web service; the API masks the secret, so hash it.
 sso_secret="${TECHNITIUM_SSO_CLIENT_SECRET:-}"

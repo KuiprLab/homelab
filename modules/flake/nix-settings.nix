@@ -25,6 +25,5 @@ _: let
     };
   };
 in {
-  flake.nixosModules.nixSettings = common;
-  flake.eclairNixosModules.nixSettings = common;
+  flake.hostModules.nixSettings = common;
 }

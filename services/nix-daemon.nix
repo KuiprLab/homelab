@@ -4,6 +4,5 @@ _: let
     systemd.services.nix-daemon.wantedBy = ["multi-user.target"];
   };
 in {
-  flake.nixosModules.nixDaemon = nixDaemonConfig;
-  flake.eclairNixosModules.nixDaemon = nixDaemonConfig;
+  flake.hostModules.nixDaemon = nixDaemonConfig;
 }

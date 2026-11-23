@@ -53,10 +53,7 @@ in {
           ND_DATAFOLDER = "/data";
           ND_PORT = "4533";
           ND_PLUGINS_ENABLED = "true";
-          ND_BACKUP_PATH = "/data/backups";
-          ND_BACKUP_COUNT = "7";
-          ND_BACKUP_SCHEDULE = "0 0 * * *";
-          ND_LASTFM_ENABLED = "true";
+          ND_LISTENBRAINZ_ENABLED = "true";
           ND_COVERARTPRIORITY = "embedded, cover.*, folder.*, external";
           ND_ARTISTARTPRIORITY = "artist.*, album/artist.*, external";
           ND_SCANNER_PURGEMISSING = "always";
