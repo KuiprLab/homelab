@@ -74,7 +74,7 @@ in {
       };
 
       virtualisation.oci-containers.containers.sorbet-traefik = {
-        image = "docker.io/library/traefik:v3.7.19@sha256:a6c0194dda77bcb804824580f36fa7edc56e315b1acfe933366c8b52844a78a4";
+        image = "docker.io/library/traefik:v3.8.0@sha256:cd3078e07dfe0c551b1df6fca2697c52f35da0a18c7bd81da4d3b1f012405098";
         volumes = [
           "${staticConfig}:/etc/traefik/traefik.yml:ro"
           "${dynamicConfig}:/etc/traefik/dynamic/dynamic.yml:ro"
