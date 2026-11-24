@@ -152,7 +152,7 @@ in {
         };
 
         paperless-redis = {
-          image = "docker.io/library/redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90";
+          image = "docker.io/library/redis:7@sha256:314425e49d4aad0c72746c97b72b5f258e8b5db372e61e0f1d9956866f3e0b7c";
           log-driver = "journald";
           extraOptions =
             [
