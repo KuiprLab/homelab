@@ -159,7 +159,7 @@
                 log-driver = "journald";
               };
               traefik = {
-                image = "docker.io/library/traefik:v3.7.19@sha256:a6c0194dda77bcb804824580f36fa7edc56e315b1acfe933366c8b52844a78a4";
+                image = "docker.io/library/traefik:v3.8.0@sha256:00c9734983e74ae35a1fc18eaee9e9da13f3dde95c4e45b3b8c3b60e0dbd2d17";
                 volumes = [
                   "${traefikStatic}:/etc/traefik/traefik_config.yml:ro"
                   "${traefikDynamic}:/etc/traefik/dynamic_config.yml:ro"
