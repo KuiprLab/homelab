@@ -4,12 +4,12 @@
   lib,
   ...
 }: {
-  options.flake.croissantNixosModules = lib.mkOption {
+  options.flake.crossaintNixosModules = lib.mkOption {
     type = lib.types.attrsOf lib.types.raw;
     default = {};
   };
 
-  config.flake.nixosConfigurations.croissant = inputs.nixpkgs.lib.nixosSystem {
+  config.flake.nixosConfigurations.crossaint = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules =
       [
@@ -24,6 +24,6 @@
         {system.configurationRevision = self.rev or self.dirtyRev or null;}
       ]
       ++ lib.attrValues self.hostModules
-      ++ lib.attrValues self.croissantNixosModules;
+      ++ lib.attrValues self.crossaintNixosModules;
   };
 }

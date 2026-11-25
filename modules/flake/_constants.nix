@@ -88,5 +88,10 @@ in {
       niceId = "sorbet";
       secretEnv = "NEWT_SECRET_SORBET";
     };
+    crossaint = {
+      niceId = "crossaint";
+      # The env file spells this one differently from the site key.
+      secretEnv = "NEWT_SECRET_CROISSANT";
+    };
   };
 }
