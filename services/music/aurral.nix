@@ -51,9 +51,12 @@ in {
           "${dataDir}/config:/config"
           # same container path as navidrome, so playlist publishing needs no path mapping
           "/media/data/music:/music"
-          "/home/daniel/slskd-downloads:/downloads"
-          # Tidarr reports /downloads to SABnzbd clients but stores under /shared/nzb_downloads
-          "${tidarrDownloadsDir}:/tidarr-downloads:ro"
+          # not /downloads: Tidarr reports /downloads as its completed dir, and aurral
+          # prefers an existing path over a mapping, which broke Tidarr folder cleanup
+          "/home/daniel/slskd-downloads:/slskd-downloads"
+          # Tidarr reports /downloads to SABnzbd clients but stores under /shared/nzb_downloads;
+          # writable so aurral can drop a staging folder after it files the download
+          "${tidarrDownloadsDir}:/tidarr-downloads"
           # Path for importing music
           "/home/daniel/music-inbox:/inbox:rw"
           # Outside /config: the entrypoint chowns that tree on start and fails on a read-only file
@@ -69,7 +72,7 @@ in {
           LIBRARY_FOLDER = "/music";
           FILE_BROWSE_ROOTS = "/music";
           # Both sources report a container path; map each to the mount above
-          PATH_MAPPINGS = "/app/downloads|/downloads;tidarr|/downloads|/tidarr-downloads";
+          PATH_MAPPINGS = "/app/downloads|/slskd-downloads;tidarr|/downloads|/tidarr-downloads";
           OIDC_ENABLED = "true";
           OIDC_ISSUER = "https://${constants.idDomain}";
           OIDC_CLIENT_ID = "aurral";
