@@ -124,10 +124,38 @@ async function searchSongs(settings, query, limit = SEARCH_LIMIT) {
   return payload.searchResult3?.song || [];
 }
 
+// aurral drops repeated artist/title/album rows when it saves a synced playlist,
+// so the fetch is the only place where the repeats still exist.
+const identity = (track) =>
+  [track.artist, track.title, track.album]
+    .map((value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase(),
+    )
+    .join("\u0001");
+
+function logRepeats(label, tracks) {
+  const firstSeen = new Map();
+  const repeats = [];
+  for (const [index, track] of tracks.entries()) {
+    const key = identity(track);
+    if (firstSeen.has(key)) repeats.push({index: index + 1, first: firstSeen.get(key), track});
+    else firstSeen.set(key, index + 1);
+  }
+  if (repeats.length === 0) return;
+  console.warn(`${label}: ${repeats.length} of ${tracks.length} entries repeat an earlier one`);
+  for (const {index, first, track} of repeats.slice(0, 100)) {
+    const album = track.album ? ` (${track.album})` : "";
+    console.warn(`${label}: #${index} repeats #${first}: ${track.artist} - ${track.title}${album}`);
+  }
+}
+
 async function likedTracks(settings) {
   const payload = await subtidal(settings, "getStarred2");
   const tracks = (payload.starred2?.song || []).map(toTrack).filter(Boolean).slice(0, MAX_TRACKS);
   if (tracks.length === 0) throw new Error("No liked songs on Tidal");
+  logRepeats("Liked songs", tracks);
   return tracks;
 }
 
@@ -173,6 +201,7 @@ export default {
         .filter(Boolean)
         .slice(0, MAX_TRACKS);
       if (tracks.length === 0) throw new Error("Playlist has no tracks on Tidal");
+      logRepeats(playlist.name || "Playlist", tracks);
       return {name: playlist.name, tracks};
     },
   },
