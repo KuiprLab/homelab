@@ -19,7 +19,27 @@ in {
       healthcheck.path = "/api/health/bootstrap";
     };
 
-    nixosModules.aurral = {config, ...}: {
+    nixosModules.aurral = {
+      config,
+      pkgs,
+      ...
+    }: {
+      # aurral runs as uid 1000 and Tidarr writes these folders as its own uid, so
+      # the delete after a finished import needs an ACL. Defaults carry to new folders.
+      systemd.services.aurral-tidarr-staging-acl = {
+        description = "Let aurral remove finished Tidarr staging folders";
+        wantedBy = ["multi-user.target"];
+        after = ["systemd-tmpfiles-setup.service"];
+        before = ["podman-aurral.service"];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          ${pkgs.acl}/bin/setfacl -R -m u:1000:rwX -m d:u:1000:rwX ${tidarrDownloadsDir}
+        '';
+      };
+
       sops = {
         # Same value pocketid-provision pushes to Pocket ID, so the two cannot drift.
         secrets."aurral/oidc_client_secret" = {
