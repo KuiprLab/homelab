@@ -71,8 +71,9 @@ in {
           AURRAL_PUBLIC_URL = "https://${vhost.subdomain}";
           LIBRARY_FOLDER = "/music";
           FILE_BROWSE_ROOTS = "/music";
-          # Both sources report a container path; map each to the mount above
-          PATH_MAPPINGS = "/app/downloads|/slskd-downloads;tidarr|/downloads|/tidarr-downloads";
+          # Both sources report a container path; map each to the mount above. The last
+          # entry keeps paths persisted before the rename below resolvable.
+          PATH_MAPPINGS = "/app/downloads|/slskd-downloads;tidarr|/downloads|/tidarr-downloads;slskd|/downloads|/slskd-downloads";
           OIDC_ENABLED = "true";
           OIDC_ISSUER = "https://${constants.idDomain}";
           OIDC_CLIENT_ID = "aurral";
