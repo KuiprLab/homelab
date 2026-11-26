@@ -70,6 +70,9 @@ in {
       systemd.tmpfiles.rules = [
         "d ${dataDir} 0755 ${toString uid} ${toString gid} - -"
         "d ${dataDir}/config 0755 ${toString uid} ${toString gid} - -"
+        # aurral runs as daniel:users and deletes a staging folder after it files the
+        # download, so the group must be users and new children must inherit it
+        "d ${dataDir}/config/nzb_downloads 2775 ${toString uid} users - -"
       ];
     };
   };
