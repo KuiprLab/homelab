@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: lldap-bootstrap
+  name: lldap-bootstrap
+  namespace: auth
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - command:
+                - /app/bootstrap.sh
+              env:
+                - name: LLDAP_URL
+                  value: http://lldap.auth.svc.cluster.local:17170
+                - name: LLDAP_ADMIN_USERNAME
+                  value: admin
+                - name: LLDAP_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: LLDAP_LDAP_USER_PASS
+                      name: lldap
+                - name: DO_CLEANUP
+                  value: "true"
+              image: ghcr.io/lldap/lldap:v0.6.3
+              name: bootstrap
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+                requests:
+                  cpu: 10m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - mountPath: /bootstrap/user-configs
+                  name: users
+                  readOnly: true
+                - mountPath: /bootstrap/group-configs
+                  name: groups
+                  readOnly: true
+          restartPolicy: OnFailure
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: users
+              secret:
+                secretName: lldap-users
+            - name: groups
+              secret:
+                secretName: lldap-groups
+  schedule: 17 * * * *
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: lldap-bootstrap
+  name: lldap-groups
+  namespace: auth
+spec:
+  itemPath: vaults/Homelab/items/3gdlkatpfwoudh4hmxoz4hyt2m
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: lldap-bootstrap
+  name: lldap-users
+  namespace: auth
+spec:
+  itemPath: vaults/Homelab/items/sgf7iz5qnr2mmelhileu3xg4pu
