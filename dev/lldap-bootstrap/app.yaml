@@ -17,7 +17,8 @@ spec:
           automountServiceAccountToken: false
           containers:
             - command:
-                - /app/bootstrap.sh
+                - /bin/bash
+                - /scripts/build.sh
               env:
                 - name: LLDAP_URL
                   value: http://lldap.auth.svc.cluster.local:17170
@@ -28,8 +29,21 @@ spec:
                     secretKeyRef:
                       key: LLDAP_LDAP_USER_PASS
                       name: lldap
+                - name: LLDAP_USER_IDS
+                  value: alice daniel
+                - name: LLDAP_GROUPS
+                  value: admin lldap_admin users
                 - name: DO_CLEANUP
                   value: "true"
+                - name: DO_CLEANUP_USERS
+                  value: "false"
+              envFrom:
+                - prefix: ALICE_
+                  secretRef:
+                    name: lldap-alice
+                - prefix: DANIEL_
+                  secretRef:
+                    name: lldap-daniel
               image: ghcr.io/lldap/lldap:v0.6.3
               name: bootstrap
               resources:
@@ -45,37 +59,72 @@ spec:
                   drop:
                     - ALL
               volumeMounts:
-                - mountPath: /bootstrap/user-configs
-                  name: users
+                - mountPath: /scripts
+                  name: script
                   readOnly: true
-                - mountPath: /bootstrap/group-configs
-                  name: groups
-                  readOnly: true
+                - mountPath: /bootstrap
+                  name: bootstrap
           restartPolicy: OnFailure
           securityContext:
             seccompProfile:
               type: RuntimeDefault
           volumes:
-            - name: users
-              secret:
-                secretName: lldap-users
-            - name: groups
-              secret:
-                secretName: lldap-groups
+            - configMap:
+                name: lldap-bootstrap-script
+              name: script
+            - emptyDir: {}
+              name: bootstrap
   schedule: 17 * * * *
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 1
 ---
-apiVersion: onepassword.com/v1
-kind: OnePasswordItem
+apiVersion: v1
+data:
+  build.sh: |
+    set -euo pipefail
+    mkdir -p /bootstrap/user-configs /bootstrap/group-configs
+
+    for group in $LLDAP_GROUPS; do
+      jq -n --arg name "$group" '{name: $name}' > "/bootstrap/group-configs/$group.json"
+    done
+
+    field() {
+      local name="${1}_$2"
+      printf '%s' "${!name:-}"
+    }
+
+    for id in $LLDAP_USER_IDS; do
+      upper=$(printf '%s' "$id" | tr '[:lower:]-' '[:upper:]_')
+
+      jq -n \
+        --arg id "$id" \
+        --arg email "$(field "$upper" email)" \
+        --arg displayName "$(field "$upper" displayName)" \
+        --arg firstName "$(field "$upper" firstName)" \
+        --arg lastName "$(field "$upper" lastName)" \
+        --arg groups "$(field "$upper" groups)" \
+        --arg avatarUrl "$(field "$upper" avatar_url)" \
+        --arg password "$(field "$upper" password)" \
+        '{
+          id: $id,
+          email: $email,
+          displayName: $displayName,
+          firstName: (if $firstName == "" then null else $firstName end),
+          lastName: (if $lastName == "" then null else $lastName end),
+          avatar_url: (if $avatarUrl == "" then null else $avatarUrl end),
+          groups: ($groups | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))),
+          password: (if $password == "" then null else $password end)
+        }' > "/bootstrap/user-configs/$id.json"
+    done
+
+    exec /app/bootstrap.sh
+kind: ConfigMap
 metadata:
   annotations:
     kubenix/k8s-version: "1.36"
     kubenix/project-name: lldap-bootstrap
-  name: lldap-groups
+  name: lldap-bootstrap-script
   namespace: auth
-spec:
-  itemPath: vaults/Homelab/items/bkgzplsp4zct75ou2mstf7mfiu
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
@@ -83,7 +132,18 @@ metadata:
   annotations:
     kubenix/k8s-version: "1.36"
     kubenix/project-name: lldap-bootstrap
-  name: lldap-users
+  name: lldap-alice
   namespace: auth
 spec:
-  itemPath: vaults/Homelab/items/hwudpy7nqlvrmyragkiyxfzpnu
+  itemPath: vaults/Homelab/items/ycg6dcs4647q3dnfaogds7c4ke
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: lldap-bootstrap
+  name: lldap-daniel
+  namespace: auth
+spec:
+  itemPath: vaults/Homelab/items/m6jdk6wk3f56svzpdifbll5s7e
