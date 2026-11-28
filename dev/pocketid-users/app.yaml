@@ -1,0 +1,134 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid-users
+  name: pocket-id-users
+  namespace: auth
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - args:
+                - apk add --no-cache --quiet curl jq >/dev/null && exec sh /config/reconcile.sh
+              command:
+                - /bin/sh
+                - -c
+              env:
+                - name: POCKETID_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: API_KEY
+                      name: pocket-id-provisioner
+              image: docker.io/library/alpine:3.22
+              name: reconcile
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - mountPath: /config
+                  name: config
+                  readOnly: true
+          restartPolicy: Never
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - configMap:
+                name: pocket-id-users
+              name: config
+  schedule: 23 * * * *
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+---
+apiVersion: v1
+data:
+  reconcile.sh: |
+    set -eu
+    api="/api"
+    base="http://pocket-id.auth.svc.cluster.local:1411$api"
+
+    call() {
+      method="$1"
+      path="$2"
+      body="${3:-}"
+      if [ -n "$body" ]; then
+        curl -fsS -X "$method" -H "X-API-KEY: $POCKETID_API_KEY" \
+          -H 'Content-Type: application/json' -d "$body" "$base$path"
+      else
+        curl -fsS -X "$method" -H "X-API-KEY: $POCKETID_API_KEY" "$base$path"
+      fi
+    }
+
+    unwrap() {
+      jq -c 'if type == "object" and has("data") then .data else . end'
+    }
+
+    groups_json=$(call GET /user-groups | unwrap)
+    users_json=$(call GET /users | unwrap)
+
+    jq -c '.groups[]' /config/spec.json | while read -r group; do
+      name=$(printf '%s' "$group" | jq -r .name)
+      friendly=$(printf '%s' "$group" | jq -r .friendlyName)
+      id=$(printf '%s' "$groups_json" | jq -r --arg n "$name" '.[] | select(.name == $n) | .id' | head -1)
+      if [ -z "$id" ]; then
+        call POST /user-groups "{\"name\":\"$name\",\"friendlyName\":\"$friendly\"}" >/dev/null
+        echo "group $name created"
+      fi
+    done
+
+    groups_json=$(call GET /user-groups | unwrap)
+
+    jq -c '.users[]' /config/spec.json | while read -r user; do
+      username=$(printf '%s' "$user" | jq -r .username)
+      id=$(printf '%s' "$users_json" | jq -r --arg u "$username" '.[] | select(.username == $u) | .id' | head -1)
+      if [ -z "$id" ]; then
+        created=$(call POST /users "$(printf '%s' "$user" | jq -c '{username, email, firstName, lastName}')")
+        id=$(printf '%s' "$created" | jq -r .id)
+        echo "user $username created"
+      else
+        call PUT "/users/$id" "$(printf '%s' "$user" | jq -c '{username, email, firstName, lastName}')" >/dev/null
+        echo "user $username updated"
+      fi
+
+      ids=$(printf '%s' "$user" | jq -r '.groups[]' | while read -r g; do
+        printf '%s' "$groups_json" | jq -r --arg n "$g" '.[] | select(.name == $n) | .id'
+      done | jq -R . | jq -sc .)
+      call PUT "/users/$id/user-groups" "$ids" >/dev/null
+      echo "user $username groups set to $(printf '%s' "$user" | jq -c .groups)"
+    done
+  spec.json: '{"groups":[{"friendlyName":"Administrators","name":"admin"},{"friendlyName":"Users","name":"users"}],"users":[{"email":"daniel.inama02@gmail.com","firstName":"Daniel","groups":["admin"],"lastName":"","username":"daniel"},{"email":"alice@kuipr.de","firstName":"Alice","groups":["users"],"lastName":"","username":"alice"}]}'
+kind: ConfigMap
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid-users
+  name: pocket-id-users
+  namespace: auth
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid-users
+  name: pocket-id-provisioner
+  namespace: auth
+spec:
+  itemPath: vaults/Homelab/items/pocket-id-provisioner

@@ -23,30 +23,6 @@ spec:
         - env:
             - name: APP_URL
               value: http://pocket-id.dev.kuipr.de
-            - name: LDAP_ENABLED
-              value: "true"
-            - name: LDAP_URL
-              value: ldap://lldap.auth.svc.cluster.local:3890
-            - name: LDAP_BASE
-              value: dc=kuipr,dc=de
-            - name: LDAP_BIND_DN
-              value: uid=admin,ou=people,dc=kuipr,dc=de
-            - name: LDAP_ADMIN_GROUP_NAME
-              value: admin
-            - name: LDAP_ATTRIBUTE_USER_USERNAME
-              value: uid
-            - name: LDAP_ATTRIBUTE_USER_EMAIL
-              value: mail
-            - name: LDAP_ATTRIBUTE_USER_FIRST_NAME
-              value: givenName
-            - name: LDAP_ATTRIBUTE_USER_LAST_NAME
-              value: sn
-            - name: LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER
-              value: entryUUID
-            - name: LDAP_ATTRIBUTE_GROUP_NAME
-              value: cn
-            - name: LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER
-              value: entryUUID
           envFrom:
             - secretRef:
                 name: pocket-id
