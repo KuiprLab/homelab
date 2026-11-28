@@ -51,7 +51,7 @@ _: {
                   "--listen-address=0.0.0.0"
                   "--no-browser"
                   # Radar refuses unknown Host headers, so the Ingress name must be listed.
-                  "--allowed-hosts=radar.radar,radar.192.168.139.139.sslip.io"
+                  "--allowed-hosts=radar.radar,radar.dev.kuipr.de"
                 ];
                 ports.http.containerPort = 9280;
                 securityContext = {
@@ -100,7 +100,7 @@ _: {
           ingressClassName = "traefik";
           rules = [
             {
-              host = "radar.192.168.139.139.sslip.io";
+              host = "radar.dev.kuipr.de";
               http.paths = [
                 {
                   path = "/";

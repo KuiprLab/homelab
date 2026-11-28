@@ -12,6 +12,7 @@
       module = {kubenix, ...}: {
         imports = [
           kubenix.modules.k8s
+          ./_prelude.nix
           contrib
         ];
         kubenix.project = name;

@@ -68,7 +68,7 @@ _: {
           ingressClassName = "traefik";
           rules = [
             {
-              host = "whoami.192.168.139.139.sslip.io";
+              host = "whoami.dev.kuipr.de";
               http.paths = [
                 {
                   path = "/";
