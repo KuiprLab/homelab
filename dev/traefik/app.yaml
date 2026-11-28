@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+  namespace: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      containers:
+        - args:
+            - --entrypoints.web.address=:8000
+            - --entrypoints.websecure.address=:8443
+            - --entrypoints.traefik.address=:8080
+            - --providers.kubernetesingress=true
+            - --providers.kubernetesingress.ingressclass=traefik
+            - --providers.kubernetesingress.ingressendpoint.publishedservice=traefik/traefik
+            - --api.dashboard=false
+            - --ping=true
+            - --log.level=INFO
+            - --accesslog=true
+            - --global.checknewversion=false
+            - --global.sendanonymoususage=false
+          image: docker.io/traefik/traefik:v3.8.0
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+          name: traefik
+          ports:
+            - containerPort: 8080
+              name: traefik
+            - containerPort: 8000
+              name: web
+            - containerPort: 8443
+              name: websecure
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: traefik
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+  namespace: traefik
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+    - name: https
+      port: 443
+      targetPort: 8443
+  selector:
+    app: traefik
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+  namespace: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+spec:
+  controller: traefik.io/ingress-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - secrets
+      - nodes
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: traefik
+  name: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik
+subjects:
+  - kind: ServiceAccount
+    name: traefik
+    namespace: traefik
