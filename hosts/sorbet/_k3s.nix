@@ -1,5 +1,6 @@
 _: {
-  networking.firewall.allowedTCPPorts = [6443];
+  # 10250: kubelet; the API server and metrics-server scrape it.
+  networking.firewall.allowedTCPPorts = [6443 10250];
 
   boot = {
     kernelModules = ["br_netfilter" "overlay"];
@@ -16,7 +17,6 @@ _: {
     # k3s bundles traefik, servicelb, coredns, local-path and metrics-server.
     extraFlags = [
       "--disable=traefik"
-      "--disable=metrics-server"
     ];
   };
 }

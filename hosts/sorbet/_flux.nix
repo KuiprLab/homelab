@@ -4,10 +4,6 @@
   pkgs,
   ...
 }: let
-  repo = "https://github.com/KuiprLab/homelab";
-  branch = "rendered";
-  path = "./dev";
-
   install = pkgs.runCommand "gotk-components.yaml" {} ''
     export HOME=$TMPDIR
     ${lib.getExe pkgs.fluxcd} install --export > $out
@@ -22,9 +18,9 @@
       namespace: flux-system
     spec:
       interval: 1m
-      url: ${repo}
+      url: https://github.com/KuiprLab/homelab
       ref:
-        branch: ${branch}
+        branch: rendered
     ---
     apiVersion: kustomize.toolkit.fluxcd.io/v1
     kind: Kustomization
@@ -33,7 +29,7 @@
       namespace: flux-system
     spec:
       interval: 10m
-      path: ${path}
+      path: ./dev
       prune: true
       wait: true
       sourceRef:

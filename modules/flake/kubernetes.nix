@@ -5,6 +5,7 @@
   ...
 }: let
   k8sModules = config.flake.k8sModules;
+  k8sFiles = config.flake.k8sFiles;
 
   render = system: name: contrib:
     (inputs.kubenix.evalModules.${system} {
@@ -21,10 +22,21 @@
       };
     }).config.kubernetes.resultYAML;
 in {
-  options.flake.k8sModules = lib.mkOption {
-    type = lib.types.attrsOf lib.types.raw;
-    default = {};
-    description = "kubenix modules contributed by services and apps.";
+  options.flake = {
+    k8sModules = lib.mkOption {
+      type = lib.types.attrsOf lib.types.raw;
+      default = {};
+      description = "kubenix modules contributed by services and apps.";
+    };
+
+    k8sFiles = lib.mkOption {
+      type = lib.types.attrsOf lib.types.lines;
+      default = {};
+      description = ''
+        Rendered YAML per app, for objects kubenix has no schema for. The
+        attribute name keys the same directory as flake.k8sModules.
+      '';
+    };
   };
 
   config.perSystem = {
@@ -47,6 +59,11 @@ in {
             path = render system name module;
           })
           k8sModules
+          ++ lib.mapAttrsToList (name: text: {
+            name = "${name}/app.yaml";
+            path = pkgs.writeText "${name}.yaml" text;
+          })
+          k8sFiles
         );
       };
   };
