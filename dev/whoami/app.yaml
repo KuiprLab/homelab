@@ -76,3 +76,25 @@ spec:
       targetPort: 8080
   selector:
     app: whoami
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: whoami
+  name: whoami
+  namespace: whoami
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: whoami.192.168.139.139.sslip.io
+      http:
+        paths:
+          - backend:
+              service:
+                name: whoami
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
