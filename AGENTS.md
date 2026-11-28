@@ -3,7 +3,7 @@ This is the monorepo of a nix based homelab.
 # Layout
 
 ```
-hosts/<host>/      per-machine configuration (sorbet, eclair)
+hosts/<host>/      per-machine configuration (sorbet, eclair, crossaint)
 modules/flake/     flake-parts plumbing: systems, checks, formatting
 services/          third-party services you configure
 pkgs/              third-party software you package
@@ -21,6 +21,10 @@ Service modules contribute to the flake via:
     flake.hostModules.* — applied to every host
     flake.nixosModules.* — applied to sorbet
     flake.eclairNixosModules.* — applied to eclair
+    flake.crossaintNixosModules.* — applied to crossaint
+
+Sorbet does not collect `flake.nixosModules` any more. Its node config is listed by hand in `hosts/sorbet/default.nix`,
+and workloads belong in the Kubernetes cluster.
 
 # Adding a host
 
@@ -39,9 +43,23 @@ A host is a pangolin site by default. `modules/host.nix` supplies the shared bas
 # Architecture
 
 Eclair is a VPS running Pangolin (with Traefik/Gerbil) with its main purpose being a proxy for external domains
-(`*.ext.kuipr.de`). While sorbet is the main homelab server serving most of the services and tools. Stuff that should
-only be accessible from inside the LAN (or through VPN) lives on the (`*.int.kuipr.de`) subdomain.
+(`*.ext.kuipr.de`). Sorbet is the main homelab server. It runs NixOS and a single-node k3s cluster. Workloads run as
+Kubernetes objects, not as NixOS services. Stuff that should only be accessible from inside the LAN (or through VPN)
+lives on the (`*.int.kuipr.de`) subdomain.
 
+# Kubernetes
+
+`hosts/sorbet/_k3s.nix` enables k3s as a server. NixOS owns the node: users, network, secrets and the k3s bootstrap.
+Everything else belongs in the cluster.
+
+- Keep it simple. One manifest, one concern. Do not write an operator to avoid a YAML file.
+- The server is small. Set `resources.requests` and a modest `resources.limits` on every workload.
+- Reuse what k3s ships: Traefik ingress and the servicelb. Do not add a second ingress controller or CNI.
+- Prefer plain YAML applied with `kubectl`. Add Helm only when a chart carries real logic.
+- Do not mirror a NixOS concern into the cluster, or run the same service in both places.
+- Develop on the OrbStack machine, never on sorbet. `sorbet-dev` is the same node config with container hardware.
+- `just deploy-dev` activates `sorbet-dev`. `just kubeconfig` writes `~/.kube/sorbet-dev.yaml`.
+- `nix develop` provides kubectl, helm, kustomize and k9s, with `KUBECONFIG` set to the dev cluster.
 
 # Secrets
 
@@ -78,10 +96,15 @@ the sops private keys directly from 1Password!
 
 # Deployment
 
-Both hosts run comin as a pull-based GitOps agent. comin polls `main` every 300 s, builds the new commit on the host,
-and runs `switch-to-configuration switch`. There is no inbound deploy path, deploy key, or self-hosted runner.
+Every production host runs comin as a pull-based GitOps agent. comin polls `main` every 300 s, builds the new commit on
+the host, and runs `switch-to-configuration switch`. There is no inbound deploy path, deploy key, or self-hosted
+runner.
 
-A push to `main` is the deploy trigger. Before you push, run `nix fmt` and `nix flake check`.
+`sorbet-dev` is not a comin host. It lives on the OrbStack machine at 192.168.139.139 and is deployed by hand with
+`just deploy-dev`, which runs `nixos-rebuild` inside the machine through `orb -m nixos`. The repo is mounted at the
+same path in the machine, so no copy step is needed. `just kubeconfig` refreshes the cluster credentials afterwards.
+
+A push to `main` is the deploy trigger for production. Before you push, run `nix fmt` and `nix flake check`.
 
 To test one host before `main`: rebase the branch on `main` with `git rebase --gpg-sign main`, then push it to
 `testing-<host>` (a force-push is fine, the branch is a pointer). comin on `<host>` then runs
