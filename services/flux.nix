@@ -1,6 +1,6 @@
 _: {
   # Inline YAML: Flux kinds need no kubenix schema, so no customTypes registry is kept.
-  flake.k8sFiles.flux = ''
+  flake.k8sFiles.flux = /* yaml */ ''
     apiVersion: source.toolkit.fluxcd.io/v1
     kind: GitRepository
     metadata:
