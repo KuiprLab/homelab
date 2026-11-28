@@ -38,7 +38,7 @@ spec:
             - --accesslog=true
             - --global.checknewversion=false
             - --global.sendanonymoususage=false
-          image: docker.io/traefik/traefik:v3.8.0
+          image: docker.io/library/traefik:v3.8.0
           livenessProbe:
             httpGet:
               path: /ping
