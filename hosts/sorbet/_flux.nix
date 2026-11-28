@@ -10,7 +10,7 @@
   '';
 
   # Seed only. Flux owns these objects once they exist, so this never overwrites them.
-  sync = pkgs.writeText "flux-sync.yaml" ''
+  sync = pkgs.writeText "flux-sync.yaml" /* yaml */ ''
     apiVersion: source.toolkit.fluxcd.io/v1
     kind: GitRepository
     metadata:
