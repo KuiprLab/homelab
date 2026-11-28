@@ -117,6 +117,8 @@ _: {
         metadata.namespace = "traefik";
         spec = {
           type = "LoadBalancer";
+          # Keeps the client IP visible to Traefik and to the logs.
+          externalTrafficPolicy = "Local";
           selector.app = "traefik";
           ports = {
             http = {
