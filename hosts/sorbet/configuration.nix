@@ -1,87 +1,32 @@
-{config, ...}: let
-  constants = config.flake.constants;
+_: let
   user = "daniel";
 in {
-  flake.nixosModules.sorbetConfiguration = {
-    pkgs,
-    lib,
-    ...
-  }: {
+  flake.nixosModules.sorbetConfiguration = {lib, ...}: {
     system.stateVersion = "24.05";
 
     homelab = {
-      extraPackages = [pkgs.just];
       nix.maxJobs = 4;
       nix.cores = 2;
       rex.user = user;
-      pangolinSite.enforceHealthcheckTls = true;
-    };
-
-    hardware = {
-      bluetooth = {
-        enable = true;
-        powerOnBoot = true;
-      };
-    };
-
-    virtualisation = {
-      incus = {
-        enable = true;
-        ui.enable = true;
-      };
+      pangolinSite.enable = false;
     };
 
     networking = {
-      firewall = {
-        trustedInterfaces = ["incusbr0"];
-        # 5353: mDNS, shared with the host-networked Home Assistant container.
-        allowedUDPPorts = [
-          5353
-        ];
-      };
       hostName = "sorbet";
       nftables.enable = true;
       networkmanager.enable = true;
-      useDHCP = false;
-      interfaces."${constants.lanInterface}" = {
-        wakeOnLan.enable = true;
-        ipv4.addresses = [
-          {
-            address = constants.lanIp;
-            prefixLength = constants.lanPrefixLength;
-          }
-        ];
-      };
-      defaultGateway = constants.lanGateway;
-      # LAN address, not loopback (query log attribution); mkOverride 50 beats resolvconf.
-      nameservers = lib.mkOverride 50 [constants.lanIp];
-      # useLocalResolver forces 127.0.0.1, where nothing listens (no systemd-resolved).
-      resolvconf.useLocalResolver = false;
     };
 
-    i18n.extraLocaleSettings = {
-      LC_ADDRESS = "de_DE.UTF-8";
-      LC_IDENTIFICATION = "de_DE.UTF-8";
-      LC_MEASUREMENT = "de_DE.UTF-8";
-      LC_MONETARY = "de_DE.UTF-8";
-      LC_NAME = "de_DE.UTF-8";
-      LC_NUMERIC = "de_DE.UTF-8";
-      LC_PAPER = "de_DE.UTF-8";
-      LC_TELEPHONE = "de_DE.UTF-8";
-      LC_TIME = "de_DE.UTF-8";
+    services.openssh.settings.KbdInteractiveAuthentication = false;
+
+    # dbus-broker never finishes a reload, and restarting it kills the switch's own bus.
+    systemd.services.dbus-broker = {
+      reloadIfChanged = lib.mkForce false;
+      restartIfChanged = lib.mkForce false;
     };
-
-    environment.pathsToLink = [
-      "/libexec"
-    ];
-
-    security.rtkit.enable = true;
-
-    services = {
-      hardware.openrgb = {
-        enable = true;
-      };
-      openssh.settings.KbdInteractiveAuthentication = false;
+    systemd.user.services.dbus-broker = {
+      reloadIfChanged = lib.mkForce false;
+      restartIfChanged = lib.mkForce false;
     };
 
     users = {
@@ -94,31 +39,16 @@ in {
 
         ${user} = {
           isNormalUser = true;
-          linger = true;
           description = user;
           openssh.authorizedKeys.keys = [
             "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCo089vTmBwFAMv6d7ix3D6gPx0X0DEwOELB0i9AyDpct4kj3II8IjtwovZDalE53CZAlczhae+/9EV+3cn1YwvKMEU9MkY3nY6/HIPqvQaWVNrhLAP7W1JWNMwNl+ndkm+Xa1ZlaYbOJrKED8E63j2j5WNnNN6WUld7d4Nf5oog0YaYYoD22fiMvnTMdFg2pE2lLFZ4mX2NBHU8r/1hcy6XTXdryoZB4KuzvnMOZPb5j48rsH6AZG5i9CMq7iSi3+DeSGzdrxVvJ1HWKTpTlKlvz/7LKhrCwtXrvFwzxh4xxFig/As05LfmxShThUb1QqS874USBwM5lacrZ4lJbIEwbtQ9zJad8p0pVzlby+BwLaQmmljrR9H0AZMagmD0Gv5K/DC035XCI9acSazL84qJ0IfGugfXdFQbT+ViFRrV7+9J5IbulOV40lwHrgnIeFc2Msbe2PelphKIlrx9JqW6ArtT7zbtbG8q+oZSb8TqCdFx5pZuQCA8gtj4Y5wxo0pFhym5qqN6Eh0CbliqYsDwIcUfmkj0omsFXFLN5U9D25jUxPmFZUFU/PJnbWxjfu6835PZtchHozV/vqYqc8WKBis+HWjBM1OH26fbo7FmT60hod8K6fsKV6HN/tpuY9gCQBD/CuVO+nlSBr/kVmO9KGi9jEaPTF2JylnujN1ow=="
           ];
           extraGroups = [
             "networkmanager"
-            "audio"
             "wheel"
-            "incus-admin"
           ];
         };
       };
-    };
-
-    home-manager.users.${user} = _: {
-      home = {
-        stateVersion = "23.11";
-        username = user;
-        homeDirectory = "/home/${user}";
-        sessionVariables = {
-          EDITOR = "nvim";
-        };
-      };
-      programs.home-manager.enable = true;
     };
   };
 }

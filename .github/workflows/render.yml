@@ -1,0 +1,16 @@
+---
+name: render
+on:
+  push:
+    branches: [main, staging]
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_BRANCH: ${{ github.ref_name == 'main' && 'rendered' || 'rendered-staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: ./scripts/render.sh dev
