@@ -1,5 +1,5 @@
 _: {
-  flake.k8sModules.radar = {kubernetes, ...}: {
+  flake.k8sModules.radar = _: {
     kubernetes.resources = {
       namespaces.radar = {};
 
