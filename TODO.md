@@ -2,5 +2,5 @@
 - [x] Bootstrap FluxCD. Make the process NixOps/GitOps
 - [x] Make a plan on how to go from nix -> yaml config files
 - [x] Learn how to use FluxCD, Helm charts and kustomize 
-- [ ] Learn about networking in Kubernetes
+- [x] Learn about networking in Kubernetes
 - [ ] Do secrets through 1Password Operator
