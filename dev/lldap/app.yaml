@@ -55,9 +55,10 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
+              add:
+                - CHOWN
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
           volumeMounts:
             - mountPath: /data
               name: data
