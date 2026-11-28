@@ -27,6 +27,9 @@ spec:
       containers:
         - args:
             - --port=9280
+            - --listen-address=0.0.0.0
+            - --no-browser
+            - --allowed-hosts=radar.radar,radar.192.168.139.139.sslip.io
           image: ghcr.io/skyhook-io/radar:1.22.0
           livenessProbe:
             httpGet:
