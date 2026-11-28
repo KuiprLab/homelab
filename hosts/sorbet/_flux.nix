@@ -10,32 +10,37 @@
   '';
 
   # Seed only. Flux owns these objects once they exist, so this never overwrites them.
-  sync = pkgs.writeText "flux-sync.yaml" /* yaml */ ''
-    apiVersion: source.toolkit.fluxcd.io/v1
-    kind: GitRepository
-    metadata:
-      name: flux-system
-      namespace: flux-system
-    spec:
-      interval: 1m
-      url: https://github.com/KuiprLab/homelab
-      ref:
-        branch: rendered
-    ---
-    apiVersion: kustomize.toolkit.fluxcd.io/v1
-    kind: Kustomization
-    metadata:
-      name: flux-system
-      namespace: flux-system
-    spec:
-      interval: 10m
-      path: ./dev
-      prune: true
-      wait: true
-      sourceRef:
-        kind: GitRepository
+  sync =
+    pkgs.writeText "flux-sync.yaml"
+    /*
+    yaml
+    */
+    ''
+      apiVersion: source.toolkit.fluxcd.io/v1
+      kind: GitRepository
+      metadata:
         name: flux-system
-  '';
+        namespace: flux-system
+      spec:
+        interval: 1m
+        url: https://github.com/KuiprLab/homelab
+        ref:
+          branch: rendered
+      ---
+      apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: flux-system
+        namespace: flux-system
+      spec:
+        interval: 10m
+        path: ./dev
+        prune: true
+        wait: true
+        sourceRef:
+          kind: GitRepository
+          name: flux-system
+    '';
 in {
   systemd.services.flux-bootstrap = {
     description = "Install Flux and point it at the rendered branch";
