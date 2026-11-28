@@ -63,7 +63,7 @@ _: {
                 seccompProfile.type = "RuntimeDefault";
               };
               containers.traefik = {
-                image = "docker.io/traefik/traefik:v3.8.0";
+                image = "docker.io/library/traefik:v3.8.0";
                 args = [
                   # Unprivileged ports: the Service publishes 80 and 443 on top of them.
                   "--entrypoints.web.address=:8000"
