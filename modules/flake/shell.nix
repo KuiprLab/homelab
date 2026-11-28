@@ -3,6 +3,7 @@ _: {
     devShells.default = pkgs.mkShell {
       packages = with pkgs; [
         kubectl
+        fluxcd
         kubernetes-helm
         kustomize
         kubectx
