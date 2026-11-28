@@ -10,16 +10,40 @@ _: {
           selector.matchLabels.app = "whoami";
           template = {
             metadata.labels.app = "whoami";
-            spec.containers.whoami = {
-              image = "docker.io/traefik/whoami:v1.10";
-              ports.http.containerPort = 80;
-              resources = {
-                requests = {
-                  cpu = "10m";
-                  memory = "16Mi";
+            spec = {
+              automountServiceAccountToken = false;
+              securityContext = {
+                runAsNonRoot = true;
+                runAsUser = 65532;
+                runAsGroup = 65532;
+                seccompProfile.type = "RuntimeDefault";
+              };
+              containers.whoami = {
+                image = "docker.io/traefik/whoami:v1.10";
+                args = ["-port=8080"];
+                ports.http.containerPort = 8080;
+                securityContext = {
+                  allowPrivilegeEscalation = false;
+                  readOnlyRootFilesystem = true;
+                  capabilities.drop = ["ALL"];
                 };
-                limits = {
-                  memory = "64Mi";
+                readinessProbe.httpGet = {
+                  path = "/";
+                  port = 8080;
+                };
+                livenessProbe.httpGet = {
+                  path = "/";
+                  port = 8080;
+                };
+                resources = {
+                  requests = {
+                    cpu = "10m";
+                    memory = "16Mi";
+                  };
+                  limits = {
+                    cpu = "100m";
+                    memory = "64Mi";
+                  };
                 };
               };
             };
@@ -33,7 +57,7 @@ _: {
           selector.app = "whoami";
           ports.http = {
             port = 80;
-            targetPort = 80;
+            targetPort = 8080;
           };
         };
       };

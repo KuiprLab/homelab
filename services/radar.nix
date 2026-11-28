@@ -50,9 +50,14 @@ _: {
                 ports.http.containerPort = 9280;
                 securityContext = {
                   allowPrivilegeEscalation = false;
+                  readOnlyRootFilesystem = true;
                   capabilities.drop = ["ALL"];
                 };
                 readinessProbe.httpGet = {
+                  path = "/api/health";
+                  port = 9280;
+                };
+                livenessProbe.httpGet = {
                   path = "/api/health";
                   port = 9280;
                 };
