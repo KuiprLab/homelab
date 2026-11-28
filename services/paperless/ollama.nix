@@ -8,7 +8,7 @@ in {
 
     nixosModules.ollama = {lib, ...}: {
       virtualisation.oci-containers.containers.ollama = {
-        image = "docker.io/ollama/ollama:latest@sha256:1cabd20e1762a7a8444bf4a7110b346d923cd77ab6c97c984434140638c913ec";
+        image = "docker.io/ollama/ollama:latest@sha256:7e8c7ba387b11b09dcce1eff1118b1ab433564ed263434a7730c209f2ee346f4";
         volumes = [
           "/media/data/ollama:/root/.ollama"
         ];
