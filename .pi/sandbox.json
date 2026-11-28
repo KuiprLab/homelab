@@ -13,5 +13,10 @@
       "hub.docker.com",
       "www.navidrome.org"
     ]
+  },
+  "filesystem": {
+    "allowWrite": [
+      "/Users/daniel/Projects/github.com/KuiprLab/homelab/.git"
+    ]
   }
 }
