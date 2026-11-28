@@ -1,7 +1,7 @@
 _: let
   user = "daniel";
 in {
-  flake.nixosModules.sorbetConfiguration = _: {
+  flake.nixosModules.sorbetConfiguration = {lib, ...}: {
     system.stateVersion = "24.05";
 
     homelab = {
@@ -18,6 +18,16 @@ in {
     };
 
     services.openssh.settings.KbdInteractiveAuthentication = false;
+
+    # dbus-broker never finishes a reload, and restarting it kills the switch's own bus.
+    systemd.services.dbus-broker = {
+      reloadIfChanged = lib.mkForce false;
+      restartIfChanged = lib.mkForce false;
+    };
+    systemd.user.services.dbus-broker = {
+      reloadIfChanged = lib.mkForce false;
+      restartIfChanged = lib.mkForce false;
+    };
 
     users = {
       users = {
