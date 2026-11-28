@@ -13,10 +13,11 @@ _: {
   services.k3s = {
     enable = true;
     role = "server";
-    # k3s bundles traefik, servicelb, coredns, local-path and metrics-server; keep the base only.
+    # k3s bundles traefik, servicelb, coredns, local-path and metrics-server; Longhorn replaces local-path.
     extraFlags = [
       "--disable=traefik"
       "--disable=metrics-server"
+      "--disable=local-path"
     ];
   };
 }
