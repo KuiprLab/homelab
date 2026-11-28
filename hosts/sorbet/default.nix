@@ -2,52 +2,50 @@
   self,
   inputs,
   lib,
+  config,
   ...
 }: let
-  nixpkgsConfig = {
-    allowUnfree = true;
-    allowBroken = false;
-    allowUnsupportedSystem = false;
-  };
+  constants = config.flake.constants;
 
-  # sorbetConfiguration/HardwareConfiguration are listed explicitly; merging them twice duplicates lists.
-  collectModules = attrs: lib.attrValues (lib.filterAttrs (n: v: v != {} && n != "sorbetConfiguration" && n != "sorbetHardwareConfiguration") attrs);
-in {
-  flake = {
-    nixosModules = {};
-    homeManagerModules = {};
+  collectHostModules = attrs: lib.attrValues (lib.filterAttrs (_: v: v != {}) attrs);
 
-    nixosConfigurations.sorbet = inputs.nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
+  mkSorbet = system: modules:
+    inputs.nixpkgs.lib.nixosSystem {
+      inherit system;
       modules =
         [
           self.nixosModules.sorbetConfiguration
-          self.nixosModules.sorbetHardwareConfiguration
           inputs.home-manager.nixosModules.home-manager
           inputs.determinate.nixosModules.default
-
           inputs.sops-nix.nixosModules.sops
           {
-            nixpkgs.config = nixpkgsConfig;
+            nixpkgs.config = {
+              allowUnfree = true;
+              allowBroken = false;
+              allowUnsupportedSystem = false;
+            };
           }
-
           {system.configurationRevision = self.rev or self.dirtyRev or null;}
-
           {
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
               backupFileExtension = "backup";
-              sharedModules =
-                [
-                  inputs.sops-nix.homeManagerModules.sops
-                ]
-                ++ collectModules self.homeManagerModules;
+              sharedModules = [
+                inputs.sops-nix.homeManagerModules.sops
+              ];
             };
           }
         ]
-        ++ collectModules self.hostModules
-        ++ collectModules self.nixosModules;
+        ++ collectHostModules self.hostModules
+        ++ modules;
     };
+in {
+  flake.nixosConfigurations = {
+    sorbet = mkSorbet "x86_64-linux" [
+      self.nixosModules.sorbetHardwareConfiguration
+      ./_k3s.nix
+      (import ./_network.nix {inherit constants;})
+    ];
   };
 }

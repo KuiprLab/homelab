@@ -1,12 +1,7 @@
-{config, ...}: let
-  constants = config.flake.constants;
+_: let
   user = "daniel";
 in {
-  flake.nixosModules.sorbetConfiguration = {
-    pkgs,
-    lib,
-    ...
-  }: {
+  flake.nixosModules.sorbetConfiguration = {pkgs, ...}: {
     system.stateVersion = "24.05";
 
     homelab = {
@@ -14,49 +9,13 @@ in {
       nix.maxJobs = 4;
       nix.cores = 2;
       rex.user = user;
-      pangolinSite.enforceHealthcheckTls = true;
-    };
-
-    hardware = {
-      bluetooth = {
-        enable = true;
-        powerOnBoot = true;
-      };
-    };
-
-    virtualisation = {
-      incus = {
-        enable = true;
-        ui.enable = true;
-      };
+      pangolinSite.enable = false;
     };
 
     networking = {
-      firewall = {
-        trustedInterfaces = ["incusbr0"];
-        # 5353: mDNS, shared with the host-networked Home Assistant container.
-        allowedUDPPorts = [
-          5353
-        ];
-      };
       hostName = "sorbet";
       nftables.enable = true;
       networkmanager.enable = true;
-      useDHCP = false;
-      interfaces."${constants.lanInterface}" = {
-        wakeOnLan.enable = true;
-        ipv4.addresses = [
-          {
-            address = constants.lanIp;
-            prefixLength = constants.lanPrefixLength;
-          }
-        ];
-      };
-      defaultGateway = constants.lanGateway;
-      # LAN address, not loopback (query log attribution); mkOverride 50 beats resolvconf.
-      nameservers = lib.mkOverride 50 [constants.lanIp];
-      # useLocalResolver forces 127.0.0.1, where nothing listens (no systemd-resolved).
-      resolvconf.useLocalResolver = false;
     };
 
     i18n.extraLocaleSettings = {
@@ -75,14 +34,7 @@ in {
       "/libexec"
     ];
 
-    security.rtkit.enable = true;
-
-    services = {
-      hardware.openrgb = {
-        enable = true;
-      };
-      openssh.settings.KbdInteractiveAuthentication = false;
-    };
+    services.openssh.settings.KbdInteractiveAuthentication = false;
 
     users = {
       users = {
@@ -101,9 +53,7 @@ in {
           ];
           extraGroups = [
             "networkmanager"
-            "audio"
             "wheel"
-            "incus-admin"
           ];
         };
       };
