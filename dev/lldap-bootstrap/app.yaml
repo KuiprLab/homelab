@@ -103,7 +103,6 @@ data:
         --arg firstName "$(field "$upper" firstName)" \
         --arg lastName "$(field "$upper" lastName)" \
         --arg groups "$(field "$upper" groups)" \
-        --arg avatarUrl "$(field "$upper" avatar_url)" \
         --arg password "$(field "$upper" password)" \
         '{
           id: $id,
@@ -111,7 +110,6 @@ data:
           displayName: $displayName,
           firstName: (if $firstName == "" then null else $firstName end),
           lastName: (if $lastName == "" then null else $lastName end),
-          avatar_url: (if $avatarUrl == "" then null else $avatarUrl end),
           groups: ($groups | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))),
           password: (if $password == "" then null else $password end)
         }' > "/bootstrap/user-configs/$id.json"
