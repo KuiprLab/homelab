@@ -25,7 +25,7 @@ _: {
         interval: 10m
         path: ./dev
         prune: true
-        wait: true
+        wait: false
         sourceRef:
           kind: GitRepository
           name: flux-system
