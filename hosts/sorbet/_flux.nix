@@ -61,12 +61,14 @@ in {
         sleep 2
       done
 
+      # Controllers are reapplied on every boot: the node owns them, Flux owns the workloads.
+      k3s kubectl apply -f ${install}
+
       if k3s kubectl -n flux-system get gitrepository/flux-system >/dev/null 2>&1; then
         echo "flux already bootstrapped"
         exit 0
       fi
 
-      k3s kubectl apply -f ${install}
       k3s kubectl wait --for=condition=established --timeout=120s \
         crd/gitrepositories.source.toolkit.fluxcd.io \
         crd/kustomizations.kustomize.toolkit.fluxcd.io
