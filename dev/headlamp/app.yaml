@@ -27,6 +27,7 @@ spec:
       containers:
         - args:
             - -in-cluster
+            - -unsafe-use-service-account-token
             - -plugins-dir=/build/plugins
             - -watch-plugins-changes
           image: ghcr.io/headlamp-k8s/headlamp:v0.46.0
