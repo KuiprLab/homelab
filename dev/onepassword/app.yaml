@@ -75,9 +75,11 @@ spec:
                 - ALL
             readOnlyRootFilesystem: true
           startupProbe:
+            failureThreshold: 30
             httpGet:
               path: /healthz
               port: 8081
+            periodSeconds: 10
       securityContext:
         runAsNonRoot: true
         seccompProfile:
