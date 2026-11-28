@@ -75,7 +75,7 @@ metadata:
   name: lldap-groups
   namespace: auth
 spec:
-  itemPath: vaults/Homelab/items/3gdlkatpfwoudh4hmxoz4hyt2m
+  itemPath: vaults/Homelab/items/bkgzplsp4zct75ou2mstf7mfiu
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
@@ -86,4 +86,4 @@ metadata:
   name: lldap-users
   namespace: auth
 spec:
-  itemPath: vaults/Homelab/items/sgf7iz5qnr2mmelhileu3xg4pu
+  itemPath: vaults/Homelab/items/hwudpy7nqlvrmyragkiyxfzpnu
