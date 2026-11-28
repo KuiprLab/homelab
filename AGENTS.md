@@ -59,7 +59,15 @@ Everything else belongs in the cluster.
 - Do not mirror a NixOS concern into the cluster, or run the same service in both places.
 - Develop on the OrbStack machine, never on sorbet. `sorbet-dev` is the same node config with container hardware.
 - `just deploy-dev` activates `sorbet-dev`. `just kubeconfig` writes `~/.kube/sorbet-dev.yaml`.
-- `nix develop` provides kubectl, helm, kustomize and k9s, with `KUBECONFIG` set to the dev cluster.
+- `nix develop` provides kubectl, helm, flux, kustomize and k9s, with `KUBECONFIG` set to the dev cluster.
+
+Workloads are Nix. A service contributes a kubenix module to `flake.k8sModules`. `nix build .#manifests` renders
+that option into YAML, `just render` pushes it to the `rendered` branch, and Flux reconciles `./dev` from there. CI
+renders on every push to `main` and `staging`, into `rendered` and `rendered-staging`.
+
+`hosts/sorbet/_flux.nix` runs `flux-bootstrap.service` on the node. It installs Flux from the pinned nixpkgs version
+and creates the `GitRepository` and root `Kustomization` once. After that Flux owns those objects, and the unit only
+logs that Flux is already bootstrapped.
 
 # Secrets
 

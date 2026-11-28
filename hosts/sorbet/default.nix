@@ -35,12 +35,14 @@ in {
     sorbet = mkSorbet "x86_64-linux" [
       self.nixosModules.sorbetHardwareConfiguration
       ./_k3s.nix
+      ./_flux.nix
       (import ./_network.nix {inherit constants;})
     ];
 
     # aarch64-linux: the OrbStack VM on the workstation.
     sorbet-dev = mkSorbet "aarch64-linux" [
       ./_k3s.nix
+      ./_flux.nix
       ./_dev.nix
     ];
   };
