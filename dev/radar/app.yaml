@@ -28,6 +28,10 @@ spec:
         - args:
             - --port=9280
           image: ghcr.io/skyhook-io/radar:1.22.0
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9280
           name: radar
           ports:
             - containerPort: 9280
@@ -48,6 +52,7 @@ spec:
             capabilities:
               drop:
                 - ALL
+            readOnlyRootFilesystem: true
       securityContext:
         fsGroup: 65532
         runAsGroup: 65532
