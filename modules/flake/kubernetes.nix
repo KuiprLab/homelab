@@ -14,6 +14,10 @@
           contrib
         ];
         kubenix.project = name;
+        # One sha1 over the whole list would relabel every object on any change.
+        kubernetes.addHashLabel = false;
+        # Pinned to the k3s version, so a nixpkgs bump does not rewrite every manifest.
+        kubernetes.version = "1.36";
       };
     }).config.kubernetes.resultYAML;
 in {
@@ -26,8 +30,11 @@ in {
   config.perSystem = {
     system,
     pkgs,
+    self',
     ...
   }: {
+    checks.manifests = self'.packages.manifests;
+
     packages =
       lib.mapAttrs' (
         name: module: lib.nameValuePair "manifests-${name}" (render system name module)

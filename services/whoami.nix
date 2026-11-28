@@ -1,5 +1,5 @@
 _: {
-  flake.k8sModules.whoami = {...}: {
+  flake.k8sModules.whoami = _: {
     kubernetes.resources = {
       namespaces.whoami = {};
 
