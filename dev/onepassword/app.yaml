@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: onepassword
+  name: onepassword
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: onepassword
+  name: onepassword-operator
+  namespace: onepassword
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: onepassword-operator
+  template:
+    metadata:
+      labels:
+        app: onepassword-operator
+    spec:
+      containers:
+        - args:
+            - --leader-elect
+            - --health-probe-bind-address=:8081
+          command:
+            - /manager
+          env:
+            - name: OPERATOR_NAME
+              value: onepassword-operator
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: WATCH_NAMESPACE
+              value: ""
+            - name: POLLING_INTERVAL
+              value: "10"
+            - name: AUTO_RESTART
+              value: "true"
+            - name: OP_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: onepassword-service-account-token
+          image: docker.io/1password/onepassword-operator:1.12.1
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+          name: manager
+          ports:
+            - containerPort: 8081
+              name: health
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 20m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: onepassword-operator
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: onepassword
+  name: onepassword-operator
+  namespace: onepassword
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: onepassword
+  name: onepassword-operator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - namespaces
+      - persistentvolumeclaims
+      - pods
+      - secrets
+      - services
+      - services/finalizers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - deployments/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - update
+  - apiGroups:
+      - onepassword.com
+    resources:
+      - '*'
+      - onepassworditems
+      - onepassworditems/finalizers
+      - onepassworditems/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: onepassword
+  name: onepassword-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: onepassword-operator
+subjects:
+  - kind: ServiceAccount
+    name: onepassword-operator
+    namespace: onepassword
