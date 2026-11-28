@@ -1,14 +1,16 @@
 devHost := "192.168.139.139"
 devMachine := "nixos"
 
+[private]
 default:
     just --list
 
-
+[group('misc')]
 random-string:
     @cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 50 | head -n 1
 
 # Install NixOS on a blank machine with nixos-anywhere. Wipes the target disk.
+[group('system')]
 install host:
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -29,6 +31,7 @@ install host:
       --target-host root@{{host}}
 
 # Activate the sorbet config on the OrbStack machine (nix runs inside the machine)
+[group('dev')]
 deploy-dev:
     #!/usr/bin/env bash
     set -eu
@@ -36,6 +39,7 @@ deploy-dev:
     exec orb -m {{devMachine}} sudo nixos-rebuild switch --flake "{{justfile_directory()}}#sorbet-dev"
 
 # Write the dev cluster kubeconfig to ~/.kube/sorbet-dev.yaml
+[group('dev')]
 kubeconfig:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -47,15 +51,13 @@ kubeconfig:
     chmod 600 "$dest"
     echo "$dest"
 
-# Build the prod sorbet toplevel locally (requires a Linux builder on macOS)
-build: fmt check
-    @nix build ".#nixosConfigurations.sorbet.config.system.build.toplevel" --system x86_64-linux
-
 # Trigger a comin deployment on one host (sorbet, eclair or crossaint)
+[group('comin')]
 deploy host:
     @ssh {{host}} comin fetch
 
 # Activate the local working tree on one host, bypassing comin (mode: test|switch)
+[group('system')]
 deploy-local host mode="test":
     #!/usr/bin/env bash
     set -eu
@@ -67,6 +69,7 @@ deploy-local host mode="test":
       --build-host root@sorbet \
       --target-host root@{{host}}
 
+[group('comin')]
 deploy-status host="":
     #!/usr/bin/env bash
     if [[ -z "{{host}}" ]]; then
@@ -79,6 +82,7 @@ deploy-status host="":
 
 
 # Push config to the testing branch of one host
+[group('comin')]
 test host="sorbet":
     #!/usr/bin/env bash
     set -eu
@@ -88,15 +92,19 @@ test host="sorbet":
 
 
 # Format all Nix files
+[group('misc')]
+[private]
 fmt:
     nix fmt .
 
 # Run flake checks
+[group('misc')]
 check: fmt
     nix flake check --all-systems
 
 
 # Write the sops age key to a host; overwrites it, so old secrets stop decrypting.
+[group('system')]
 upload-secrets host:
     #!/usr/bin/env bash
     set -eu
@@ -104,5 +112,6 @@ upload-secrets host:
     exec ./scripts/upload-secrets.sh "{{host}}"
 
 
+[group('misc')]
 update-inputs:
     @NIX_CONFIG="access-tokens = github.com=$(gh auth token)" nix flake update
