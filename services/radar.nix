@@ -46,7 +46,13 @@ _: {
               };
               containers.radar = {
                 image = "ghcr.io/skyhook-io/radar:1.22.0";
-                args = ["--port=9280"];
+                args = [
+                  "--port=9280"
+                  "--listen-address=0.0.0.0"
+                  "--no-browser"
+                  # Radar refuses unknown Host headers, so the Ingress name must be listed.
+                  "--allowed-hosts=radar.radar,radar.192.168.139.139.sslip.io"
+                ];
                 ports.http.containerPort = 9280;
                 securityContext = {
                   allowPrivilegeEscalation = false;
@@ -80,12 +86,33 @@ _: {
       services.radar = {
         metadata.namespace = "radar";
         spec = {
-          type = "LoadBalancer";
           selector.app = "radar";
           ports.http = {
             port = 80;
             targetPort = 9280;
           };
+        };
+      };
+
+      ingresses.radar = {
+        metadata.namespace = "radar";
+        spec = {
+          ingressClassName = "traefik";
+          rules = [
+            {
+              host = "radar.192.168.139.139.sslip.io";
+              http.paths = [
+                {
+                  path = "/";
+                  pathType = "Prefix";
+                  backend.service = {
+                    name = "radar";
+                    port.number = 80;
+                  };
+                }
+              ];
+            }
+          ];
         };
       };
     };

@@ -61,6 +61,28 @@ _: {
           };
         };
       };
+
+      ingresses.whoami = {
+        metadata.namespace = "whoami";
+        spec = {
+          ingressClassName = "traefik";
+          rules = [
+            {
+              host = "whoami.192.168.139.139.sslip.io";
+              http.paths = [
+                {
+                  path = "/";
+                  pathType = "Prefix";
+                  backend.service = {
+                    name = "whoami";
+                    port.number = 80;
+                  };
+                }
+              ];
+            }
+          ];
+        };
+      };
     };
   };
 }
