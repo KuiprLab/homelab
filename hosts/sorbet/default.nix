@@ -7,7 +7,8 @@
 }: let
   constants = config.flake.constants;
 
-  collectHostModules = attrs: lib.attrValues (lib.filterAttrs (_: v: v != {}) attrs);
+  # k3s brings containerd and sorbet is not a pangolin site: neither module has a job here.
+  nodeHostModules = removeAttrs self.hostModules ["newt" "podman"];
 
   mkSorbet = system: modules:
     inputs.nixpkgs.lib.nixosSystem {
@@ -15,7 +16,6 @@
       modules =
         [
           self.nixosModules.sorbetConfiguration
-          inputs.home-manager.nixosModules.home-manager
           inputs.determinate.nixosModules.default
           inputs.sops-nix.nixosModules.sops
           {
@@ -26,18 +26,8 @@
             };
           }
           {system.configurationRevision = self.rev or self.dirtyRev or null;}
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              backupFileExtension = "backup";
-              sharedModules = [
-                inputs.sops-nix.homeManagerModules.sops
-              ];
-            };
-          }
         ]
-        ++ collectHostModules self.hostModules
+        ++ lib.attrValues (lib.filterAttrs (_: m: m != {}) nodeHostModules)
         ++ modules;
     };
 in {
