@@ -1,6 +1,6 @@
 - [x] Get K3s up and running with a super basic cluster
-- [ ] Bootstrap FluxCD. Make the process NixOps/GitOps
+- [x] Bootstrap FluxCD. Make the process NixOps/GitOps
+- [x] Make a plan on how to go from nix -> yaml config files
 - [ ] Learn how to use FluxCD, Helm charts and kustomize 
 - [ ] Learn about networking in Kubernetes
-- [ ] Make a plan on how to go from nix -> yaml config files
 - [ ] Do secrets through 1Password Operator
