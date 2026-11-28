@@ -14,7 +14,6 @@ _: {
 
       shellHook = ''
         export KUBECONFIG="''${KUBECONFIG:-$HOME/.kube/sorbet-dev.yaml}"
-        echo "kube shell -- KUBECONFIG=$KUBECONFIG"
       '';
     };
   };
