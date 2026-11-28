@@ -5,6 +5,10 @@ devMachine := "nixos"
 default:
     just --list
 
+[group('kubernetes')]
+render env="dev":
+    @./scripts/render.sh {{env}}
+
 [group('misc')]
 random-string:
     @cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 50 | head -n 1
@@ -39,7 +43,7 @@ deploy-dev:
     exec orb -m {{devMachine}} sudo nixos-rebuild switch --flake "{{justfile_directory()}}#sorbet-dev"
 
 # Write the dev cluster kubeconfig to ~/.kube/sorbet-dev.yaml
-[group('dev')]
+[group('kubernetes')]
 kubeconfig:
     #!/usr/bin/env bash
     set -euo pipefail
