@@ -40,7 +40,7 @@ spec:
             - name: WATCH_NAMESPACE
               value: ""
             - name: POLLING_INTERVAL
-              value: "10"
+              value: "300"
             - name: AUTO_RESTART
               value: "true"
             - name: OP_SERVICE_ACCOUNT_TOKEN

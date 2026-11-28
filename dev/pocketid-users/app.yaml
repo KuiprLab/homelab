@@ -131,4 +131,4 @@ metadata:
   name: pocket-id-provisioner
   namespace: auth
 spec:
-  itemPath: vaults/Homelab/items/ep5haampgonhewfl2rxszrukwi
+  itemPath: vaults/nx7gmbfnkdmworfnqpyqivoypq/items/ep5haampgonhewfl2rxszrukwi
