@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: auth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: pocket-id
+  namespace: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pocket-id
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: pocket-id
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - env:
+            - name: APP_URL
+              value: http://pocket-id.192.168.139.139.sslip.io
+            - name: LDAP_ENABLED
+              value: "true"
+            - name: LDAP_URL
+              value: ldap://lldap.auth.svc.cluster.local:3890
+            - name: LDAP_BASE
+              value: dc=kuipr,dc=de
+            - name: LDAP_BIND_DN
+              value: uid=admin,ou=people,dc=kuipr,dc=de
+            - name: LDAP_ADMIN_GROUP_NAME
+              value: admin
+            - name: LDAP_ATTRIBUTE_USER_USERNAME
+              value: uid
+            - name: LDAP_ATTRIBUTE_USER_EMAIL
+              value: mail
+            - name: LDAP_ATTRIBUTE_USER_FIRST_NAME
+              value: givenName
+            - name: LDAP_ATTRIBUTE_USER_LAST_NAME
+              value: sn
+            - name: LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER
+              value: entryUUID
+            - name: LDAP_ATTRIBUTE_GROUP_NAME
+              value: cn
+            - name: LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER
+              value: entryUUID
+          envFrom:
+            - secretRef:
+                name: pocket-id
+          image: docker.io/pocketid/pocket-id:v2.19.3
+          livenessProbe:
+            exec:
+              command:
+                - /app/pocket-id
+                - healthcheck
+          name: pocket-id
+          ports:
+            - containerPort: 1411
+              name: http
+          readinessProbe:
+            exec:
+              command:
+                - /app/pocket-id
+                - healthcheck
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 20m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - mountPath: /app/data
+              name: data
+      securityContext:
+        fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pocket-id-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: pocket-id-data
+  namespace: auth
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: pocket-id
+  namespace: auth
+spec:
+  ports:
+    - name: http
+      port: 1411
+      targetPort: 1411
+  selector:
+    app: pocket-id
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: pocket-id
+  namespace: auth
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: pocket-id.192.168.139.139.sslip.io
+      http:
+        paths:
+          - backend:
+              service:
+                name: pocket-id
+                port:
+                  number: 1411
+            path: /
+            pathType: Prefix
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  annotations:
+    kubenix/k8s-version: "1.36"
+    kubenix/project-name: pocketid
+  name: pocket-id
+  namespace: auth
+spec:
+  itemPath: vaults/Personal/items/pocket-id
