@@ -47,5 +47,11 @@ in {
       ./_k3s.nix
       (import ./_network.nix {inherit constants;})
     ];
+
+    # aarch64-linux: the OrbStack VM on the workstation.
+    sorbet-dev = mkSorbet "aarch64-linux" [
+      ./_k3s.nix
+      ./_dev.nix
+    ];
   };
 }
