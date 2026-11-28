@@ -115,7 +115,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: lldap.192.168.139.139.sslip.io
+    - host: lldap.dev.kuipr.de
       http:
         paths:
           - backend:

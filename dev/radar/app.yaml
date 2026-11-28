@@ -29,7 +29,7 @@ spec:
             - --port=9280
             - --listen-address=0.0.0.0
             - --no-browser
-            - --allowed-hosts=radar.radar,radar.192.168.139.139.sslip.io
+            - --allowed-hosts=radar.radar,radar.dev.kuipr.de
           image: ghcr.io/skyhook-io/radar:1.22.0
           livenessProbe:
             httpGet:
@@ -101,7 +101,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: radar.192.168.139.139.sslip.io
+    - host: radar.dev.kuipr.de
       http:
         paths:
           - backend:

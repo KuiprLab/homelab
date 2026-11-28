@@ -22,7 +22,7 @@ spec:
       containers:
         - env:
             - name: APP_URL
-              value: http://pocket-id.192.168.139.139.sslip.io
+              value: http://pocket-id.dev.kuipr.de
             - name: LDAP_ENABLED
               value: "true"
             - name: LDAP_URL
@@ -135,7 +135,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pocket-id.192.168.139.139.sslip.io
+    - host: pocket-id.dev.kuipr.de
       http:
         paths:
           - backend:
